@@ -1,0 +1,548 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		689074602EE4ACA2007934D8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 689074442EE4ACA0007934D8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6890744B2EE4ACA0007934D8;
+			remoteInfo = Pluck;
+		};
+		6890746A2EE4ACA2007934D8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 689074442EE4ACA0007934D8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6890744B2EE4ACA0007934D8;
+			remoteInfo = Pluck;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		6890744C2EE4ACA0007934D8 /* Pluck.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pluck.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6890745F2EE4ACA2007934D8 /* PluckTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PluckTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		689074692EE4ACA2007934D8 /* PluckUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PluckUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		6890744E2EE4ACA0007934D8 /* Pluck */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Pluck;
+			sourceTree = "<group>";
+		};
+		689074622EE4ACA2007934D8 /* PluckTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PluckTests;
+			sourceTree = "<group>";
+		};
+		6890746C2EE4ACA2007934D8 /* PluckUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PluckUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		689074492EE4ACA0007934D8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6890745C2EE4ACA2007934D8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		689074662EE4ACA2007934D8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		689074432EE4ACA0007934D8 = {
+			isa = PBXGroup;
+			children = (
+				6890744E2EE4ACA0007934D8 /* Pluck */,
+				689074622EE4ACA2007934D8 /* PluckTests */,
+				6890746C2EE4ACA2007934D8 /* PluckUITests */,
+				6890744D2EE4ACA0007934D8 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6890744D2EE4ACA0007934D8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6890744C2EE4ACA0007934D8 /* Pluck.app */,
+				6890745F2EE4ACA2007934D8 /* PluckTests.xctest */,
+				689074692EE4ACA2007934D8 /* PluckUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		6890744B2EE4ACA0007934D8 /* Pluck */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 689074732EE4ACA2007934D8 /* Build configuration list for PBXNativeTarget "Pluck" */;
+			buildPhases = (
+				689074482EE4ACA0007934D8 /* Sources */,
+				689074492EE4ACA0007934D8 /* Frameworks */,
+				6890744A2EE4ACA0007934D8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6890744E2EE4ACA0007934D8 /* Pluck */,
+			);
+			name = Pluck;
+			packageProductDependencies = (
+			);
+			productName = Pluck;
+			productReference = 6890744C2EE4ACA0007934D8 /* Pluck.app */;
+			productType = "com.apple.product-type.application";
+		};
+		6890745E2EE4ACA2007934D8 /* PluckTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 689074762EE4ACA2007934D8 /* Build configuration list for PBXNativeTarget "PluckTests" */;
+			buildPhases = (
+				6890745B2EE4ACA2007934D8 /* Sources */,
+				6890745C2EE4ACA2007934D8 /* Frameworks */,
+				6890745D2EE4ACA2007934D8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				689074612EE4ACA2007934D8 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				689074622EE4ACA2007934D8 /* PluckTests */,
+			);
+			name = PluckTests;
+			packageProductDependencies = (
+			);
+			productName = PluckTests;
+			productReference = 6890745F2EE4ACA2007934D8 /* PluckTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		689074682EE4ACA2007934D8 /* PluckUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 689074792EE4ACA2007934D8 /* Build configuration list for PBXNativeTarget "PluckUITests" */;
+			buildPhases = (
+				689074652EE4ACA2007934D8 /* Sources */,
+				689074662EE4ACA2007934D8 /* Frameworks */,
+				689074672EE4ACA2007934D8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6890746B2EE4ACA2007934D8 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6890746C2EE4ACA2007934D8 /* PluckUITests */,
+			);
+			name = PluckUITests;
+			packageProductDependencies = (
+			);
+			productName = PluckUITests;
+			productReference = 689074692EE4ACA2007934D8 /* PluckUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		689074442EE4ACA0007934D8 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1620;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					6890744B2EE4ACA0007934D8 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					6890745E2EE4ACA2007934D8 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 6890744B2EE4ACA0007934D8;
+					};
+					689074682EE4ACA2007934D8 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 6890744B2EE4ACA0007934D8;
+					};
+				};
+			};
+			buildConfigurationList = 689074472EE4ACA0007934D8 /* Build configuration list for PBXProject "Pluck" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 689074432EE4ACA0007934D8;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 6890744D2EE4ACA0007934D8 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6890744B2EE4ACA0007934D8 /* Pluck */,
+				6890745E2EE4ACA2007934D8 /* PluckTests */,
+				689074682EE4ACA2007934D8 /* PluckUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		6890744A2EE4ACA0007934D8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6890745D2EE4ACA2007934D8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		689074672EE4ACA2007934D8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		689074482EE4ACA0007934D8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6890745B2EE4ACA2007934D8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		689074652EE4ACA2007934D8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		689074612EE4ACA2007934D8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6890744B2EE4ACA0007934D8 /* Pluck */;
+			targetProxy = 689074602EE4ACA2007934D8 /* PBXContainerItemProxy */;
+		};
+		6890746B2EE4ACA2007934D8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6890744B2EE4ACA0007934D8 /* Pluck */;
+			targetProxy = 6890746A2EE4ACA2007934D8 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		689074712EE4ACA2007934D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		689074722EE4ACA2007934D8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		689074742EE4ACA2007934D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Pluck/Pluck.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Pluck/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pluckdesign.Pluck;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		689074752EE4ACA2007934D8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Pluck/Pluck.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Pluck/Preview Content\"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pluckdesign.Pluck;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		689074772EE4ACA2007934D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pluckdesign.PluckTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pluck.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Pluck";
+			};
+			name = Debug;
+		};
+		689074782EE4ACA2007934D8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pluckdesign.PluckTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pluck.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Pluck";
+			};
+			name = Release;
+		};
+		6890747A2EE4ACA2007934D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pluckdesign.PluckUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = Pluck;
+			};
+			name = Debug;
+		};
+		6890747B2EE4ACA2007934D8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pluckdesign.PluckUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = Pluck;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		689074472EE4ACA0007934D8 /* Build configuration list for PBXProject "Pluck" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				689074712EE4ACA2007934D8 /* Debug */,
+				689074722EE4ACA2007934D8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		689074732EE4ACA2007934D8 /* Build configuration list for PBXNativeTarget "Pluck" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				689074742EE4ACA2007934D8 /* Debug */,
+				689074752EE4ACA2007934D8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		689074762EE4ACA2007934D8 /* Build configuration list for PBXNativeTarget "PluckTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				689074772EE4ACA2007934D8 /* Debug */,
+				689074782EE4ACA2007934D8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		689074792EE4ACA2007934D8 /* Build configuration list for PBXNativeTarget "PluckUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6890747A2EE4ACA2007934D8 /* Debug */,
+				6890747B2EE4ACA2007934D8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 689074442EE4ACA0007934D8 /* Project object */;
+}
