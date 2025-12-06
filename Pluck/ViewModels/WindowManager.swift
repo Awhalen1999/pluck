@@ -32,8 +32,6 @@ class WindowManager {
     var panelState: PanelState = .collapsed
     var activeFolder: DesignFolder?
     
-    // MARK: - Navigation
-    
     func collapse() {
         panelState = .collapsed
         notifyStateChanged()
@@ -73,8 +71,6 @@ class WindowManager {
         }
         notifyStateChanged()
     }
-    
-    // MARK: - Private
     
     private func notifyStateChanged() {
         NotificationCenter.default.post(name: .panelStateChanged, object: nil)
