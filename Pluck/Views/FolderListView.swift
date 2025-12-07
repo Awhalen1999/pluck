@@ -14,7 +14,13 @@ struct FolderListView: View {
     @State private var isAddingFolder = false
     @State private var newFolderName = ""
     @State private var selectedColorIndex = 0
+    @State private var draggingFolder: DesignFolder?
+    @State private var draggingIndex: Int?
+    @State private var targetIndex: Int?
     @FocusState private var isTextFieldFocused: Bool
+    
+    private let cardHeight: CGFloat = 68
+    private let cardSpacing: CGFloat = 8
     
     private let colorOptions = [
         "#8B5CF6", // Purple
@@ -29,22 +35,101 @@ struct FolderListView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
             header
             
-            // Folder list
             ScrollView {
-                LazyVStack(spacing: 8) {
-                    ForEach(folders) { folder in
-                        BoxCardView(folder: folder)
+                LazyVStack(spacing: cardSpacing) {
+                    ForEach(Array(folders.enumerated()), id: \.element.id) { index, folder in
+                        BoxCardView(
+                            folder: folder,
+                            onTap: { windowManager.openFolder(folder) },
+                            onDragStarted: {
+                                draggingFolder = folder
+                                draggingIndex = index
+                                targetIndex = index
+                            },
+                            onDragChanged: { translation in
+                                updateTargetIndex(from: index, translation: translation)
+                            },
+                            onDragEnded: {
+                                commitReorder()
+                            }
+                        )
+                        .offset(y: offsetForIndex(index))
+                        .zIndex(draggingIndex == index ? 100 : 0)
                     }
                     
-                    // New folder
                     newFolderCard
                 }
                 .padding(12)
+                .animation(.spring(response: 0.3, dampingFraction: 0.75), value: targetIndex)
             }
         }
+    }
+    
+    // MARK: - Calculate offset for shifting cards
+    
+    private func offsetForIndex(_ index: Int) -> CGFloat {
+        guard let dragging = draggingIndex, let target = targetIndex else { return 0 }
+        
+        // Don't offset the dragging card itself
+        if index == dragging { return 0 }
+        
+        let itemHeight = cardHeight + cardSpacing
+        
+        if dragging < target {
+            // Dragging down: items between dragging and target shift UP
+            if index > dragging && index <= target {
+                return -itemHeight
+            }
+        } else if dragging > target {
+            // Dragging up: items between target and dragging shift DOWN
+            if index >= target && index < dragging {
+                return itemHeight
+            }
+        }
+        
+        return 0
+    }
+    
+    // MARK: - Update target index based on drag translation
+    
+    private func updateTargetIndex(from originalIndex: Int, translation: CGSize) {
+        let itemHeight = cardHeight + cardSpacing
+        let dragOffset = Int(round(translation.height / itemHeight))
+        var newIndex = originalIndex + dragOffset
+        
+        // Clamp to valid range
+        newIndex = max(0, min(newIndex, folders.count - 1))
+        
+        if newIndex != targetIndex {
+            targetIndex = newIndex
+        }
+    }
+    
+    // MARK: - Commit the reorder
+    
+    private func commitReorder() {
+        guard let fromIndex = draggingIndex, let toIndex = targetIndex, fromIndex != toIndex else {
+            draggingFolder = nil
+            draggingIndex = nil
+            targetIndex = nil
+            return
+        }
+        
+        // Reorder the folders
+        var sorted = folders.sorted { $0.sortOrder < $1.sortOrder }
+        let moved = sorted.remove(at: fromIndex)
+        sorted.insert(moved, at: toIndex)
+        
+        // Update sort orders
+        for (index, folder) in sorted.enumerated() {
+            folder.sortOrder = index
+        }
+        
+        draggingFolder = nil
+        draggingIndex = nil
+        targetIndex = nil
     }
     
     // MARK: - Header
@@ -80,7 +165,6 @@ struct FolderListView: View {
         Group {
             if isAddingFolder {
                 HStack(spacing: 10) {
-                    // Color dot - tap to cycle
                     Circle()
                         .fill(Color(hex: colorOptions[selectedColorIndex]) ?? .purple)
                         .frame(width: 10, height: 10)
@@ -90,7 +174,6 @@ struct FolderListView: View {
                             }
                         }
                     
-                    // Name field
                     TextField("Folder name", text: $newFolderName)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13, weight: .medium))
@@ -101,7 +184,6 @@ struct FolderListView: View {
                     
                     Spacer()
                     
-                    // Confirm button
                     Button(action: { createFolder() }) {
                         Image(systemName: "checkmark")
                             .font(.system(size: 10, weight: .bold))
@@ -184,18 +266,78 @@ struct FolderListView: View {
 
 struct BoxCardView: View {
     let folder: DesignFolder
-    @Environment(WindowManager.self) private var windowManager
+    let onTap: () -> Void
+    let onDragStarted: () -> Void
+    let onDragChanged: (CGSize) -> Void
+    let onDragEnded: () -> Void
+    
     @Environment(\.modelContext) private var modelContext
     
     @State private var isHovered = false
     @State private var isDropTargeted = false
     @State private var thumbnails: [NSImage] = []
     
+    // Drag state
+    @State private var holdTimer: Timer?
+    @State private var canDrag = false
+    @State private var dragOffset: CGSize = .zero
+    @State private var wiggleAngle: Double = 0
+    
+    private let holdDuration: TimeInterval = 0.5
+    
     private var folderColor: Color {
         Color(hex: folder.colorHex) ?? .purple
     }
     
     var body: some View {
+        cardContent
+            .offset(y: canDrag ? dragOffset.height : 0)
+            .scaleEffect(canDrag ? 1.03 : (isDropTargeted ? 1.02 : 1.0))
+            .rotationEffect(.degrees(wiggleAngle))
+            .shadow(color: .black.opacity(canDrag ? 0.4 : 0), radius: canDrag ? 12 : 0, y: canDrag ? 6 : 0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.8), value: canDrag)
+            .animation(.easeOut(duration: 0.15), value: isDropTargeted)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if holdTimer == nil && !canDrag {
+                            holdTimer = Timer.scheduledTimer(withTimeInterval: holdDuration, repeats: false) { _ in
+                                DispatchQueue.main.async {
+                                    canDrag = true
+                                    onDragStarted()
+                                    startWiggle()
+                                }
+                            }
+                        }
+                        
+                        if canDrag {
+                            dragOffset = value.translation
+                            onDragChanged(value.translation)
+                        }
+                    }
+                    .onEnded { _ in
+                        holdTimer?.invalidate()
+                        holdTimer = nil
+                        
+                        if !canDrag {
+                            onTap()
+                        } else {
+                            stopWiggle()
+                            onDragEnded()
+                        }
+                        
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                            dragOffset = .zero
+                            canDrag = false
+                        }
+                    }
+            )
+            .onDrop(of: [.image, .fileURL], isTargeted: $isDropTargeted) { providers in
+                handleImageDrop(providers)
+            }
+    }
+    
+    private var cardContent: some View {
         HStack(spacing: 12) {
             // Color accent bar
             RoundedRectangle(cornerRadius: 2)
@@ -230,7 +372,6 @@ struct BoxCardView: View {
                             .foregroundStyle(.white.opacity(0.2))
                     }
                 } else {
-                    // Thumbnail preview row
                     HStack(spacing: -8) {
                         ForEach(Array(thumbnails.prefix(4).enumerated()), id: \.offset) { index, image in
                             Image(nsImage: image)
@@ -261,27 +402,17 @@ struct BoxCardView: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(.white.opacity(isDropTargeted ? 0.12 : (isHovered ? 0.08 : 0.05)))
+                .fill(.white.opacity(canDrag ? 0.12 : (isDropTargeted ? 0.1 : (isHovered ? 0.08 : 0.05))))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(
-                    isDropTargeted ? folderColor.opacity(0.8) : .white.opacity(isHovered ? 0.12 : 0.06),
-                    lineWidth: isDropTargeted ? 1.5 : 1
+                    isDropTargeted ? folderColor.opacity(0.6) : .white.opacity(isHovered ? 0.12 : 0.06),
+                    lineWidth: 1
                 )
         )
-        .scaleEffect(isDropTargeted ? 1.02 : 1.0)
-        .animation(.easeOut(duration: 0.15), value: isHovered)
-        .animation(.easeOut(duration: 0.15), value: isDropTargeted)
         .onHover { hovering in
             isHovered = hovering
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            windowManager.openFolder(folder)
-        }
-        .onDrop(of: [.image, .fileURL], isTargeted: $isDropTargeted) { providers in
-            handleDrop(providers)
         }
         .onAppear {
             loadThumbnails()
@@ -290,6 +421,25 @@ struct BoxCardView: View {
             loadThumbnails()
         }
     }
+    
+    // MARK: - Wiggle
+    
+    private func startWiggle() {
+        withAnimation(
+            .easeInOut(duration: 0.1)
+            .repeatForever(autoreverses: true)
+        ) {
+            wiggleAngle = 1.5
+        }
+    }
+    
+    private func stopWiggle() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            wiggleAngle = 0
+        }
+    }
+    
+    // MARK: - Thumbnails
     
     private func loadThumbnails() {
         let sortedImages = folder.images.sorted { $0.sortOrder < $1.sortOrder }
@@ -308,7 +458,9 @@ struct BoxCardView: View {
         }
     }
     
-    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+    // MARK: - Image Drop
+    
+    private func handleImageDrop(_ providers: [NSItemProvider]) -> Bool {
         for provider in providers {
             if provider.hasItemConformingToTypeIdentifier("public.image") {
                 provider.loadDataRepresentation(forTypeIdentifier: "public.image") { data, error in
