@@ -2,6 +2,7 @@
 //  MenuBarView.swift
 //  Pluck
 //
+
 import SwiftUI
 
 struct MenuBarView: View {
@@ -14,8 +15,8 @@ struct MenuBarView: View {
         Divider()
         
         Button("Switch Side") {
-            let current = FloatingPanelController.shared.windowManager.dockedEdge
-            FloatingPanelController.shared.windowManager.setDockedEdge(current == .right ? .left : .right)
+            let manager = FloatingPanelController.shared.windowManager
+            manager.setDockedEdge(manager.dockedEdge == .right ? .left : .right)
         }
         
         Divider()

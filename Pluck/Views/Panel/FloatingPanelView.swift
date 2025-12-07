@@ -9,20 +9,6 @@ import SwiftData
 struct FloatingPanelView: View {
     @Environment(WindowManager.self) private var windowManager
     
-    // MARK: - Dimensions
-    
-    private enum Dimensions {
-        static let collapsedSize: CGFloat = 50
-        static let listWidth: CGFloat = 220
-        static let listHeight: CGFloat = 350
-        static let detailWidth: CGFloat = 220 
-        static let detailHeight: CGFloat = 350
-        static let focusedWidth: CGFloat = 340
-        static let focusedHeight: CGFloat = 400
-    }
-    
-    // MARK: - Body
-    
     var body: some View {
         content
             .background(panelBackground)
@@ -41,34 +27,49 @@ struct FloatingPanelView: View {
         switch windowManager.panelState {
         case .collapsed:
             CollapsedView()
-                .frame(width: Dimensions.collapsedSize, height: Dimensions.collapsedSize)
+                .frame(
+                    width: PanelDimensions.collapsedSize.width,
+                    height: PanelDimensions.collapsedSize.height
+                )
                 
         case .folderList:
             FolderListView()
-                .frame(width: Dimensions.listWidth, height: Dimensions.listHeight)
+                .frame(
+                    width: PanelDimensions.folderListSize.width,
+                    height: PanelDimensions.folderListSize.height
+                )
                 
         case .folderOpen(let folder):
             FolderDetailView(folder: folder)
-                .frame(width: Dimensions.detailWidth, height: Dimensions.detailHeight)
+                .frame(
+                    width: PanelDimensions.folderDetailSize.width,
+                    height: PanelDimensions.folderDetailSize.height
+                )
                 
         case .imageFocused(let image):
             ImageDetailView(image: image)
-                .frame(width: Dimensions.focusedWidth, height: Dimensions.focusedHeight)
+                .frame(
+                    width: PanelDimensions.imageDetailSize.width,
+                    height: PanelDimensions.imageDetailSize.height
+                )
         }
     }
     
     // MARK: - Styling
     
     private var cornerRadius: CGFloat {
-        windowManager.panelState == .collapsed ? 12 : 14
+        switch windowManager.panelState {
+        case .collapsed:
+            return PanelDimensions.collapsedCornerRadius
+        default:
+            return PanelDimensions.expandedCornerRadius
+        }
     }
     
     private var panelBackground: some View {
         ZStack {
-            // Base dark fill
             Color.black.opacity(0.85)
             
-            // Subtle glass effect
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(.ultraThinMaterial)
                 .opacity(0.3)
