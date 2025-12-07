@@ -9,18 +9,29 @@ import SwiftData
 struct FolderListView: View {
     @Environment(WindowManager.self) private var windowManager
     @Environment(\.modelContext) private var modelContext
+    @Environment(ClipboardWatcher.self) private var clipboardWatcher
     @Query(sort: \DesignFolder.sortOrder) private var folders: [DesignFolder]
     
     @State private var isAddingFolder = false
+    @State private var hoveredFolderID: UUID?
     
     // Drag reorder state
     @State private var draggingIndex: Int?
     @State private var targetIndex: Int?
     
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            folderList
+        ZStack {
+            VStack(spacing: 0) {
+                header
+                folderList
+            }
+            
+            // Paste hint overlay
+            PasteOverlay(isVisible: clipboardWatcher.hasImage && hoveredFolderID != nil)
+        }
+        .onPasteCommand(of: [.image]) { providers in
+            print("PASTE TRIGGERED")  // <---- we must see this in console
+            return handlePaste(providers)
         }
     }
     
@@ -50,6 +61,9 @@ struct FolderListView: View {
                     )
                     .offset(y: offsetForIndex(index))
                     .zIndex(draggingIndex == index ? 100 : 0)
+                    .onHover { hovering in
+                        hoveredFolderID = hovering ? folder.id : nil
+                    }
                 }
                 
                 NewFolderCard(isAdding: $isAddingFolder) { name, colorHex in
@@ -58,6 +72,31 @@ struct FolderListView: View {
             }
             .padding(PanelDimensions.contentPadding)
             .animation(.spring(response: 0.3, dampingFraction: 0.75), value: targetIndex)
+        }
+    }
+    
+    // MARK: - Paste Handling
+    
+    private func handlePaste(_ items: [NSItemProvider]) {
+        guard let folderID = hoveredFolderID,
+              let folder = folders.first(where: { $0.id == folderID }),
+              let imageData = clipboardWatcher.getImageData() else { return }
+        
+        saveImage(imageData, to: folder)
+    }
+    
+    private func saveImage(_ data: Data, to folder: DesignFolder) {
+        do {
+            let filename = try FileManagerHelper.saveImage(data, originalName: "Pasted Image")
+            let newImage = DesignImage(
+                filename: filename,
+                originalName: "Pasted Image",
+                sortOrder: folder.images.count,
+                folder: folder
+            )
+            modelContext.insert(newImage)
+        } catch {
+            print("Failed to save pasted image: \(error)")
         }
     }
     
@@ -145,6 +184,7 @@ private extension Comparable {
 #Preview {
     FolderListView()
         .environment(WindowManager())
+        .environment(ClipboardWatcher())
         .modelContainer(for: [DesignFolder.self, DesignImage.self])
         .frame(width: 220, height: 350)
         .background(Color.black.opacity(0.8))

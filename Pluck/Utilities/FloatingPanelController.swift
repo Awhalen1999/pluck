@@ -7,62 +7,48 @@ import AppKit
 import SwiftUI
 import SwiftData
 
-// MARK: - FloatingPanel
+// MARK: - Floating Panel
 
 class FloatingPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
 
-// MARK: - FloatingPanelController
+// MARK: - Panel Controller
 
 @MainActor
-final class FloatingPanelController {
-    
+class FloatingPanelController {
     static let shared = FloatingPanelController()
     
-    // MARK: - Configuration
-    
-    private enum Layout {
-        static let edgeMargin: CGFloat = 10
-        
-        static let collapsedSize = NSSize(width: 50, height: 50)
-        static let folderListSize = NSSize(width: 220, height: 350)
-        static let folderOpenSize = NSSize(width: 220, height: 350)
-        static let imageFocusedSize = NSSize(width: 340, height: 400)
-    }
-    
-    // MARK: - Properties
-    
-    let windowManager = WindowManager()
-    
     private var panel: FloatingPanel?
+    let windowManager = WindowManager()
+    let clipboardWatcher = ClipboardWatcher()
     private var modelContainer: ModelContainer?
-    private var stateObserver: NSObjectProtocol?
     
-    // MARK: - Initialization
+    private let edgeMargin: CGFloat = 10
+    
+    private enum PanelSize {
+        static let collapsed = NSSize(width: 50, height: 50)
+        static let folderList = NSSize(width: 220, height: 350)
+        static let folderOpen = NSSize(width: 220, height: 350)
+        static let imageFocused = NSSize(width: 340, height: 400)
+    }
     
     private init() {
         setupModelContainer()
-        setupStateObserver()
-    }
-    
-    deinit {
-        if let observer = stateObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+        setupNotificationObserver()
     }
     
     private func setupModelContainer() {
         do {
             modelContainer = try ModelContainer(for: DesignFolder.self, DesignImage.self)
         } catch {
-            assertionFailure("Failed to create ModelContainer: \(error)")
+            print("Failed to create ModelContainer: \(error)")
         }
     }
     
-    private func setupStateObserver() {
-        stateObserver = NotificationCenter.default.addObserver(
+    private func setupNotificationObserver() {
+        NotificationCenter.default.addObserver(
             forName: .panelStateChanged,
             object: nil,
             queue: .main
@@ -72,8 +58,6 @@ final class FloatingPanelController {
             }
         }
     }
-    
-    // MARK: - Panel Visibility
     
     func showPanel() {
         if let panel = panel {
@@ -88,39 +72,28 @@ final class FloatingPanelController {
     }
     
     func togglePanel() {
-        guard let panel = panel, panel.isVisible else {
+        if let panel = panel, panel.isVisible {
+            hidePanel()
+        } else {
             showPanel()
-            return
         }
-        hidePanel()
     }
-    
-    // MARK: - Panel Creation
     
     private func createPanel() {
         guard let modelContainer = modelContainer else { return }
         
         let contentView = FloatingPanelView()
             .environment(windowManager)
+            .environment(ClipboardWatcher())
             .modelContainer(modelContainer)
         
         let panel = FloatingPanel(
-            contentRect: NSRect(origin: .zero, size: Layout.collapsedSize),
+            contentRect: NSRect(origin: .zero, size: PanelSize.collapsed),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         
-        configurePanel(panel)
-        positionPanel(panel, size: Layout.collapsedSize)
-        
-        panel.contentView = NSHostingView(rootView: contentView)
-        panel.orderFront(nil)
-        
-        self.panel = panel
-    }
-    
-    private func configurePanel(_ panel: FloatingPanel) {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
@@ -128,65 +101,65 @@ final class FloatingPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isMovableByWindowBackground = false
         panel.hidesOnDeactivate = false
+        
+        // Set initial position based on docked edge
+        if let screen = NSScreen.main {
+            let origin = calculateOrigin(
+                for: PanelSize.collapsed,
+                in: screen.visibleFrame
+            )
+            panel.setFrameOrigin(origin)
+        }
+        
+        panel.contentView = NSHostingView(rootView: contentView)
+        panel.orderFront(nil)
+        
+        self.panel = panel
     }
-    
-    private func positionPanel(_ panel: FloatingPanel, size: NSSize) {
-        guard let screen = NSScreen.main else { return }
-        let origin = calculateOrigin(for: size, in: screen.visibleFrame)
-        panel.setFrameOrigin(origin)
-    }
-    
-    // MARK: - Frame Updates
     
     func updatePanelFrame(animated: Bool = false) {
         guard let panel = panel, let screen = NSScreen.main else { return }
         
         let newSize = sizeForCurrentState()
-        let newOrigin = calculateOrigin(for: newSize, in: screen.visibleFrame)
+        let screenRect = screen.visibleFrame
+        let newOrigin = calculateOrigin(for: newSize, in: screenRect)
         let newFrame = NSRect(origin: newOrigin, size: newSize)
         
-        guard animated else {
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.25
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().setFrame(newFrame, display: true)
+            }
+        } else {
             panel.setFrame(newFrame, display: true)
-            return
-        }
-        
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.25
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().setFrame(newFrame, display: true)
         }
     }
     
-    // MARK: - Layout Calculation
-    
     private func calculateOrigin(for size: NSSize, in screenRect: NSRect) -> NSPoint {
         let x: CGFloat
+        
         if windowManager.dockedEdge == .right {
-            x = screenRect.maxX - size.width - Layout.edgeMargin
+            x = screenRect.maxX - size.width - edgeMargin
         } else {
-            x = screenRect.minX + Layout.edgeMargin
+            x = screenRect.minX + edgeMargin
         }
         
+        // Y position: convert from "distance from top" to screen coordinates
         let y = screenRect.maxY - windowManager.dockedYPosition - size.height
-        let clampedY = y.clamped(to: screenRect.minY + Layout.edgeMargin...screenRect.maxY - size.height - Layout.edgeMargin)
+        
+        // Clamp Y to keep panel on screen
+        let clampedY = max(screenRect.minY + edgeMargin, min(y, screenRect.maxY - size.height - edgeMargin))
         
         return NSPoint(x: x, y: clampedY)
     }
     
     private func sizeForCurrentState() -> NSSize {
         switch windowManager.panelState {
-        case .collapsed: return Layout.collapsedSize
-        case .folderList: return Layout.folderListSize
-        case .folderOpen: return Layout.folderOpenSize
-        case .imageFocused: return Layout.imageFocusedSize
+        case .collapsed: return PanelSize.collapsed
+        case .folderList: return PanelSize.folderList
+        case .folderOpen: return PanelSize.folderOpen
+        case .imageFocused: return PanelSize.imageFocused
         }
-    }
-}
-
-// MARK: - Comparable Extension
-
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
-        min(max(self, range.lowerBound), range.upperBound)
     }
 }

@@ -14,6 +14,7 @@ struct FolderCardView: View {
     let onDragEnded: () -> Void
     
     @Environment(\.modelContext) private var modelContext
+    @Environment(ClipboardWatcher.self) private var clipboardWatcher
     
     @State private var isHovered = false
     @State private var isDropTargeted = false
@@ -29,6 +30,10 @@ struct FolderCardView: View {
     
     private var folderColor: Color {
         Color(hex: folder.colorHex) ?? .purple
+    }
+    
+    private var showPasteBadge: Bool {
+        isHovered && clipboardWatcher.hasImage
     }
     
     var body: some View {
@@ -81,10 +86,16 @@ struct FolderCardView: View {
             
             Spacer()
             
-            Text("\(folder.imageCount) item\(folder.imageCount == 1 ? "" : "s")")
-                .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.4))
+            if showPasteBadge {
+                PasteBadge()
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+            } else {
+                Text("\(folder.imageCount) item\(folder.imageCount == 1 ? "" : "s")")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.4))
+            }
         }
+        .animation(.easeOut(duration: 0.15), value: showPasteBadge)
     }
     
     @ViewBuilder
