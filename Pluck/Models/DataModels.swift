@@ -6,6 +6,14 @@
 import Foundation
 import SwiftData
 
+// MARK: - Constants
+
+enum DesignConstants {
+    static let defaultFolderColor = "#6366F1"
+}
+
+// MARK: - DesignFolder
+
 @Model
 class DesignFolder {
     var id: UUID
@@ -17,7 +25,11 @@ class DesignFolder {
     @Relationship(deleteRule: .cascade, inverse: \DesignImage.folder)
     var images: [DesignImage] = []
     
-    init(name: String, colorHex: String = "#6366F1", sortOrder: Int = 0) {
+    init(
+        name: String,
+        colorHex: String = DesignConstants.defaultFolderColor,
+        sortOrder: Int = 0
+    ) {
         self.id = UUID()
         self.name = name
         self.colorHex = colorHex
@@ -25,10 +37,14 @@ class DesignFolder {
         self.createdAt = Date()
     }
     
-    var imageCount: Int {
-        images.count
+    var imageCount: Int { images.count }
+    
+    var sortedImages: [DesignImage] {
+        images.sorted { $0.sortOrder < $1.sortOrder }
     }
 }
+
+// MARK: - DesignImage
 
 @Model
 class DesignImage {
@@ -40,7 +56,13 @@ class DesignImage {
     var createdAt: Date
     var folder: DesignFolder?
     
-    init(filename: String, originalName: String, sourceURL: String? = nil, sortOrder: Int = 0, folder: DesignFolder? = nil) {
+    init(
+        filename: String,
+        originalName: String,
+        sourceURL: String? = nil,
+        sortOrder: Int = 0,
+        folder: DesignFolder? = nil
+    ) {
         self.id = UUID()
         self.filename = filename
         self.originalName = originalName
@@ -48,13 +70,5 @@ class DesignImage {
         self.sortOrder = sortOrder
         self.createdAt = Date()
         self.folder = folder
-    }
-    
-    var fileURL: URL {
-        FileManagerHelper.imagesDirectory.appendingPathComponent(filename)
-    }
-    
-    var thumbnailURL: URL {
-        FileManagerHelper.thumbnailsDirectory.appendingPathComponent(filename)
     }
 }
