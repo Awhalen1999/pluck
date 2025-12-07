@@ -2,7 +2,6 @@
 //  WindowManager.swift
 //  Pluck
 //
-
 import Foundation
 import SwiftUI
 
@@ -25,12 +24,23 @@ enum PanelState: Equatable {
     }
 }
 
+// MARK: - Docked Edge
+
+enum DockedEdge: String {
+    case left
+    case right
+}
+
 // MARK: - Window Manager
 
 @Observable
 class WindowManager {
     var panelState: PanelState = .collapsed
     var activeFolder: DesignFolder?
+    
+    // Edge docking state
+    var dockedEdge: DockedEdge = .right
+    var dockedYPosition: CGFloat = 200  // Distance from top of screen
     
     func collapse() {
         panelState = .collapsed
@@ -69,6 +79,16 @@ class WindowManager {
         case .collapsed:
             break
         }
+        notifyStateChanged()
+    }
+    
+    func setDockedEdge(_ edge: DockedEdge) {
+        dockedEdge = edge
+        notifyStateChanged()
+    }
+    
+    func updateYPosition(_ yPosition: CGFloat) {
+        dockedYPosition = yPosition
         notifyStateChanged()
     }
     

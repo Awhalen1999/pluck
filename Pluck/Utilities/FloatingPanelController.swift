@@ -24,14 +24,13 @@ class FloatingPanelController {
     let windowManager = WindowManager()
     private var modelContainer: ModelContainer?
     
-    private var expandedLeft: Bool = true
-    private var collapsedOrigin: NSPoint?
+    private let edgeMargin: CGFloat = 10
     
     private enum PanelSize {
         static let collapsed = NSSize(width: 50, height: 50)
-        static let folderList = NSSize(width: 280, height: 350)
-        static let folderOpen = NSSize(width: 280, height: 350)
-        static let imageFocused = NSSize(width: 400, height: 450)
+        static let folderList = NSSize(width: 220, height: 350)
+        static let folderOpen = NSSize(width: 240, height: 340)
+        static let imageFocused = NSSize(width: 360, height: 420)
     }
     
     private init() {
@@ -54,7 +53,7 @@ class FloatingPanelController {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.updatePanelSize()
+                self?.updatePanelFrame()
             }
         }
     }
@@ -101,11 +100,13 @@ class FloatingPanelController {
         panel.isMovableByWindowBackground = false
         panel.hidesOnDeactivate = false
         
+        // Set initial position based on docked edge
         if let screen = NSScreen.main {
-            let screenRect = screen.visibleFrame
-            let x = screenRect.maxX - 80
-            let y = screenRect.maxY - 80
-            panel.setFrameOrigin(NSPoint(x: x, y: y))
+            let origin = calculateOrigin(
+                for: PanelSize.collapsed,
+                in: screen.visibleFrame
+            )
+            panel.setFrameOrigin(origin)
         }
         
         panel.contentView = NSHostingView(rootView: contentView)
@@ -114,52 +115,41 @@ class FloatingPanelController {
         self.panel = panel
     }
     
-    private var lastUpdateSize: CGFloat = 50
-    
-    func updatePanelSize() {
+    func updatePanelFrame(animated: Bool = false) {
         guard let panel = panel, let screen = NSScreen.main else { return }
         
-        let currentFrame = panel.frame
         let newSize = sizeForCurrentState()
         let screenRect = screen.visibleFrame
+        let newOrigin = calculateOrigin(for: newSize, in: screenRect)
+        let newFrame = NSRect(origin: newOrigin, size: newSize)
         
-        // Skip duplicate calls
-        if newSize.width == lastUpdateSize {
-            return
-        }
-        lastUpdateSize = newSize.width
-        
-        let wasCollapsed = currentFrame.size.width <= 100
-        let isCollapsing = newSize.width <= 100
-        let isExpanding = newSize.width > 100
-        
-        // Save collapsed position before expanding
-        if wasCollapsed && isExpanding {
-            collapsedOrigin = currentFrame.origin
-            
-            let panelCenterX = currentFrame.midX
-            let screenCenterX = screenRect.midX
-            expandedLeft = panelCenterX > screenCenterX
-        }
-        
-        var newOrigin: NSPoint
-        
-        // When collapsing, restore the exact saved position
-        if isCollapsing, let savedOrigin = collapsedOrigin {
-            newOrigin = savedOrigin
-        } else if expandedLeft {
-            newOrigin = NSPoint(
-                x: currentFrame.maxX - newSize.width,
-                y: currentFrame.maxY - newSize.height
-            )
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.25
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().setFrame(newFrame, display: true)
+            }
         } else {
-            newOrigin = NSPoint(
-                x: currentFrame.minX,
-                y: currentFrame.maxY - newSize.height
-            )
+            panel.setFrame(newFrame, display: true)
+        }
+    }
+    
+    private func calculateOrigin(for size: NSSize, in screenRect: NSRect) -> NSPoint {
+        let x: CGFloat
+        
+        if windowManager.dockedEdge == .right {
+            x = screenRect.maxX - size.width - edgeMargin
+        } else {
+            x = screenRect.minX + edgeMargin
         }
         
-        panel.setFrame(NSRect(origin: newOrigin, size: newSize), display: true)
+        // Y position: convert from "distance from top" to screen coordinates
+        let y = screenRect.maxY - windowManager.dockedYPosition - size.height
+        
+        // Clamp Y to keep panel on screen
+        let clampedY = max(screenRect.minY + edgeMargin, min(y, screenRect.maxY - size.height - edgeMargin))
+        
+        return NSPoint(x: x, y: clampedY)
     }
     
     private func sizeForCurrentState() -> NSSize {
