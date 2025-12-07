@@ -41,11 +41,7 @@ struct FolderCardView: View {
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: canDrag)
             .animation(.easeOut(duration: 0.15), value: isDropTargeted)
             .gesture(dragGesture)
-            .dropTarget(
-                isTargeted: $isDropTargeted,
-                cornerRadius: PanelDimensions.folderCardCornerRadius,
-                accentColor: folderColor
-            ) { providers in
+            .onDrop(of: ["public.image", "public.file-url"], isTargeted: $isDropTargeted) { providers in
                 handleImageDrop(providers)
             }
     }
@@ -119,11 +115,11 @@ struct FolderCardView: View {
     
     private var cardBorder: some View {
         RoundedRectangle(cornerRadius: PanelDimensions.folderCardCornerRadius)
-            .stroke(borderColor, lineWidth: 1)
+            .stroke(borderColor, lineWidth: isDropTargeted ? 1.5 : 1)
     }
     
     private var borderColor: Color {
-        if isDropTargeted { return folderColor.opacity(0.6) }
+        if isDropTargeted { return folderColor }
         return .white.opacity(isHovered ? 0.12 : 0.06)
     }
     

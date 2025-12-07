@@ -11,6 +11,7 @@ struct NewFolderCard: View {
     
     @State private var folderName = ""
     @State private var selectedColorIndex = 0
+    @State private var isHovered = false
     @FocusState private var isTextFieldFocused: Bool
     
     private var selectedColor: String {
@@ -34,11 +35,11 @@ struct NewFolderCard: View {
             HStack(spacing: 10) {
                 Image(systemName: "plus")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.3))
+                    .foregroundStyle(.white.opacity(isHovered ? 0.5 : 0.3))
                 
                 Text("New Folder")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.3))
+                    .foregroundStyle(.white.opacity(isHovered ? 0.5 : 0.3))
                 
                 Spacer()
             }
@@ -46,11 +47,16 @@ struct NewFolderCard: View {
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: PanelDimensions.folderCardCornerRadius)
+                    .fill(.white.opacity(isHovered ? 0.03 : 0))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: PanelDimensions.folderCardCornerRadius)
                     .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
-                    .foregroundStyle(.white.opacity(0.1))
+                    .foregroundStyle(.white.opacity(isHovered ? 0.15 : 0.1))
             )
         }
         .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
     
     // MARK: - Editing Card
