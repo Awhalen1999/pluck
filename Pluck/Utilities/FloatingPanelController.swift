@@ -29,8 +29,8 @@ class FloatingPanelController {
     private enum PanelSize {
         static let collapsed = NSSize(width: 50, height: 50)
         static let folderList = NSSize(width: 220, height: 350)
-        static let folderOpen = NSSize(width: 240, height: 340)
-        static let imageFocused = NSSize(width: 360, height: 420)
+        static let folderOpen = NSSize(width: 220, height: 350) 
+        static let imageFocused = NSSize(width: 340, height: 400)
     }
     
     private init() {

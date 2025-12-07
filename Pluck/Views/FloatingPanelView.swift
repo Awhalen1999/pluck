@@ -15,10 +15,10 @@ struct FloatingPanelView: View {
         static let collapsedSize: CGFloat = 50
         static let listWidth: CGFloat = 220
         static let listHeight: CGFloat = 350
-        static let detailWidth: CGFloat = 240
-        static let detailHeight: CGFloat = 340
-        static let focusedWidth: CGFloat = 360
-        static let focusedHeight: CGFloat = 420
+        static let detailWidth: CGFloat = 220 
+        static let detailHeight: CGFloat = 350
+        static let focusedWidth: CGFloat = 340
+        static let focusedHeight: CGFloat = 400
     }
     
     // MARK: - Body
