@@ -60,20 +60,27 @@ final class ClipboardWatcher {
     }
     
     private func pasteboardHasImage(_ pasteboard: NSPasteboard) -> Bool {
+        // Check for image types
         let imageTypes: [NSPasteboard.PasteboardType] = [
-            .png, .tiff, .fileURL
+            .png,
+            .tiff,
+            .fileURL
         ]
         
-        // If pasteboard directly contains image data of any allowed type
-        if pasteboard.canReadItem(withDataConformingToTypes: imageTypes.map(\.rawValue)) {
+        // Direct image data
+        if pasteboard.canReadItem(withDataConformingToTypes: [
+            NSPasteboard.PasteboardType.png.rawValue,
+            NSPasteboard.PasteboardType.tiff.rawValue
+        ]) {
             return true
         }
         
-        // If the pasteboard contains files, verify their extension
+        // File URL that's an image
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] {
-            return urls.contains { url in
-                ["png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp", "heic"]
-                    .contains(url.pathExtension.lowercased())
+            for url in urls {
+                if isImageFile(url) {
+                    return true
+                }
             }
         }
         

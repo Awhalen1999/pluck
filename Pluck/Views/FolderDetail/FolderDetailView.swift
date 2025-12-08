@@ -11,6 +11,7 @@ struct FolderDetailView: View {
     
     @Environment(WindowManager.self) private var windowManager
     @Environment(\.modelContext) private var modelContext
+    @Environment(ClipboardWatcher.self) private var clipboardWatcher
     
     @State private var isDropTargeted = false
     
@@ -21,17 +22,36 @@ struct FolderDetailView: View {
     ]
     
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            content
+        ZStack {
+            VStack(spacing: 0) {
+                header
+                content
+            }
+            .dropTarget(
+                isTargeted: $isDropTargeted,
+                cornerRadius: PanelDimensions.expandedCornerRadius,
+                accentColor: Color(hex: folder.colorHex)
+            ) { providers in
+                handleDrop(providers)
+            }
+            
+            // Paste hint overlay
+            PasteOverlay(isVisible: clipboardWatcher.hasImage)
         }
-        .dropTarget(
-            isTargeted: $isDropTargeted,
-            cornerRadius: PanelDimensions.expandedCornerRadius,
-            accentColor: Color(hex: folder.colorHex)
-        ) { providers in
-            handleDrop(providers)
+        .onAppear { registerPasteHandler() }
+        .onDisappear { unregisterPasteHandler() }
+    }
+    
+    // MARK: - Paste Registration
+    
+    private func registerPasteHandler() {
+        FloatingPanelController.shared.onPasteCommand = { [self] in
+            handlePaste()
         }
+    }
+    
+    private func unregisterPasteHandler() {
+        FloatingPanelController.shared.onPasteCommand = nil
     }
     
     // MARK: - Header
@@ -91,6 +111,15 @@ struct FolderDetailView: View {
         }
     }
     
+    // MARK: - Paste Handling
+    
+    @discardableResult
+    private func handlePaste() -> Bool {
+        guard let imageData = clipboardWatcher.getImageData() else { return false }
+        saveImage(imageData, name: "Pasted Image")
+        return true
+    }
+    
     // MARK: - Drop Handling
     
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
@@ -100,7 +129,7 @@ struct FolderDetailView: View {
                     guard let data = data else { return }
                     
                     DispatchQueue.main.async {
-                        saveDroppedImage(data)
+                        saveImage(data, name: "Dropped Image")
                     }
                 }
                 return true
@@ -109,18 +138,18 @@ struct FolderDetailView: View {
         return false
     }
     
-    private func saveDroppedImage(_ data: Data) {
+    private func saveImage(_ data: Data, name: String) {
         do {
-            let filename = try FileManagerHelper.saveImage(data, originalName: "Dropped Image")
+            let filename = try FileManagerHelper.saveImage(data, originalName: name)
             let newImage = DesignImage(
                 filename: filename,
-                originalName: "Dropped Image",
+                originalName: name,
                 sortOrder: folder.images.count,
                 folder: folder
             )
             modelContext.insert(newImage)
         } catch {
-            print("Failed to save dropped image: \(error)")
+            print("Failed to save image: \(error)")
         }
     }
 }
@@ -131,6 +160,7 @@ struct FolderDetailView: View {
     let folder = DesignFolder(name: "Test Folder")
     return FolderDetailView(folder: folder)
         .environment(WindowManager())
+        .environment(ClipboardWatcher())
         .modelContainer(for: [DesignFolder.self, DesignImage.self])
         .frame(width: 220, height: 350)
         .background(Color.black.opacity(0.8))

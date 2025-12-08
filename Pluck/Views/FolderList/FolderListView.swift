@@ -29,10 +29,20 @@ struct FolderListView: View {
             // Paste hint overlay
             PasteOverlay(isVisible: clipboardWatcher.hasImage && hoveredFolderID != nil)
         }
-        .onPasteCommand(of: [.image]) { providers in
-            print("PASTE TRIGGERED")  // <---- we must see this in console
-            return handlePaste(providers)
+        .onAppear { registerPasteHandler() }
+        .onDisappear { unregisterPasteHandler() }
+    }
+    
+    // MARK: - Paste Registration
+    
+    private func registerPasteHandler() {
+        FloatingPanelController.shared.onPasteCommand = { [self] in
+            handlePaste()
         }
+    }
+    
+    private func unregisterPasteHandler() {
+        FloatingPanelController.shared.onPasteCommand = nil
     }
     
     // MARK: - Header
@@ -77,12 +87,14 @@ struct FolderListView: View {
     
     // MARK: - Paste Handling
     
-    private func handlePaste(_ items: [NSItemProvider]) {
+    @discardableResult
+    private func handlePaste() -> Bool {
         guard let folderID = hoveredFolderID,
               let folder = folders.first(where: { $0.id == folderID }),
-              let imageData = clipboardWatcher.getImageData() else { return }
+              let imageData = clipboardWatcher.getImageData() else { return false }
         
         saveImage(imageData, to: folder)
+        return true
     }
     
     private func saveImage(_ data: Data, to folder: DesignFolder) {

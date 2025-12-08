@@ -7,48 +7,64 @@ import AppKit
 import SwiftUI
 import SwiftData
 
-// MARK: - Floating Panel
+// MARK: - FloatingPanel
 
 class FloatingPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
 
-// MARK: - Panel Controller
+// MARK: - FloatingPanelController
 
 @MainActor
-class FloatingPanelController {
+final class FloatingPanelController {
+    
     static let shared = FloatingPanelController()
     
-    private var panel: FloatingPanel?
+    // MARK: - Properties
+    
     let windowManager = WindowManager()
     let clipboardWatcher = ClipboardWatcher()
+    
+    private var panel: FloatingPanel?
     private var modelContainer: ModelContainer?
+    private var stateObserver: NSObjectProtocol?
+    private var globalKeyMonitor: Any?
+    private var localKeyMonitor: Any?
     
-    private let edgeMargin: CGFloat = 10
+    // Paste handler closure - set by views
+    var onPasteCommand: (() -> Bool)?
     
-    private enum PanelSize {
-        static let collapsed = NSSize(width: 50, height: 50)
-        static let folderList = NSSize(width: 220, height: 350)
-        static let folderOpen = NSSize(width: 220, height: 350)
-        static let imageFocused = NSSize(width: 340, height: 400)
-    }
+    // MARK: - Initialization
     
     private init() {
         setupModelContainer()
-        setupNotificationObserver()
+        setupStateObserver()
+        setupKeyMonitors()
+    }
+    
+    deinit {
+        if let observer = stateObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let monitor = globalKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = localKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
     }
     
     private func setupModelContainer() {
         do {
             modelContainer = try ModelContainer(for: DesignFolder.self, DesignImage.self)
         } catch {
-            print("Failed to create ModelContainer: \(error)")
+            assertionFailure("Failed to create ModelContainer: \(error)")
         }
     }
     
-    private func setupNotificationObserver() {
-        NotificationCenter.default.addObserver(
+    private func setupStateObserver() {
+        stateObserver = NotificationCenter.default.addObserver(
             forName: .panelStateChanged,
             object: nil,
             queue: .main
@@ -58,6 +74,52 @@ class FloatingPanelController {
             }
         }
     }
+    
+    // MARK: - Key Monitors
+    
+    private func setupKeyMonitors() {
+        // Global monitor for when app is not active but mouse is over panel
+        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.handleKeyEvent(event)
+        }
+        
+        // Local monitor for when app is active
+        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if self?.handleKeyEvent(event) == true {
+                return nil // Consume event
+            }
+            return event
+        }
+    }
+    
+    private func removeKeyMonitors() {
+        if let monitor = globalKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = localKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+    }
+    
+    private func handleKeyEvent(_ event: NSEvent) -> Bool {
+        // Check for ⌘V
+        guard event.modifierFlags.contains(.command),
+              event.charactersIgnoringModifiers == "v" else { return false }
+        
+        // Only handle if mouse is over our panel
+        guard isMouseOverPanel() else { return false }
+        
+        // Try to handle paste
+        return onPasteCommand?() ?? false
+    }
+    
+    private func isMouseOverPanel() -> Bool {
+        guard let panel = panel else { return false }
+        let mouseLocation = NSEvent.mouseLocation
+        return panel.frame.contains(mouseLocation)
+    }
+    
+    // MARK: - Panel Visibility
     
     func showPanel() {
         if let panel = panel {
@@ -72,44 +134,32 @@ class FloatingPanelController {
     }
     
     func togglePanel() {
-        if let panel = panel, panel.isVisible {
-            hidePanel()
-        } else {
+        guard let panel = panel, panel.isVisible else {
             showPanel()
+            return
         }
+        hidePanel()
     }
+    
+    // MARK: - Panel Creation
     
     private func createPanel() {
         guard let modelContainer = modelContainer else { return }
         
         let contentView = FloatingPanelView()
             .environment(windowManager)
-            .environment(ClipboardWatcher())
+            .environment(clipboardWatcher)
             .modelContainer(modelContainer)
         
         let panel = FloatingPanel(
-            contentRect: NSRect(origin: .zero, size: PanelSize.collapsed),
+            contentRect: NSRect(origin: .zero, size: PanelDimensions.collapsedNSSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.isMovableByWindowBackground = false
-        panel.hidesOnDeactivate = false
-        
-        // Set initial position based on docked edge
-        if let screen = NSScreen.main {
-            let origin = calculateOrigin(
-                for: PanelSize.collapsed,
-                in: screen.visibleFrame
-            )
-            panel.setFrameOrigin(origin)
-        }
+        configurePanel(panel)
+        positionPanel(panel, size: PanelDimensions.collapsedNSSize)
         
         panel.contentView = NSHostingView(rootView: contentView)
         panel.orderFront(nil)
@@ -117,49 +167,73 @@ class FloatingPanelController {
         self.panel = panel
     }
     
+    private func configurePanel(_ panel: FloatingPanel) {
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.isMovableByWindowBackground = false
+        panel.hidesOnDeactivate = false
+    }
+    
+    private func positionPanel(_ panel: FloatingPanel, size: NSSize) {
+        guard let screen = NSScreen.main else { return }
+        let origin = calculateOrigin(for: size, in: screen.visibleFrame)
+        panel.setFrameOrigin(origin)
+    }
+    
+    // MARK: - Frame Updates
+    
     func updatePanelFrame(animated: Bool = false) {
         guard let panel = panel, let screen = NSScreen.main else { return }
         
         let newSize = sizeForCurrentState()
-        let screenRect = screen.visibleFrame
-        let newOrigin = calculateOrigin(for: newSize, in: screenRect)
+        let newOrigin = calculateOrigin(for: newSize, in: screen.visibleFrame)
         let newFrame = NSRect(origin: newOrigin, size: newSize)
         
-        if animated {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.25
-                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                panel.animator().setFrame(newFrame, display: true)
-            }
-        } else {
+        guard animated else {
             panel.setFrame(newFrame, display: true)
+            return
+        }
+        
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().setFrame(newFrame, display: true)
         }
     }
     
+    // MARK: - Layout Calculation
+    
     private func calculateOrigin(for size: NSSize, in screenRect: NSRect) -> NSPoint {
         let x: CGFloat
-        
         if windowManager.dockedEdge == .right {
-            x = screenRect.maxX - size.width - edgeMargin
+            x = screenRect.maxX - size.width - PanelDimensions.edgeMargin
         } else {
-            x = screenRect.minX + edgeMargin
+            x = screenRect.minX + PanelDimensions.edgeMargin
         }
         
-        // Y position: convert from "distance from top" to screen coordinates
         let y = screenRect.maxY - windowManager.dockedYPosition - size.height
-        
-        // Clamp Y to keep panel on screen
-        let clampedY = max(screenRect.minY + edgeMargin, min(y, screenRect.maxY - size.height - edgeMargin))
+        let clampedY = y.clamped(to: screenRect.minY + PanelDimensions.edgeMargin...screenRect.maxY - size.height - PanelDimensions.edgeMargin)
         
         return NSPoint(x: x, y: clampedY)
     }
     
     private func sizeForCurrentState() -> NSSize {
         switch windowManager.panelState {
-        case .collapsed: return PanelSize.collapsed
-        case .folderList: return PanelSize.folderList
-        case .folderOpen: return PanelSize.folderOpen
-        case .imageFocused: return PanelSize.imageFocused
+        case .collapsed: return PanelDimensions.collapsedNSSize
+        case .folderList: return PanelDimensions.folderListNSSize
+        case .folderOpen: return PanelDimensions.folderDetailNSSize
+        case .imageFocused: return PanelDimensions.imageDetailNSSize
         }
+    }
+}
+
+// MARK: - Comparable Extension
+
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }
