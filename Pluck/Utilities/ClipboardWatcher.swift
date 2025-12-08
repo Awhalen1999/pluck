@@ -5,12 +5,11 @@
 
 import Foundation
 import AppKit
-import Combine
 
 @Observable
 final class ClipboardWatcher {
     
-    // MARK: - Published State
+    // MARK: - State
     
     private(set) var hasImage: Bool = false
     
@@ -19,6 +18,8 @@ final class ClipboardWatcher {
     private var timer: Timer?
     private var lastChangeCount: Int = 0
     private let checkInterval: TimeInterval = 0.5
+    
+    private let imageExtensions = Set(["png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp", "heic"])
     
     // MARK: - Lifecycle
     
@@ -33,10 +34,8 @@ final class ClipboardWatcher {
     // MARK: - Watching
     
     func startWatching() {
-        // Initial check
         checkClipboard()
         
-        // Periodic check
         timer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
             self?.checkClipboard()
         }
@@ -60,13 +59,6 @@ final class ClipboardWatcher {
     }
     
     private func pasteboardHasImage(_ pasteboard: NSPasteboard) -> Bool {
-        // Check for image types
-        let imageTypes: [NSPasteboard.PasteboardType] = [
-            .png,
-            .tiff,
-            .fileURL
-        ]
-        
         // Direct image data
         if pasteboard.canReadItem(withDataConformingToTypes: [
             NSPasteboard.PasteboardType.png.rawValue,
@@ -77,19 +69,14 @@ final class ClipboardWatcher {
         
         // File URL that's an image
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] {
-            for url in urls {
-                if isImageFile(url) {
-                    return true
-                }
-            }
+            return urls.contains { isImageFile($0) }
         }
         
         return false
     }
     
     private func isImageFile(_ url: URL) -> Bool {
-        let imageExtensions = ["png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp", "heic"]
-        return imageExtensions.contains(url.pathExtension.lowercased())
+        imageExtensions.contains(url.pathExtension.lowercased())
     }
     
     // MARK: - Get Image Data

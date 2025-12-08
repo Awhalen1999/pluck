@@ -14,6 +14,11 @@ struct NewFolderCard: View {
     @State private var isHovered = false
     @FocusState private var isTextFieldFocused: Bool
     
+    // MARK: - Layout Constants
+    
+    private let cardPadding: CGFloat = 12
+    private let cardHeight: CGFloat = 44
+    
     private var selectedColor: String {
         Color.Pluck.folderColors[selectedColorIndex]
     }
@@ -26,6 +31,7 @@ struct NewFolderCard: View {
                 addButton
             }
         }
+        .frame(height: cardHeight)
     }
     
     // MARK: - Add Button
@@ -43,8 +49,8 @@ struct NewFolderCard: View {
                 
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 14)
+            .padding(.horizontal, cardPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: PanelDimensions.folderCardCornerRadius)
                     .fill(.white.opacity(isHovered ? 0.03 : 0))
@@ -62,14 +68,20 @@ struct NewFolderCard: View {
     // MARK: - Editing Card
     
     private var editingCard: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 0) {
             colorPicker
+                .padding(.trailing, 10)
+            
             textField
-            Spacer()
-            confirmButton
+            
+            HStack(spacing: 8) {
+                cancelButton
+                confirmButton
+            }
+            .padding(.leading, 10)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 12)
+        .padding(.horizontal, cardPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: PanelDimensions.folderCardCornerRadius)
                 .fill(.white.opacity(0.08))
@@ -82,6 +94,8 @@ struct NewFolderCard: View {
             isTextFieldFocused = true
         }
     }
+    
+    // MARK: - Components
     
     private var colorPicker: some View {
         Circle()
@@ -100,8 +114,18 @@ struct NewFolderCard: View {
             .font(.system(size: 13, weight: .medium))
             .foregroundStyle(.white)
             .focused($isTextFieldFocused)
+            .frame(maxWidth: 130)
             .onSubmit { createFolder() }
             .onExitCommand { cancelAdding() }
+    }
+    
+    private var cancelButton: some View {
+        Button(action: cancelAdding) {
+            Image(systemName: "xmark")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(0.4))
+        }
+        .buttonStyle(.plain)
     }
     
     private var confirmButton: some View {

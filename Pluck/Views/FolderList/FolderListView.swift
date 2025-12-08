@@ -20,14 +20,9 @@ struct FolderListView: View {
     @State private var targetIndex: Int?
     
     var body: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                header
-                folderList
-            }
-            
-            // Paste hint overlay
-            PasteOverlay(isVisible: clipboardWatcher.hasImage && hoveredFolderID != nil)
+        VStack(spacing: 0) {
+            header
+            folderList
         }
         .onAppear { registerPasteHandler() }
         .onDisappear { unregisterPasteHandler() }
