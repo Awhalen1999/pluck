@@ -35,23 +35,8 @@ struct FolderDetailView: View {
                 handleDrop(providers)
             }
             
-            // Paste hint overlay
             PasteOverlay(isVisible: clipboardWatcher.hasImage)
         }
-        .onAppear { registerPasteHandler() }
-        .onDisappear { unregisterPasteHandler() }
-    }
-    
-    // MARK: - Paste Registration
-    
-    private func registerPasteHandler() {
-        FloatingPanelController.shared.onPasteCommand = { [self] in
-            handlePaste()
-        }
-    }
-    
-    private func unregisterPasteHandler() {
-        FloatingPanelController.shared.onPasteCommand = nil
     }
     
     // MARK: - Header
@@ -111,15 +96,6 @@ struct FolderDetailView: View {
         }
     }
     
-    // MARK: - Paste Handling
-    
-    @discardableResult
-    private func handlePaste() -> Bool {
-        guard let imageData = clipboardWatcher.getImageData() else { return false }
-        saveImage(imageData, name: "Pasted Image")
-        return true
-    }
-    
     // MARK: - Drop Handling
     
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
@@ -129,7 +105,7 @@ struct FolderDetailView: View {
                     guard let data = data else { return }
                     
                     DispatchQueue.main.async {
-                        saveImage(data, name: "Dropped Image")
+                        saveImage(data)
                     }
                 }
                 return true
@@ -138,12 +114,12 @@ struct FolderDetailView: View {
         return false
     }
     
-    private func saveImage(_ data: Data, name: String) {
+    private func saveImage(_ data: Data) {
         do {
-            let filename = try FileManagerHelper.saveImage(data, originalName: name)
+            let filename = try FileManagerHelper.saveImage(data, originalName: "Dropped Image")
             let newImage = DesignImage(
                 filename: filename,
-                originalName: name,
+                originalName: "Dropped Image",
                 sortOrder: folder.images.count,
                 folder: folder
             )

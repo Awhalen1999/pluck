@@ -25,6 +25,7 @@ final class FloatingPanelController {
     
     let windowManager = WindowManager()
     let clipboardWatcher = ClipboardWatcher()
+    let pasteController: PasteController
     
     private var panel: FloatingPanel?
     private var modelContainer: ModelContainer?
@@ -32,12 +33,14 @@ final class FloatingPanelController {
     private var globalKeyMonitor: Any?
     private var localKeyMonitor: Any?
     
-    // Paste handler closure - set by views
-    var onPasteCommand: (() -> Bool)?
-    
     // MARK: - Initialization
     
     private init() {
+        self.pasteController = PasteController(
+            windowManager: windowManager,
+            clipboardWatcher: clipboardWatcher
+        )
+        
         setupModelContainer()
         setupStateObserver()
         setupKeyMonitors()
@@ -58,6 +61,7 @@ final class FloatingPanelController {
     private func setupModelContainer() {
         do {
             modelContainer = try ModelContainer(for: DesignFolder.self, DesignImage.self)
+            pasteController.setModelContainer(modelContainer!)
         } catch {
             assertionFailure("Failed to create ModelContainer: \(error)")
         }
@@ -78,39 +82,25 @@ final class FloatingPanelController {
     // MARK: - Key Monitors
     
     private func setupKeyMonitors() {
-        // Global monitor for when app is not active but mouse is over panel
         globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.handleKeyEvent(event)
         }
         
-        // Local monitor for when app is active
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if self?.handleKeyEvent(event) == true {
-                return nil // Consume event
+                return nil
             }
             return event
         }
     }
     
-    private func removeKeyMonitors() {
-        if let monitor = globalKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-        if let monitor = localKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-    }
-    
     private func handleKeyEvent(_ event: NSEvent) -> Bool {
-        // Check for ⌘V
         guard event.modifierFlags.contains(.command),
               event.charactersIgnoringModifiers == "v" else { return false }
         
-        // Only handle if mouse is over our panel
         guard isMouseOverPanel() else { return false }
         
-        // Try to handle paste
-        return onPasteCommand?() ?? false
+        return pasteController.handlePaste()
     }
     
     private func isMouseOverPanel() -> Bool {
@@ -149,6 +139,7 @@ final class FloatingPanelController {
         let contentView = FloatingPanelView()
             .environment(windowManager)
             .environment(clipboardWatcher)
+            .environment(pasteController)
             .modelContainer(modelContainer)
         
         let panel = FloatingPanel(
