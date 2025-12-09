@@ -106,7 +106,7 @@ final class PasteController {
             
             return true
         } catch {
-            print("Failed to paste image: \(error)")
+            Logger.error("Failed to paste image", error: error)
             return false
         }
     }

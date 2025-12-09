@@ -37,7 +37,8 @@ final class ClipboardWatcher {
         checkClipboard()
         
         timer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
-            self?.checkClipboard()
+            guard let self else { return }
+            self.checkClipboard()
         }
     }
     

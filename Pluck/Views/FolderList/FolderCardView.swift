@@ -235,7 +235,7 @@ struct FolderCardView: View {
             modelContext.insert(newImage)
             showSuccessPulse = true
         } catch {
-            print("Failed to save image: \(error)")
+            Logger.error("Failed to save image", error: error)
         }
     }
     

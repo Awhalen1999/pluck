@@ -27,15 +27,6 @@ enum PanelState: Equatable {
             return false
         }
     }
-    
-    var supportsExpansion: Bool {
-        switch self {
-        case .folderList, .folderOpen:
-            return true
-        case .collapsed, .imageFocused:
-            return false
-        }
-    }
 }
 
 // MARK: - Docked Edge

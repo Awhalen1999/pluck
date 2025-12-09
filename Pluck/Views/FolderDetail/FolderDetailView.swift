@@ -125,7 +125,7 @@ struct FolderDetailView: View {
             )
             modelContext.insert(newImage)
         } catch {
-            print("Failed to save image: \(error)")
+            Logger.error("Failed to save image", error: error)
         }
     }
 }
