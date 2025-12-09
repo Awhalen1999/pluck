@@ -22,12 +22,12 @@ struct PasteBadge: View {
             Text("V")
                 .font(.system(size: 9, weight: .semibold))
         }
-        .foregroundStyle(.white.opacity(foregroundOpacity))
+        .foregroundStyle(foregroundColor)
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(.white.opacity(backgroundOpacity))
+                .fill(backgroundColor)
         )
         .scaleEffect(isPressed ? 0.92 : 1.0)
         .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
@@ -50,14 +50,14 @@ struct PasteBadge: View {
         )
     }
     
-    private var foregroundOpacity: Double {
-        isHovered ? 0.95 : 0.7
+    private var foregroundColor: Color {
+        isHovered ? Theme.textPrimary : Theme.textSecondary
     }
     
-    private var backgroundOpacity: Double {
-        if isPressed { return 0.3 }
-        if isHovered { return 0.25 }
-        return 0.15
+    private var backgroundColor: Color {
+        if isPressed { return Theme.backgroundCardActive }
+        if isHovered { return Theme.backgroundCardHover }
+        return Theme.backgroundCard
     }
 }
 
@@ -88,18 +88,18 @@ struct PasteOverlay: View {
                     .padding(.vertical, 2)
                     .background(
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(.white.opacity(0.1))
+                            .fill(Theme.backgroundCard)
                     )
                 }
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(Theme.textSecondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(
                     Capsule()
-                        .fill(.black.opacity(0.4))
+                        .fill(Theme.backgroundSolid)
                         .overlay(
                             Capsule()
-                                .stroke(.white.opacity(0.08), lineWidth: 0.5)
+                                .stroke(Theme.border, lineWidth: 0.5)
                         )
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -114,19 +114,19 @@ struct PasteOverlay: View {
 
 #Preview {
     ZStack {
-        Color.black.opacity(0.8)
+        Theme.backgroundSolid
         
         VStack(spacing: 30) {
             HStack {
                 Text("Folder Name")
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.textPrimary)
                 Spacer()
                 PasteBadge {
                     print("Pasted!")
                 }
             }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(0.1)))
+            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.backgroundCard))
             .padding(.horizontal)
             
             Spacer()

@@ -23,7 +23,7 @@ struct ThumbnailStackView: View {
             if totalCount > maxVisible {
                 Text("+\(totalCount - maxVisible)")
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(Theme.textTertiary)
                     .padding(.leading, overlap + 4)
             }
             
@@ -39,11 +39,11 @@ struct ThumbnailStackEmptyView: View {
         HStack(spacing: 4) {
             Image(systemName: "photo.on.rectangle")
                 .font(.system(size: 10))
-                .foregroundStyle(.white.opacity(0.2))
+                .foregroundStyle(Theme.textTertiary)
             
             Text("Drop images here")
                 .font(.system(size: 10))
-                .foregroundStyle(.white.opacity(0.2))
+                .foregroundStyle(Theme.textTertiary)
         }
     }
 }
@@ -54,11 +54,10 @@ struct ThumbnailStackEmptyView: View {
     VStack(alignment: .leading, spacing: 16) {
         ThumbnailStackEmptyView()
         
-        // Would need actual images for full preview
         Text("(Stack preview requires images)")
             .font(.caption)
-            .foregroundStyle(.white.opacity(0.3))
+            .foregroundStyle(Theme.textTertiary)
     }
     .padding()
-    .background(Color.black.opacity(0.8))
+    .background(Theme.backgroundSolid)
 }

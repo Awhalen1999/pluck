@@ -5,8 +5,6 @@
 
 import SwiftUI
 
-// MARK: - Drop Badge
-
 struct DropBadge: View {
     var body: some View {
         HStack(spacing: 4) {
@@ -15,12 +13,12 @@ struct DropBadge: View {
             Text("Drop")
                 .font(.system(size: 9, weight: .semibold))
         }
-        .foregroundStyle(.white.opacity(0.7))
+        .foregroundStyle(Theme.textSecondary)
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(.white.opacity(0.15))
+                .fill(Theme.backgroundCardHover)
         )
     }
 }
@@ -29,16 +27,16 @@ struct DropBadge: View {
 
 #Preview {
     ZStack {
-        Color.black.opacity(0.8)
+        Theme.backgroundSolid
         
         HStack {
             Text("Folder Name")
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.textPrimary)
             Spacer()
             DropBadge()
         }
         .padding()
-        .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(0.1)))
+        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.backgroundCard))
         .padding(.horizontal)
     }
     .frame(width: 220, height: 100)

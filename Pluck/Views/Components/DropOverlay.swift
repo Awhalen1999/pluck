@@ -13,10 +13,10 @@ struct DropOverlay: View {
         Group {
             if isTargeted {
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(.white.opacity(0.2), lineWidth: 1.5)
+                    .stroke(Theme.borderHover, lineWidth: 1.5)
                     .background(
                         RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(.white.opacity(0.03))
+                            .fill(Theme.backgroundCard)
                     )
             }
         }
@@ -69,15 +69,15 @@ extension View {
 #Preview {
     VStack(spacing: 20) {
         RoundedRectangle(cornerRadius: 12)
-            .fill(.white.opacity(0.1))
+            .fill(Theme.backgroundCard)
             .frame(width: 200, height: 100)
             .overlay(DropOverlay(isTargeted: false, cornerRadius: 12))
         
         RoundedRectangle(cornerRadius: 12)
-            .fill(.white.opacity(0.1))
+            .fill(Theme.backgroundCard)
             .frame(width: 200, height: 100)
             .overlay(DropOverlay(isTargeted: true, cornerRadius: 12))
     }
     .padding()
-    .background(Color.black.opacity(0.8))
+    .background(Theme.backgroundSolid)
 }

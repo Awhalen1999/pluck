@@ -12,8 +12,6 @@ struct CircleButton: View {
     var size: CGFloat = 24
     var iconSize: CGFloat = 10
     var iconWeight: Font.Weight = .semibold
-    var iconOpacity: Double = 0.4
-    var backgroundOpacity: Double = 0.1
     
     @State private var isHovered = false
     
@@ -21,17 +19,15 @@ struct CircleButton: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: iconSize, weight: iconWeight))
-                .foregroundStyle(.white.opacity(isHovered ? iconOpacity + 0.2 : iconOpacity))
+                .foregroundStyle(isHovered ? Theme.textSecondary : Theme.textTertiary)
                 .frame(width: size, height: size)
                 .background(
                     Circle()
-                        .fill(.white.opacity(isHovered ? backgroundOpacity + 0.05 : backgroundOpacity))
+                        .fill(isHovered ? Theme.backgroundCardHover : Theme.backgroundCard)
                 )
         }
         .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
-        }
+        .onHover { isHovered = $0 }
     }
 }
 
@@ -47,13 +43,11 @@ extension CircleButton {
     }
     
     static func delete(action: @escaping () -> Void) -> CircleButton {
-        CircleButton(
-            icon: "trash",
-            action: action,
-            iconOpacity: 0.6
-        )
+        CircleButton(icon: "trash", action: action)
     }
 }
+
+// MARK: - Preview
 
 #Preview {
     HStack(spacing: 16) {
@@ -63,5 +57,5 @@ extension CircleButton {
         CircleButton(icon: "plus", action: { })
     }
     .padding()
-    .background(Color.black.opacity(0.8))
+    .background(Theme.backgroundSolid)
 }

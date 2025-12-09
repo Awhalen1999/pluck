@@ -22,11 +22,11 @@ struct ThumbnailView: View {
                     .aspectRatio(contentMode: .fill)
             } else {
                 Rectangle()
-                    .fill(.white.opacity(0.05))
+                    .fill(Theme.backgroundCard)
                     .overlay(
                         ProgressView()
                             .scaleEffect(0.5)
-                            .tint(.white.opacity(0.3))
+                            .tint(Theme.textTertiary)
                     )
             }
         }
@@ -34,13 +34,11 @@ struct ThumbnailView: View {
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(.white.opacity(isHovered ? 0.3 : 0.1), lineWidth: 1)
+                .stroke(isHovered ? Theme.borderHover : Theme.border, lineWidth: 1)
         )
         .scaleEffect(isHovered ? 1.03 : 1.0)
         .animation(.easeOut(duration: 0.15), value: isHovered)
-        .onHover { hovering in
-            isHovered = hovering
-        }
+        .onHover { isHovered = $0 }
         .onAppear {
             loadThumbnail()
         }
@@ -74,7 +72,7 @@ struct MiniThumbnailView: View {
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(Color.black.opacity(0.5), lineWidth: 1)
+                    .stroke(Theme.shadowMedium, lineWidth: 1)
             )
     }
 }
@@ -83,12 +81,11 @@ struct MiniThumbnailView: View {
 
 #Preview {
     HStack {
-        // Would need actual image data for preview
         Rectangle()
-            .fill(.gray.opacity(0.3))
+            .fill(Theme.backgroundCard)
             .frame(width: 72, height: 72)
             .clipShape(RoundedRectangle(cornerRadius: 6))
     }
     .padding()
-    .background(Color.black.opacity(0.8))
+    .background(Theme.backgroundSolid)
 }

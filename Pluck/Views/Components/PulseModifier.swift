@@ -5,8 +5,6 @@
 
 import SwiftUI
 
-// MARK: - Pulse Modifier
-
 struct PulseModifier: ViewModifier {
     @Binding var trigger: Bool
     var scale: CGFloat = 1.03
@@ -21,23 +19,18 @@ struct PulseModifier: ViewModifier {
             .onChange(of: trigger) { _, newValue in
                 guard newValue else { return }
                 
-                // Pulse out
                 isAnimating = true
                 
-                // Pulse back
                 DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
                     isAnimating = false
                 }
                 
-                // Reset trigger
                 DispatchQueue.main.asyncAfter(deadline: .now() + duration * 2) {
                     trigger = false
                 }
             }
     }
 }
-
-// MARK: - View Extension
 
 extension View {
     func pulse(on trigger: Binding<Bool>, scale: CGFloat = 1.03) -> some View {
@@ -54,7 +47,7 @@ extension View {
         var body: some View {
             VStack(spacing: 20) {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(.white.opacity(0.1))
+                    .fill(Theme.backgroundCard)
                     .frame(width: 200, height: 80)
                     .pulse(on: $shouldPulse)
                 
@@ -62,10 +55,10 @@ extension View {
                     shouldPulse = true
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.textPrimary)
             }
             .padding()
-            .background(Color.black.opacity(0.8))
+            .background(Theme.backgroundSolid)
         }
     }
     

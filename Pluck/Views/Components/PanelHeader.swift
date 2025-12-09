@@ -21,11 +21,10 @@ struct PanelHeader: View {
                 CircleButton.back(action: { onBack?() })
             }
             
-            // Inactive indicator
             if !windowManager.isWindowActive {
                 Image(systemName: "rectangle.on.rectangle")
                     .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(Theme.textTertiary)
                     .transition(.opacity.combined(with: .scale(scale: 0.5)))
             }
             
@@ -37,7 +36,7 @@ struct PanelHeader: View {
             
             Text(title)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.textPrimary)
             
             Spacer()
             
@@ -60,9 +59,9 @@ struct PanelHeader: View {
         } label: {
             Image(systemName: windowManager.isHeightExpanded ? "minus" : "plus")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(Theme.textSecondary)
                 .frame(width: 20, height: 20)
-                .background(.white.opacity(0.08))
+                .background(Theme.backgroundCardHover)
                 .clipShape(Circle())
         }
         .buttonStyle(.plain)
