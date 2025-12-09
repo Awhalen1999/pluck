@@ -32,6 +32,7 @@ final class FloatingPanelController {
     private var stateObserver: NSObjectProtocol?
     private var globalKeyMonitor: Any?
     private var localKeyMonitor: Any?
+    private var windowFocusObservers: [NSObjectProtocol] = []
     
     // MARK: - Initialization
     
@@ -44,6 +45,7 @@ final class FloatingPanelController {
         setupModelContainer()
         setupStateObserver()
         setupKeyMonitors()
+        setupWindowFocusObservers()
     }
     
     deinit {
@@ -56,6 +58,7 @@ final class FloatingPanelController {
         if let monitor = localKeyMonitor {
             NSEvent.removeMonitor(monitor)
         }
+        windowFocusObservers.forEach { NotificationCenter.default.removeObserver($0) }
     }
     
     private func setupModelContainer() {
@@ -79,11 +82,43 @@ final class FloatingPanelController {
         }
     }
     
+    // MARK: - Window Focus
+
+    private func setupWindowFocusObservers() {
+        let becameKey = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                guard let self,
+                      let window = notification.object as? NSWindow,
+                      window === self.panel else { return }
+                self.windowManager.isWindowActive = true
+            }
+        }
+        
+        let resignedKey = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                guard let self,
+                      let window = notification.object as? NSWindow,
+                      window === self.panel else { return }
+                self.windowManager.isWindowActive = false
+            }
+        }
+        
+        windowFocusObservers = [becameKey, resignedKey]
+    }
+    
     // MARK: - Key Monitors
     
     private func setupKeyMonitors() {
         globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.handleKeyEvent(event)
+            _ = self?.handleKeyEvent(event)
         }
         
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in

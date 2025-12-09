@@ -15,10 +15,13 @@ struct FolderCardView: View {
     
     @Environment(\.modelContext) private var modelContext
     @Environment(ClipboardWatcher.self) private var clipboardWatcher
+    @Environment(WindowManager.self) private var windowManager
+    @Environment(PasteController.self) private var pasteController
     
     @State private var isHovered = false
     @State private var isDropTargeted = false
     @State private var thumbnails: [NSImage] = []
+    @State private var showSuccessPulse = false
     
     // Drag state
     @State private var holdTimer: Timer?
@@ -33,7 +36,7 @@ struct FolderCardView: View {
     }
     
     private var showPasteBadge: Bool {
-        isHovered && clipboardWatcher.hasImage
+        isHovered && clipboardWatcher.hasImage && windowManager.isWindowActive
     }
     
     var body: some View {
@@ -43,6 +46,12 @@ struct FolderCardView: View {
             .scaleEffect(canDrag ? 1.02 : 1.0)
             .shadow(color: .black.opacity(canDrag ? 0.4 : 0), radius: canDrag ? 12 : 0, y: canDrag ? 6 : 0)
             .wiggle(when: $isWiggling, angle: 1.5)
+            .pulse(on: $showSuccessPulse)
+            .onChange(of: pasteController.lastPastedFolderID) { _, newID in
+                if newID == folder.id {
+                    showSuccessPulse = true
+                }
+            }
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: canDrag)
             .animation(.easeOut(duration: 0.15), value: isDropTargeted)
             .gesture(dragGesture)
@@ -87,8 +96,10 @@ struct FolderCardView: View {
             Spacer()
             
             if showPasteBadge {
-                PasteBadge()
-                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                PasteBadge {
+                    pasteFromClipboard()
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.8)))
             } else {
                 Text("\(folder.imageCount) item\(folder.imageCount == 1 ? "" : "s")")
                     .font(.system(size: 11))
@@ -147,7 +158,6 @@ struct FolderCardView: View {
     }
     
     private func handleDragChanged(_ value: DragGesture.Value) {
-        // Start hold timer if not already dragging
         if holdTimer == nil && !canDrag {
             holdTimer = Timer.scheduledTimer(withTimeInterval: holdDuration, repeats: false) { _ in
                 DispatchQueue.main.async {
@@ -158,7 +168,6 @@ struct FolderCardView: View {
             }
         }
         
-        // Update drag offset if dragging
         if canDrag {
             dragOffset = value.translation
             onDragChanged(value.translation)
@@ -197,6 +206,33 @@ struct FolderCardView: View {
         }
     }
     
+    // MARK: - Image Saving
+    
+    private func saveImage(_ data: Data, name: String) {
+        do {
+            let filename = try FileManagerHelper.saveImage(data, originalName: name)
+            let newImage = DesignImage(
+                filename: filename,
+                originalName: name,
+                sortOrder: folder.images.count,
+                folder: folder
+            )
+            modelContext.insert(newImage)
+            
+            // Trigger success pulse
+            showSuccessPulse = true
+        } catch {
+            print("Failed to save image: \(error)")
+        }
+    }
+    
+    // MARK: - Paste Handling
+    
+    private func pasteFromClipboard() {
+        guard let imageData = clipboardWatcher.getImageData() else { return }
+        saveImage(imageData, name: "Pasted Image")
+    }
+    
     // MARK: - Drop Handling
     
     private func handleImageDrop(_ providers: [NSItemProvider]) -> Bool {
@@ -206,28 +242,13 @@ struct FolderCardView: View {
                     guard let data = data else { return }
                     
                     DispatchQueue.main.async {
-                        saveDroppedImage(data)
+                        saveImage(data, name: "Dropped Image")
                     }
                 }
                 return true
             }
         }
         return false
-    }
-    
-    private func saveDroppedImage(_ data: Data) {
-        do {
-            let filename = try FileManagerHelper.saveImage(data, originalName: "Dropped Image")
-            let newImage = DesignImage(
-                filename: filename,
-                originalName: "Dropped Image",
-                sortOrder: folder.images.count,
-                folder: folder
-            )
-            modelContext.insert(newImage)
-        } catch {
-            print("Failed to save dropped image: \(error)")
-        }
     }
 }
 
@@ -242,6 +263,7 @@ struct FolderCardView: View {
         onDragChanged: { _ in },
         onDragEnded: { }
     )
+    .environment(ClipboardWatcher())
     .modelContainer(for: [DesignFolder.self, DesignImage.self])
     .padding()
     .background(Color.black.opacity(0.8))

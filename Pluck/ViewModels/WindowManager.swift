@@ -44,6 +44,7 @@ final class WindowManager {
     
     private(set) var panelState: PanelState = .collapsed
     private(set) var activeFolder: DesignFolder?
+    var isWindowActive: Bool = false
     
     var dockedEdge: DockedEdge = .right
     var dockedYPosition: CGFloat = 200

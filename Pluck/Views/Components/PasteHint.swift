@@ -5,9 +5,16 @@
 
 import SwiftUI
 
-// MARK: - Paste Badge (for folder cards)
+// MARK: - Paste Badge (Interactive)
 
 struct PasteBadge: View {
+    var onPaste: (() -> Void)? = nil
+    
+    @State private var isHovered = false
+    @State private var isPressed = false
+    
+    private var isInteractive: Bool { onPaste != nil }
+    
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: "command")
@@ -15,13 +22,42 @@ struct PasteBadge: View {
             Text("V")
                 .font(.system(size: 9, weight: .semibold))
         }
-        .foregroundStyle(.white.opacity(0.7))
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
+        .foregroundStyle(.white.opacity(foregroundOpacity))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(.white.opacity(0.15))
+                .fill(.white.opacity(backgroundOpacity))
         )
+        .scaleEffect(isPressed ? 0.92 : 1.0)
+        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
+        .animation(.easeOut(duration: 0.12), value: isHovered)
+        .onHover { hovering in
+            guard isInteractive else { return }
+            isHovered = hovering
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard isInteractive, !isPressed else { return }
+                    isPressed = true
+                }
+                .onEnded { _ in
+                    guard isInteractive else { return }
+                    isPressed = false
+                    onPaste?()
+                }
+        )
+    }
+    
+    private var foregroundOpacity: Double {
+        isHovered ? 0.95 : 0.7
+    }
+    
+    private var backgroundOpacity: Double {
+        if isPressed { return 0.3 }
+        if isHovered { return 0.25 }
+        return 0.15
     }
 }
 
@@ -81,12 +117,13 @@ struct PasteOverlay: View {
         Color.black.opacity(0.8)
         
         VStack(spacing: 30) {
-            // Badge preview
             HStack {
                 Text("Folder Name")
                     .foregroundStyle(.white)
                 Spacer()
-                PasteBadge()
+                PasteBadge {
+                    print("Pasted!")
+                }
             }
             .padding()
             .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(0.1)))
@@ -95,9 +132,6 @@ struct PasteOverlay: View {
             Spacer()
         }
         .padding(.top, 40)
-        
-        // Overlay preview
-        PasteOverlay(isVisible: true)
     }
     .frame(width: 220, height: 350)
 }

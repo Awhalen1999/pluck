@@ -12,59 +12,38 @@ struct PanelHeader: View {
     var onBack: (() -> Void)? = nil
     var onClose: () -> Void
     
+    @Environment(WindowManager.self) private var windowManager
+    
     var body: some View {
         HStack(spacing: 8) {
-            if showBackButton, let onBack = onBack {
-                CircleButton.back(action: onBack)
+            if showBackButton {
+                CircleButton.back(action: { onBack?() })
             }
             
-            if let color = accentColor {
+            // Inactive indicator
+            if !windowManager.isWindowActive {
+                Image(systemName: "rectangle.on.rectangle")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.25))
+                    .transition(.opacity.combined(with: .scale(scale: 0.5)))
+            }
+            
+            if let accent = accentColor {
                 Circle()
-                    .fill(color)
+                    .fill(accent)
                     .frame(width: 8, height: 8)
             }
             
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.9))
-                .lineLimit(1)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white.opacity(windowManager.isWindowActive ? 0.9 : 0.5))
             
             Spacer()
             
             CircleButton.close(action: onClose)
         }
         .padding(.horizontal, 12)
-        .padding(.top, 12)
-        .padding(.bottom, 8)
+        .padding(.vertical, 10)
+        .animation(.easeOut(duration: 0.15), value: windowManager.isWindowActive)
     }
-}
-
-// MARK: - Preview
-
-#Preview {
-    VStack(spacing: 20) {
-        // Simple header
-        PanelHeader(
-            title: "Folders",
-            onClose: { }
-        )
-        
-        // Header with back button
-        PanelHeader(
-            title: "My Project",
-            showBackButton: true,
-            onBack: { },
-            onClose: { }
-        )
-        
-        // Header with accent color
-        PanelHeader(
-            title: "Design Assets",
-            showBackButton: true,
-            accentColor: .purple,
-            onBack: { },
-            onClose: { }
-        )
-    }
-    .background(Color.black.opacity(0.8))
 }

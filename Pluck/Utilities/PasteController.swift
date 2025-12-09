@@ -21,6 +21,7 @@ final class PasteController {
     
     /// Currently hovered folder ID (set by FolderListView)
     var hoveredFolderID: UUID?
+    var lastPastedFolderID: UUID?
     
     // MARK: - Initialization
     
@@ -94,6 +95,15 @@ final class PasteController {
                 folder: folder
             )
             context.insert(newImage)
+            
+            // Trigger pulse on the card
+            lastPastedFolderID = folder.id
+            
+            // Reset after brief delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                self?.lastPastedFolderID = nil
+            }
+            
             return true
         } catch {
             print("Failed to paste image: \(error)")
