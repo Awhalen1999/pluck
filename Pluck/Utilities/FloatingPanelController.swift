@@ -30,6 +30,7 @@ final class FloatingPanelController {
     private var panel: FloatingPanel?
     private var modelContainer: ModelContainer?
     private var stateObserver: NSObjectProtocol?
+    private var heightObserver: NSObjectProtocol?
     private var globalKeyMonitor: Any?
     private var localKeyMonitor: Any?
     private var windowFocusObservers: [NSObjectProtocol] = []
@@ -43,13 +44,16 @@ final class FloatingPanelController {
         )
         
         setupModelContainer()
-        setupStateObserver()
+        setupObservers()
         setupKeyMonitors()
         setupWindowFocusObservers()
     }
     
     deinit {
         if let observer = stateObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = heightObserver {
             NotificationCenter.default.removeObserver(observer)
         }
         if let monitor = globalKeyMonitor {
@@ -70,14 +74,26 @@ final class FloatingPanelController {
         }
     }
     
-    private func setupStateObserver() {
+    private func setupObservers() {
+        // State changes (no animation)
         stateObserver = NotificationCenter.default.addObserver(
             forName: .panelStateChanged,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.updatePanelFrame()
+                self?.updatePanelFrame(animated: false)
+            }
+        }
+        
+        // Height toggle (animated)
+        heightObserver = NotificationCenter.default.addObserver(
+            forName: .panelHeightChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updatePanelFrame(animated: true)
             }
         }
     }
@@ -248,10 +264,19 @@ final class FloatingPanelController {
     
     private func sizeForCurrentState() -> NSSize {
         switch windowManager.panelState {
-        case .collapsed: return PanelDimensions.collapsedNSSize
-        case .folderList: return PanelDimensions.folderListNSSize
-        case .folderOpen: return PanelDimensions.folderDetailNSSize
-        case .imageFocused: return PanelDimensions.imageDetailNSSize
+        case .collapsed:
+            return PanelDimensions.collapsedNSSize
+            
+        case .folderList, .folderOpen:
+            let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
+            let height = PanelDimensions.listHeight(
+                expanded: windowManager.isHeightExpanded,
+                screenHeight: screenHeight
+            )
+            return NSSize(width: PanelDimensions.folderListSize.width, height: height)
+            
+        case .imageFocused:
+            return PanelDimensions.imageDetailNSSize
         }
     }
 }

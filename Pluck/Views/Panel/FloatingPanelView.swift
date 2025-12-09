@@ -35,14 +35,14 @@ struct FloatingPanelView: View {
             FolderListView()
                 .frame(
                     width: PanelDimensions.folderListSize.width,
-                    height: PanelDimensions.folderListSize.height
+                    height: currentListHeight
                 )
                 
         case .folderOpen(let folder):
             FolderDetailView(folder: folder)
                 .frame(
                     width: PanelDimensions.folderDetailSize.width,
-                    height: PanelDimensions.folderDetailSize.height
+                    height: currentListHeight
                 )
                 
         case .imageFocused(let image):
@@ -52,6 +52,16 @@ struct FloatingPanelView: View {
                     height: PanelDimensions.imageDetailSize.height
                 )
         }
+    }
+    
+    // MARK: - Dynamic Height
+    
+    private var currentListHeight: CGFloat {
+        let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
+        return PanelDimensions.listHeight(
+            expanded: windowManager.isHeightExpanded,
+            screenHeight: screenHeight
+        )
     }
     
     // MARK: - Styling

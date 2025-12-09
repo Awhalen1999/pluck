@@ -31,6 +31,7 @@ struct FolderListView: View {
     private var header: some View {
         PanelHeader(
             title: "Folders",
+            showExpandButton: true,
             onClose: { windowManager.collapse() }
         )
     }

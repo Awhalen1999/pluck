@@ -19,6 +19,10 @@ enum PanelDimensions {
     static let edgeMargin: CGFloat = 10
     static let contentPadding: CGFloat = 12
     
+    // MARK: - Header
+    
+    static let headerHeight: CGFloat = 40
+    
     // MARK: - Corner Radii
     
     static let collapsedCornerRadius: CGFloat = 12
@@ -35,6 +39,15 @@ enum PanelDimensions {
     static let folderCardHeight: CGFloat = 68
     static let folderCardSpacing: CGFloat = 8
     static let folderCardCornerRadius: CGFloat = 10
+    
+    // MARK: - Dynamic Height
+    
+    static func listHeight(expanded: Bool, screenHeight: CGFloat) -> CGFloat {
+        if expanded {
+            return screenHeight - (edgeMargin * 2)
+        }
+        return folderListSize.height
+    }
     
     // MARK: - NSSize Conversions (for AppKit)
     

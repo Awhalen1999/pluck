@@ -44,6 +44,7 @@ struct FolderDetailView: View {
         PanelHeader(
             title: folder.name,
             showBackButton: true,
+            showExpandButton: true,
             accentColor: Color(hex: folder.colorHex),
             onBack: { windowManager.goBack() },
             onClose: { windowManager.collapse() }

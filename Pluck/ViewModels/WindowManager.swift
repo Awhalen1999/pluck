@@ -27,6 +27,15 @@ enum PanelState: Equatable {
             return false
         }
     }
+    
+    var supportsExpansion: Bool {
+        switch self {
+        case .folderList, .folderOpen:
+            return true
+        case .collapsed, .imageFocused:
+            return false
+        }
+    }
 }
 
 // MARK: - Docked Edge
@@ -48,6 +57,19 @@ final class WindowManager {
     
     var dockedEdge: DockedEdge = .right
     var dockedYPosition: CGFloat = 200
+    
+    // MARK: - Height Expansion
+    
+    var isHeightExpanded: Bool = UserDefaults.standard.bool(forKey: "panelHeightExpanded") {
+        didSet {
+            UserDefaults.standard.set(isHeightExpanded, forKey: "panelHeightExpanded")
+            notifyHeightChanged()
+        }
+    }
+    
+    func toggleHeightExpansion() {
+        isHeightExpanded.toggle()
+    }
     
     // MARK: - Navigation
     
@@ -82,7 +104,7 @@ final class WindowManager {
         case .folderList:
             panelState = .collapsed
         case .collapsed:
-            return // No notification needed
+            return
         }
         notifyStateChanged()
     }
@@ -105,10 +127,15 @@ final class WindowManager {
     private func notifyStateChanged() {
         NotificationCenter.default.post(name: .panelStateChanged, object: nil)
     }
+    
+    private func notifyHeightChanged() {
+        NotificationCenter.default.post(name: .panelHeightChanged, object: nil)
+    }
 }
 
 // MARK: - Notification Names
 
 extension Notification.Name {
     static let panelStateChanged = Notification.Name("panelStateChanged")
+    static let panelHeightChanged = Notification.Name("panelHeightChanged")
 }
