@@ -19,7 +19,7 @@ struct ImageDetailView: View {
             header
             
             Divider()
-                .background(Color.white.opacity(0.1))
+                .background(Theme.border)
             
             imageContent
             
@@ -40,7 +40,7 @@ struct ImageDetailView: View {
             
             Text(image.originalName)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
                 .padding(.leading, 8)
             
@@ -59,7 +59,7 @@ struct ImageDetailView: View {
         Button(action: deleteImage) {
             Image(systemName: "trash")
                 .font(.system(size: 12))
-                .foregroundStyle(isHoveringDelete ? .red : .white.opacity(0.6))
+                .foregroundStyle(isHoveringDelete ? .red : Theme.textSecondary)
         }
         .buttonStyle(.plain)
         .onHover { isHoveringDelete = $0 }
@@ -92,16 +92,16 @@ struct ImageDetailView: View {
     private func sourceURLBar(_ urlString: String) -> some View {
         VStack(spacing: 0) {
             Divider()
-                .background(Color.white.opacity(0.1))
+                .background(Theme.border)
             
             HStack {
                 Image(systemName: "link")
                     .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(Theme.textTertiary)
                 
                 Text(urlString)
                     .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(Theme.textTertiary)
                     .lineLimit(1)
                 
                 Spacer()
@@ -109,7 +109,7 @@ struct ImageDetailView: View {
                 Button(action: { copyToClipboard(urlString) }) {
                     Image(systemName: "doc.on.doc")
                         .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(Theme.textSecondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -149,5 +149,5 @@ struct ImageDetailView: View {
         .environment(WindowManager())
         .modelContainer(for: [DesignFolder.self, DesignImage.self])
         .frame(width: 340, height: 400)
-        .background(Color.black.opacity(0.8))
+        .background(Theme.backgroundSolid)
 }

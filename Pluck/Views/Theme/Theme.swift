@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-enum PanelTheme {
+enum Theme {
     
     // MARK: - Backgrounds
     

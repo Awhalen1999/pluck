@@ -68,11 +68,11 @@ struct FolderDetailView: View {
             
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 28))
-                .foregroundStyle(.white.opacity(0.2))
+                .foregroundStyle(Theme.textTertiary)
             
             Text("Drop images here")
                 .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(Theme.textTertiary)
             
             Spacer()
         }
@@ -139,5 +139,5 @@ struct FolderDetailView: View {
         .environment(ClipboardWatcher())
         .modelContainer(for: [DesignFolder.self, DesignImage.self])
         .frame(width: 220, height: 350)
-        .background(Color.black.opacity(0.8))
+        .background(Theme.backgroundSolid)
 }

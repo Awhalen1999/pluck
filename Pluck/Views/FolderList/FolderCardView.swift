@@ -48,7 +48,7 @@ struct FolderCardView: View {
             .frame(height: PanelDimensions.folderCardHeight)
             .offset(dragOffset)
             .scaleEffect(canDrag ? 1.02 : 1.0)
-            .shadow(color: .black.opacity(canDrag ? 0.4 : 0), radius: canDrag ? 12 : 0, y: canDrag ? 6 : 0)
+            .shadow(color: canDrag ? Theme.shadowMedium : .clear, radius: canDrag ? 12 : 0, y: canDrag ? 6 : 0)
             .wiggle(when: $isWiggling, angle: 1.5)
             .pulse(on: $showSuccessPulse)
             .onChange(of: pasteController.lastPastedFolderID) { _, newID in
@@ -97,7 +97,7 @@ struct FolderCardView: View {
         HStack {
             Text(folder.name)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
             
             Spacer()
@@ -113,7 +113,7 @@ struct FolderCardView: View {
             } else {
                 Text("\(folder.imageCount) item\(folder.imageCount == 1 ? "" : "s")")
                     .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(Theme.textTertiary)
             }
         }
         .animation(.easeOut(duration: 0.15), value: showPasteBadge)
@@ -136,13 +136,13 @@ struct FolderCardView: View {
     
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: PanelDimensions.folderCardCornerRadius)
-            .fill(.white.opacity(backgroundOpacity))
+            .fill(backgroundFill)
     }
     
-    private var backgroundOpacity: Double {
-        if canDrag { return 0.12 }
-        if isDropTargeted || isHovered { return 0.08 }
-        return 0.05
+    private var backgroundFill: Color {
+        if canDrag { return Theme.backgroundCardActive }
+        if isDropTargeted || isHovered { return Theme.backgroundCardHover }
+        return Theme.backgroundCard
     }
     
     private var cardBorder: some View {
@@ -151,7 +151,7 @@ struct FolderCardView: View {
     }
     
     private var borderColor: Color {
-        .white.opacity(isHovered || isDropTargeted ? 0.12 : 0.06)
+        isHovered || isDropTargeted ? Theme.borderHover : Theme.border
     }
     
     // MARK: - Timer
@@ -279,5 +279,5 @@ struct FolderCardView: View {
     .environment(ClipboardWatcher())
     .modelContainer(for: [DesignFolder.self, DesignImage.self])
     .padding()
-    .background(Color.black.opacity(0.8))
+    .background(Theme.backgroundSolid)
 }

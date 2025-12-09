@@ -14,9 +14,6 @@ struct NewFolderCard: View {
     @State private var isHovered = false
     @FocusState private var isTextFieldFocused: Bool
     
-    // MARK: - Layout Constants
-    
-    private let cardPadding: CGFloat = 12
     private let cardHeight: CGFloat = 44
     
     private var selectedColor: String {
@@ -41,24 +38,24 @@ struct NewFolderCard: View {
             HStack(spacing: 10) {
                 Image(systemName: "plus")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(isHovered ? 0.5 : 0.3))
+                    .foregroundStyle(isHovered ? Theme.textSecondary : Theme.textTertiary)
                 
                 Text("New Folder")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(isHovered ? 0.5 : 0.3))
+                    .foregroundStyle(isHovered ? Theme.textSecondary : Theme.textTertiary)
                 
                 Spacer()
             }
-            .padding(.horizontal, cardPadding)
+            .padding(.horizontal, PanelDimensions.contentPadding)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: PanelDimensions.folderCardCornerRadius)
-                    .fill(.white.opacity(isHovered ? 0.03 : 0))
+                    .fill(isHovered ? Theme.backgroundCard : .clear)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: PanelDimensions.folderCardCornerRadius)
                     .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
-                    .foregroundStyle(.white.opacity(isHovered ? 0.15 : 0.1))
+                    .foregroundStyle(isHovered ? Theme.borderHover : Theme.border)
             )
         }
         .buttonStyle(.plain)
@@ -80,15 +77,15 @@ struct NewFolderCard: View {
             }
             .padding(.leading, 10)
         }
-        .padding(.horizontal, cardPadding)
+        .padding(.horizontal, PanelDimensions.contentPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: PanelDimensions.folderCardCornerRadius)
-                .fill(.white.opacity(0.08))
+                .fill(Theme.backgroundCardHover)
         )
         .overlay(
             RoundedRectangle(cornerRadius: PanelDimensions.folderCardCornerRadius)
-                .stroke(.white.opacity(0.15), lineWidth: 1)
+                .stroke(Theme.borderHover, lineWidth: 1)
         )
         .onAppear {
             isTextFieldFocused = true
@@ -112,7 +109,7 @@ struct NewFolderCard: View {
         TextField("Folder name", text: $folderName)
             .textFieldStyle(.plain)
             .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.textPrimary)
             .focused($isTextFieldFocused)
             .frame(maxWidth: 130)
             .onSubmit { createFolder() }
@@ -123,7 +120,7 @@ struct NewFolderCard: View {
         Button(action: cancelAdding) {
             Image(systemName: "xmark")
                 .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(.white.opacity(0.4))
+                .foregroundStyle(Theme.textTertiary)
         }
         .buttonStyle(.plain)
     }
@@ -132,7 +129,7 @@ struct NewFolderCard: View {
         Button(action: createFolder) {
             Image(systemName: "checkmark")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(Theme.textSecondary)
         }
         .buttonStyle(.plain)
     }
@@ -186,7 +183,7 @@ struct NewFolderCard: View {
                 }
             }
             .padding()
-            .background(Color.black.opacity(0.8))
+            .background(Theme.backgroundSolid)
         }
     }
     

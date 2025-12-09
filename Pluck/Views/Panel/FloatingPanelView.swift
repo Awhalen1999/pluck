@@ -15,7 +15,7 @@ struct FloatingPanelView: View {
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(.white.opacity(0.08), lineWidth: 1)
+                    .stroke(Theme.border, lineWidth: 1)
             )
     }
     
@@ -77,7 +77,7 @@ struct FloatingPanelView: View {
     
     private var panelBackground: some View {
         ZStack {
-            Color.black.opacity(0.85)
+            Theme.backgroundSolid
             
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(.ultraThinMaterial)

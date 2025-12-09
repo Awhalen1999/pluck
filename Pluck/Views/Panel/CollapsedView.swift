@@ -19,20 +19,20 @@ struct CollapsedView: View {
     var body: some View {
         Image(systemName: "square.stack.3d.up.fill")
             .font(.system(size: 22))
-            .foregroundStyle(.white.opacity(isDragging ? 1.0 : 0.9))
+            .foregroundStyle(iconColor)
             .frame(width: 50, height: 50)
             .background(
                 RoundedRectangle(cornerRadius: PanelDimensions.collapsedCornerRadius)
-                    .fill(.white.opacity(isDragging ? 0.08 : 0))
+                    .fill(isDragging ? Theme.backgroundCardHover : .clear)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: PanelDimensions.collapsedCornerRadius)
-                    .stroke(.white.opacity(borderOpacity), lineWidth: 0.5)
+                    .stroke(borderColor, lineWidth: 0.5)
             )
             .scaleEffect(scaleEffect)
             .wiggle(when: $isWiggling)
             .shadow(
-                color: .black.opacity(isDragging ? 0.4 : 0.1),
+                color: isDragging ? Theme.shadowMedium : Theme.shadowLight,
                 radius: isDragging ? 16 : 4,
                 y: isDragging ? 8 : 2
             )
@@ -54,10 +54,14 @@ struct CollapsedView: View {
     
     // MARK: - Computed Properties
     
-    private var borderOpacity: Double {
-        if isDragging { return 0.15 }
-        if isDropTargeted { return 0.3 }
-        return 0
+    private var iconColor: Color {
+        isDragging ? Theme.textPrimary : Theme.textPrimary
+    }
+    
+    private var borderColor: Color {
+        if isDragging { return Theme.borderHover }
+        if isDropTargeted { return Theme.borderHover }
+        return .clear
     }
     
     private var scaleEffect: CGFloat {

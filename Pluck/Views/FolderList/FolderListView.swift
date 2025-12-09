@@ -143,5 +143,5 @@ struct FolderListView: View {
         .environment(PasteController(windowManager: WindowManager(), clipboardWatcher: ClipboardWatcher()))
         .modelContainer(for: [DesignFolder.self, DesignImage.self])
         .frame(width: 220, height: 350)
-        .background(Color.black.opacity(0.8))
+        .background(Theme.backgroundSolid)
 }
