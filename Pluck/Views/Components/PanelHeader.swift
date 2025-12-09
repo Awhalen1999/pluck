@@ -36,7 +36,7 @@ struct PanelHeader: View {
             
             Text(title)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white.opacity(windowManager.isWindowActive ? 0.9 : 0.5))
+                .foregroundStyle(.white.opacity(0.9))
             
             Spacer()
             
