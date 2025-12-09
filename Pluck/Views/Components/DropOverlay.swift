@@ -8,25 +8,19 @@ import SwiftUI
 struct DropOverlay: View {
     let isTargeted: Bool
     var cornerRadius: CGFloat = 12
-    var accentColor: Color? = nil
     
     var body: some View {
         Group {
             if isTargeted {
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(strokeColor, lineWidth: 2)
+                    .stroke(.white.opacity(0.2), lineWidth: 1.5)
                     .background(
                         RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(.white.opacity(0.05))
+                            .fill(.white.opacity(0.03))
                     )
-                    .padding(4)
             }
         }
         .animation(.easeOut(duration: 0.15), value: isTargeted)
-    }
-    
-    private var strokeColor: Color {
-        accentColor?.opacity(0.6) ?? .white.opacity(0.3)
     }
 }
 
@@ -35,7 +29,6 @@ struct DropOverlay: View {
 struct DropTargetModifier: ViewModifier {
     @Binding var isTargeted: Bool
     var cornerRadius: CGFloat = 12
-    var accentColor: Color? = nil
     let supportedTypes: [String]
     let onDrop: ([NSItemProvider]) -> Bool
     
@@ -44,8 +37,7 @@ struct DropTargetModifier: ViewModifier {
             .overlay(
                 DropOverlay(
                     isTargeted: isTargeted,
-                    cornerRadius: cornerRadius,
-                    accentColor: accentColor
+                    cornerRadius: cornerRadius
                 )
             )
             .onDrop(of: supportedTypes, isTargeted: $isTargeted) { providers in
@@ -58,7 +50,6 @@ extension View {
     func dropTarget(
         isTargeted: Binding<Bool>,
         cornerRadius: CGFloat = 12,
-        accentColor: Color? = nil,
         supportedTypes: [String] = ["public.image", "public.file-url"],
         onDrop: @escaping ([NSItemProvider]) -> Bool
     ) -> some View {
@@ -66,7 +57,6 @@ extension View {
             DropTargetModifier(
                 isTargeted: isTargeted,
                 cornerRadius: cornerRadius,
-                accentColor: accentColor,
                 supportedTypes: supportedTypes,
                 onDrop: onDrop
             )
@@ -81,17 +71,12 @@ extension View {
         RoundedRectangle(cornerRadius: 12)
             .fill(.white.opacity(0.1))
             .frame(width: 200, height: 100)
-            .overlay(DropOverlay(isTargeted: false))
+            .overlay(DropOverlay(isTargeted: false, cornerRadius: 12))
         
         RoundedRectangle(cornerRadius: 12)
             .fill(.white.opacity(0.1))
             .frame(width: 200, height: 100)
-            .overlay(DropOverlay(isTargeted: true))
-        
-        RoundedRectangle(cornerRadius: 12)
-            .fill(.white.opacity(0.1))
-            .frame(width: 200, height: 100)
-            .overlay(DropOverlay(isTargeted: true, accentColor: .purple))
+            .overlay(DropOverlay(isTargeted: true, cornerRadius: 12))
     }
     .padding()
     .background(Color.black.opacity(0.8))

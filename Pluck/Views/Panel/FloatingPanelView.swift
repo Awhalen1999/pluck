@@ -10,24 +10,13 @@ struct FloatingPanelView: View {
     @Environment(WindowManager.self) private var windowManager
     
     var body: some View {
-        ZStack {
-            content
-            
-            // Inactive window overlay
-            if !windowManager.isWindowActive {
+        content
+            .background(panelBackground)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(.black.opacity(0.25))
-                    .allowsHitTesting(false)
-            }
-        }
-        .background(panelBackground)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(.white.opacity(0.08), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
-        .animation(.easeOut(duration: 0.15), value: windowManager.isWindowActive)
+                    .stroke(.white.opacity(0.08), lineWidth: 1)
+            )
     }
     
     // MARK: - Content

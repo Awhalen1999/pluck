@@ -29,8 +29,7 @@ struct FolderDetailView: View {
             }
             .dropTarget(
                 isTargeted: $isDropTargeted,
-                cornerRadius: PanelDimensions.expandedCornerRadius,
-                accentColor: Color(hex: folder.colorHex)
+                cornerRadius: PanelDimensions.expandedCornerRadius
             ) { providers in
                 handleDrop(providers)
             }

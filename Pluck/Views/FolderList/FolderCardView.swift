@@ -39,6 +39,10 @@ struct FolderCardView: View {
         isHovered && clipboardWatcher.hasImage && windowManager.isWindowActive
     }
     
+    private var showDropBadge: Bool {
+        isDropTargeted
+    }
+    
     var body: some View {
         cardContent
             .frame(height: PanelDimensions.folderCardHeight)
@@ -95,7 +99,10 @@ struct FolderCardView: View {
             
             Spacer()
             
-            if showPasteBadge {
+            if showDropBadge {
+                DropBadge()
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+            } else if showPasteBadge {
                 PasteBadge {
                     pasteFromClipboard()
                 }
@@ -107,6 +114,7 @@ struct FolderCardView: View {
             }
         }
         .animation(.easeOut(duration: 0.15), value: showPasteBadge)
+        .animation(.easeOut(duration: 0.15), value: showDropBadge)
     }
     
     @ViewBuilder
@@ -130,8 +138,7 @@ struct FolderCardView: View {
     
     private var backgroundOpacity: Double {
         if canDrag { return 0.12 }
-        if isDropTargeted { return 0.1 }
-        if isHovered { return 0.08 }
+        if isDropTargeted || isHovered { return 0.08 }
         return 0.05
     }
     
@@ -141,8 +148,7 @@ struct FolderCardView: View {
     }
     
     private var borderColor: Color {
-        if isDropTargeted { return folderColor }
-        return .white.opacity(isHovered ? 0.12 : 0.06)
+        .white.opacity(isHovered || isDropTargeted ? 0.12 : 0.06)
     }
     
     // MARK: - Drag Gesture
