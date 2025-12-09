@@ -49,33 +49,26 @@ final class FloatingPanelController {
         setupWindowFocusObservers()
     }
     
-    deinit {
-        if let observer = stateObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let observer = heightObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let monitor = globalKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-        if let monitor = localKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-        windowFocusObservers.forEach { NotificationCenter.default.removeObserver($0) }
-    }
+    // MARK: - Model Container
     
     private func setupModelContainer() {
         do {
-            modelContainer = try ModelContainer(for: DesignFolder.self, DesignImage.self)
+            let storeURL = FileManagerHelper.appSupportDirectory.appendingPathComponent("Pluck.store")
+            let config = ModelConfiguration(url: storeURL)
+            
+            modelContainer = try ModelContainer(
+                for: DesignFolder.self, DesignImage.self,
+                configurations: config
+            )
             pasteController.setModelContainer(modelContainer!)
         } catch {
             assertionFailure("Failed to create ModelContainer: \(error)")
         }
     }
     
+    // MARK: - Observers
+    
     private func setupObservers() {
-        // State changes (no animation)
         stateObserver = NotificationCenter.default.addObserver(
             forName: .panelStateChanged,
             object: nil,
@@ -86,7 +79,6 @@ final class FloatingPanelController {
             }
         }
         
-        // Height toggle (animated)
         heightObserver = NotificationCenter.default.addObserver(
             forName: .panelHeightChanged,
             object: nil,
@@ -97,7 +89,7 @@ final class FloatingPanelController {
             }
         }
     }
-    
+
     // MARK: - Window Focus
 
     private func setupWindowFocusObservers() {
