@@ -37,16 +37,18 @@ struct CollapsedView: View {
                 y: isDragging ? 8 : 2
             )
             .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isDragging)
-            .animation(.easeOut(duration: 0.15), value: isDropTargeted)
             .contentShape(Rectangle())
             .gesture(dragGesture)
             .onDrop(of: ["public.image", "public.file-url"], isTargeted: $isDropTargeted) { _ in
-                false // Don't handle drop, just detect hover
+                false
             }
             .onChange(of: isDropTargeted) { _, targeted in
                 if targeted {
                     windowManager.showFolderList()
                 }
+            }
+            .onDisappear {
+                invalidateTimer()
             }
     }
     
@@ -62,6 +64,13 @@ struct CollapsedView: View {
         if isDragging { return 1.08 }
         if isDropTargeted { return 1.05 }
         return 1.0
+    }
+    
+    // MARK: - Timer
+    
+    private func invalidateTimer() {
+        holdTimer?.invalidate()
+        holdTimer = nil
     }
     
     // MARK: - Drag Gesture
@@ -93,8 +102,7 @@ struct CollapsedView: View {
     }
     
     private func handleDragEnded() {
-        holdTimer?.invalidate()
-        holdTimer = nil
+        invalidateTimer()
         
         if !canDrag {
             windowManager.showFolderList()
@@ -132,14 +140,6 @@ struct CollapsedView: View {
         let frame = window.frame
         let yFromTop = screenRect.maxY - frame.origin.y - frame.height
         windowManager.dockedYPosition = yFromTop
-    }
-}
-
-// MARK: - Comparable Extension
-
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
-        min(max(self, range.lowerBound), range.upperBound)
     }
 }
 

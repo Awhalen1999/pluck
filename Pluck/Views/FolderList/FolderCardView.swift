@@ -62,18 +62,19 @@ struct FolderCardView: View {
             .onDrop(of: ["public.image", "public.file-url"], isTargeted: $isDropTargeted) { providers in
                 handleImageDrop(providers)
             }
+            .onDisappear {
+                invalidateTimer()
+            }
     }
     
     // MARK: - Card Content
     
     private var cardContent: some View {
         HStack(spacing: 12) {
-            // Color accent bar
             RoundedRectangle(cornerRadius: 2)
                 .fill(folderColor)
                 .frame(width: 4)
             
-            // Content
             VStack(alignment: .leading, spacing: 6) {
                 titleRow
                 thumbnailRow
@@ -85,8 +86,10 @@ struct FolderCardView: View {
         .overlay(cardBorder)
         .onHover { isHovered = $0 }
         .onAppear { loadThumbnails() }
-        .onChange(of: folder.images.count) { _, _ in
-            loadThumbnails()
+        .onChange(of: folder.images.count) { oldCount, newCount in
+            if newCount > oldCount {
+                loadThumbnails()
+            }
         }
     }
     
@@ -151,6 +154,13 @@ struct FolderCardView: View {
         .white.opacity(isHovered || isDropTargeted ? 0.12 : 0.06)
     }
     
+    // MARK: - Timer
+    
+    private func invalidateTimer() {
+        holdTimer?.invalidate()
+        holdTimer = nil
+    }
+    
     // MARK: - Drag Gesture
     
     private var dragGesture: some Gesture {
@@ -181,8 +191,7 @@ struct FolderCardView: View {
     }
     
     private func handleDragEnded() {
-        holdTimer?.invalidate()
-        holdTimer = nil
+        invalidateTimer()
         
         if !canDrag {
             onTap()
@@ -224,8 +233,6 @@ struct FolderCardView: View {
                 folder: folder
             )
             modelContext.insert(newImage)
-            
-            // Trigger success pulse
             showSuccessPulse = true
         } catch {
             print("Failed to save image: \(error)")
