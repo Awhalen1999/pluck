@@ -63,7 +63,8 @@ struct FolderListView: View {
                 }
             }
             .padding(PanelDimensions.contentPadding)
-            .animation(.spring(response: 0.3, dampingFraction: 0.75), value: targetIndex)
+            // Only animate while actively dragging (targetIndex is non-nil and dragging)
+            .animation(draggingIndex != nil ? .spring(response: 0.3, dampingFraction: 0.75) : nil, value: targetIndex)
         }
     }
     
@@ -104,15 +105,17 @@ struct FolderListView: View {
     }
     
     private func commitReorder() {
-        defer {
-            draggingIndex = nil
-            targetIndex = nil
-        }
-        
         guard let fromIndex = draggingIndex,
               let toIndex = targetIndex,
-              fromIndex != toIndex else { return }
+              fromIndex != toIndex else {
+            // No reorder needed, just clear state
+            draggingIndex = nil
+            targetIndex = nil
+            return
+        }
         
+        // Update sortOrder IMMEDIATELY before clearing state
+        // This ensures SwiftData re-queries with new order before animation runs
         var sorted = folders.sorted { $0.sortOrder < $1.sortOrder }
         let moved = sorted.remove(at: fromIndex)
         sorted.insert(moved, at: toIndex)
@@ -120,6 +123,13 @@ struct FolderListView: View {
         for (index, folder) in sorted.enumerated() {
             folder.sortOrder = index
         }
+        
+        // Try to save changes immediately
+        try? modelContext.save()
+        
+        // Now clear state - folders should already be in correct visual positions
+        draggingIndex = nil
+        targetIndex = nil
     }
     
     // MARK: - Folder Creation

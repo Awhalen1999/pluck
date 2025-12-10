@@ -202,10 +202,10 @@ struct FolderCardView: View {
             onDragEnded()
         }
         
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-            dragOffset = .zero
-            canDrag = false
-        }
+        // Snap back instantly - no animation
+        // The list handles positioning folders in their new locations
+        dragOffset = .zero
+        canDrag = false
     }
     
     // MARK: - Thumbnails
