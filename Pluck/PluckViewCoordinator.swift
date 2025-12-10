@@ -32,12 +32,12 @@ struct PluckViewCoordinator: View {
             height: currentHeight
         )
         .background(panelBackground)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .clipShape(DockedPanelShape(dockedEdge: windowManager.dockedEdge, cornerRadius: cornerRadius))
         .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius)
+            DockedPanelShape(dockedEdge: windowManager.dockedEdge, cornerRadius: cornerRadius)
                 .stroke(Theme.border, lineWidth: 1)
         )
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: windowManager.panelState)
+        .animation(animationForCurrentTransition, value: windowManager.panelState)
     }
     
     // MARK: - State Helpers
@@ -49,23 +49,43 @@ struct PluckViewCoordinator: View {
         return false
     }
     
+    /// Choose appropriate animation based on state transition
+    private var animationForCurrentTransition: Animation {
+        // Use faster collapse animation when closing
+        isCollapsed ? .panelCollapse : .panelExpand
+    }
+    
     // MARK: - Expanded Content Router
     
     @ViewBuilder
     private var expandedContent: some View {
-        switch windowManager.panelState {
-        case .collapsed:
-            EmptyView()
-            
-        case .folderList:
-            FolderListView()
+        Group {
+            switch windowManager.panelState {
+            case .collapsed:
+                EmptyView()
                 
-        case .folderOpen(let folder):
-            FolderDetailView(folder: folder)
-                
-        case .imageFocused(let image):
-            ImageDetailView(image: image)
+            case .folderList:
+                FolderListView()
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.9).combined(with: .opacity),
+                        removal: .opacity
+                    ))
+                    
+            case .folderOpen(let folder):
+                FolderDetailView(folder: folder)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .trailing).combined(with: .opacity)
+                    ))
+                    
+            case .imageFocused(let image):
+                ImageDetailView(image: image)
+                    .transition(.scale(scale: 0.92).combined(with: .opacity))
+            }
         }
+        // Add subtle blur during state transitions
+        .opacity(isCollapsed ? 0 : 1)
+        .blur(radius: isCollapsed ? 8 : 0)
     }
     
     // MARK: - Dynamic Dimensions
