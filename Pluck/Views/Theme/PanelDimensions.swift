@@ -13,7 +13,7 @@ enum PanelDimensions {
     
     // MARK: - Base Sizes
     
-    static let collapsedSize = CGSize(width: 50, height: 50)
+    static let collapsedSize = CGSize(width: 50, height: 100)
     static let folderListWidth: CGFloat = 220
     static let imageDetailWidth: CGFloat = 340
     static let imageDetailContentHeight: CGFloat = 400
