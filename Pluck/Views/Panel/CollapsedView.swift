@@ -2,6 +2,10 @@
 //  CollapsedView.swift
 //  Pluck
 //
+//  ⚠️ DEPRECATED: This file is no longer used.
+//  The collapsed icon functionality has been moved into FloatingPanelView as PanelIconView.
+//  This file can be safely deleted.
+//
 
 import SwiftUI
 

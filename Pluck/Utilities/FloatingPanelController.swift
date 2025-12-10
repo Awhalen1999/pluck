@@ -172,15 +172,24 @@ final class FloatingPanelController {
             .environment(pasteController)
             .modelContainer(modelContainer)
         
+        guard let screen = NSScreen.main else { return }
+        
+        // Use unified sizing system for initial frame
+        let initialFrame = PanelDimensions.calculateFrame(
+            for: .collapsed,
+            dockedEdge: windowManager.dockedEdge,
+            yFromTop: windowManager.dockedYPosition,
+            screen: screen
+        )
+        
         let panel = FloatingPanel(
-            contentRect: NSRect(origin: .zero, size: PanelDimensions.collapsedNSSize),
+            contentRect: initialFrame,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         
         configurePanel(panel)
-        positionPanel(panel, size: PanelDimensions.collapsedNSSize)
         
         panel.contentView = NSHostingView(rootView: contentView)
         panel.orderFront(nil)
@@ -198,12 +207,6 @@ final class FloatingPanelController {
         panel.hidesOnDeactivate = false
     }
     
-    private func positionPanel(_ panel: FloatingPanel, size: NSSize) {
-        guard let screen = NSScreen.main else { return }
-        let origin = calculateOrigin(for: size, in: screen.visibleFrame)
-        panel.setFrameOrigin(origin)
-    }
-    
     // MARK: - Frame Updates
     
     func updatePanelFrame(animated: Bool = false) {
@@ -216,9 +219,13 @@ final class FloatingPanelController {
         let currentYFromTop = screenRect.maxY - currentFrame.origin.y - currentFrame.height
         windowManager.dockedYPosition = currentYFromTop
         
-        let newSize = sizeForCurrentState()
-        let newOrigin = calculateOrigin(for: newSize, in: screenRect)
-        let newFrame = NSRect(origin: newOrigin, size: newSize)
+        // Use unified sizing system
+        let newFrame = PanelDimensions.calculateFrame(
+            for: windowManager.panelState,
+            dockedEdge: windowManager.dockedEdge,
+            yFromTop: windowManager.dockedYPosition,
+            screen: screen
+        )
         
         guard animated else {
             panel.setFrame(newFrame, display: true)
@@ -229,37 +236,6 @@ final class FloatingPanelController {
             context.duration = 0.25
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().setFrame(newFrame, display: true)
-        }
-    }
-    
-    // MARK: - Layout Calculation
-    
-    private func calculateOrigin(for size: NSSize, in screenRect: NSRect) -> NSPoint {
-        let x: CGFloat
-        if windowManager.dockedEdge == .right {
-            x = screenRect.maxX - size.width - PanelDimensions.edgeMargin
-        } else {
-            x = screenRect.minX + PanelDimensions.edgeMargin
-        }
-        
-        let y = screenRect.maxY - windowManager.dockedYPosition - size.height
-        let clampedY = y.clamped(to: screenRect.minY + PanelDimensions.edgeMargin...screenRect.maxY - size.height - PanelDimensions.edgeMargin)
-        
-        return NSPoint(x: x, y: clampedY)
-    }
-    
-    private func sizeForCurrentState() -> NSSize {
-        switch windowManager.panelState {
-        case .collapsed:
-            return PanelDimensions.collapsedNSSize
-            
-        case .folderList, .folderOpen:
-            let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
-            let height = PanelDimensions.listHeight(screenHeight: screenHeight)
-            return NSSize(width: PanelDimensions.folderListSize.width, height: height)
-            
-        case .imageFocused:
-            return PanelDimensions.imageDetailNSSize
         }
     }
 }

@@ -77,26 +77,21 @@ struct FloatingPanelView: View {
     // MARK: - Dynamic Dimensions
     
     private var currentWidth: CGFloat {
-        switch windowManager.panelState {
-        case .collapsed:
-            return PanelDimensions.collapsedSize.width
-        case .folderList, .folderOpen:
-            return PanelDimensions.folderListSize.width
-        case .imageFocused:
-            return PanelDimensions.imageDetailSize.width
-        }
+        guard let screen = NSScreen.main else { return PanelDimensions.collapsedSize.width }
+        let size = PanelDimensions.size(
+            for: windowManager.panelState,
+            screenHeight: screen.visibleFrame.height
+        )
+        return size.width
     }
     
     private var currentHeight: CGFloat {
-        switch windowManager.panelState {
-        case .collapsed:
-            return PanelDimensions.collapsedSize.height
-        case .folderList, .folderOpen:
-            let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
-            return PanelDimensions.collapsedSize.height + PanelDimensions.listHeight(screenHeight: screenHeight)
-        case .imageFocused:
-            return PanelDimensions.collapsedSize.height + PanelDimensions.imageDetailSize.height
-        }
+        guard let screen = NSScreen.main else { return PanelDimensions.collapsedSize.height }
+        let size = PanelDimensions.size(
+            for: windowManager.panelState,
+            screenHeight: screen.visibleFrame.height
+        )
+        return size.height
     }
     
     // MARK: - Styling
@@ -278,8 +273,8 @@ private struct FolderListContentView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
             
             ScrollView {
                 LazyVStack(spacing: PanelDimensions.folderCardSpacing) {
@@ -304,7 +299,8 @@ private struct FolderListContentView: View {
                         createFolder(name: name, colorHex: colorHex)
                     }
                 }
-                .padding(PanelDimensions.contentPadding)
+                .padding(.horizontal, 8)
+                .padding(.vertical, PanelDimensions.contentPadding)
                 .animation(draggingIndex != nil ? .spring(response: 0.3, dampingFraction: 0.75) : nil, value: targetIndex)
             }
         }
@@ -439,8 +435,8 @@ private struct FolderDetailContentView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
     }
     
     @ViewBuilder
@@ -482,7 +478,8 @@ private struct FolderDetailContentView: View {
                     }
                 }
             }
-            .padding(PanelDimensions.contentPadding - 2)
+            .padding(.horizontal, 8)
+            .padding(.vertical, PanelDimensions.contentPadding - 2)
         }
     }
     
@@ -561,7 +558,7 @@ private struct ImageDetailContentView: View {
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
-                .padding(.leading, 8)
+                .padding(.leading, 4)
             
             Spacer()
             
@@ -572,7 +569,7 @@ private struct ImageDetailContentView: View {
             }
             .buttonStyle(.plain)
             .onHover { isHoveringDelete = $0 }
-            .padding(.trailing, 8)
+            .padding(.trailing, 4)
             
             Button(action: { windowManager.collapse() }) {
                 Image(systemName: "xmark")
@@ -583,9 +580,9 @@ private struct ImageDetailContentView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, PanelDimensions.contentPadding)
-        .padding(.top, PanelDimensions.contentPadding)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
     }
     
     @ViewBuilder
@@ -595,7 +592,7 @@ private struct ImageDetailContentView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(PanelDimensions.contentPadding)
+                .padding(8)
                 .onDrag {
                     NSItemProvider(object: fullImage)
                 }
@@ -631,7 +628,7 @@ private struct ImageDetailContentView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, PanelDimensions.contentPadding + 4)
+            .padding(.horizontal, 8)
             .padding(.vertical, 10)
         }
     }
