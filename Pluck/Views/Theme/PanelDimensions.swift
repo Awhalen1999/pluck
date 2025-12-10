@@ -10,8 +10,11 @@ enum PanelDimensions {
     // MARK: - Panel Sizes
     
     static let collapsedSize = CGSize(width: 50, height: 50)
-    static let folderListSize = CGSize(width: 220, height: 350)
-    static let folderDetailSize = CGSize(width: 220, height: 350)
+    
+    // Width only - height is calculated dynamically as 50% of screen height
+    static let folderListSize = CGSize(width: 220, height: 0)
+    static let folderDetailSize = CGSize(width: 220, height: 0)
+    
     static let imageDetailSize = CGSize(width: 340, height: 400)
     
     // MARK: - Layout
@@ -42,11 +45,9 @@ enum PanelDimensions {
     
     // MARK: - Dynamic Height
     
-    static func listHeight(expanded: Bool, screenHeight: CGFloat) -> CGFloat {
-        if expanded {
-            return screenHeight - (edgeMargin * 2)
-        }
-        return folderListSize.height
+    /// Returns 55% of the screen height for the panel
+    static func listHeight(screenHeight: CGFloat) -> CGFloat {
+        return screenHeight * 0.55
     }
     
     // MARK: - NSSize Conversions (for AppKit)

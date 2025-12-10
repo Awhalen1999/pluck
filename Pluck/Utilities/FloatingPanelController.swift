@@ -30,7 +30,6 @@ final class FloatingPanelController {
     private var panel: FloatingPanel?
     private var modelContainer: ModelContainer?
     private var stateObserver: NSObjectProtocol?
-    private var heightObserver: NSObjectProtocol?
     private var globalKeyMonitor: Any?
     private var localKeyMonitor: Any?
     private var windowFocusObservers: [NSObjectProtocol] = []
@@ -75,14 +74,6 @@ final class FloatingPanelController {
             queue: .main
         ) { [weak self] _ in
             self?.updatePanelFrame(animated: false)
-        }
-        
-        heightObserver = NotificationCenter.default.addObserver(
-            forName: .panelHeightChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.updatePanelFrame(animated: true)
         }
     }
 
@@ -264,10 +255,7 @@ final class FloatingPanelController {
             
         case .folderList, .folderOpen:
             let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
-            let height = PanelDimensions.listHeight(
-                expanded: windowManager.isHeightExpanded,
-                screenHeight: screenHeight
-            )
+            let height = PanelDimensions.listHeight(screenHeight: screenHeight)
             return NSSize(width: PanelDimensions.folderListSize.width, height: height)
             
         case .imageFocused:

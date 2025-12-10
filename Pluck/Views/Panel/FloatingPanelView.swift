@@ -58,10 +58,7 @@ struct FloatingPanelView: View {
     
     private var currentListHeight: CGFloat {
         let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
-        return PanelDimensions.listHeight(
-            expanded: windowManager.isHeightExpanded,
-            screenHeight: screenHeight
-        )
+        return PanelDimensions.listHeight(screenHeight: screenHeight)
     }
     
     // MARK: - Styling
