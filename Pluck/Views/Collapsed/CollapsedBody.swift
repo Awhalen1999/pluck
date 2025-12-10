@@ -1,15 +1,14 @@
 //
-//  CollapsedView.swift
+//  CollapsedBody.swift
 //  Pluck
 //
-//  ⚠️ DEPRECATED: This file is no longer used.
-//  The collapsed icon functionality has been moved into FloatingPanelView as PanelIconView.
-//  This file can be safely deleted.
+//  Created by Alex Whalen on 2025-12-10.
 //
 
 import SwiftUI
 
-struct CollapsedView: View {
+/// Implementation of the collapsed icon with drag/drop functionality
+struct CollapsedBody: View {
     @Environment(WindowManager.self) private var windowManager
     
     @State private var isDragging = false
@@ -23,23 +22,14 @@ struct CollapsedView: View {
     var body: some View {
         Image(systemName: "square.stack.3d.up.fill")
             .font(.system(size: 22))
-            .foregroundStyle(iconColor)
-            .frame(width: 50, height: 50)
+            .foregroundStyle(Theme.textPrimary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: PanelDimensions.collapsedCornerRadius)
                     .fill(isDragging ? Theme.backgroundCardHover : .clear)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: PanelDimensions.collapsedCornerRadius)
-                    .stroke(borderColor, lineWidth: 0.5)
-            )
             .scaleEffect(scaleEffect)
             .wiggle(when: $isWiggling)
-            .shadow(
-                color: isDragging ? Theme.shadowMedium : Theme.shadowLight,
-                radius: isDragging ? 16 : 4,
-                y: isDragging ? 8 : 2
-            )
             .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isDragging)
             .contentShape(Rectangle())
             .gesture(dragGesture)
@@ -47,7 +37,7 @@ struct CollapsedView: View {
                 false
             }
             .onChange(of: isDropTargeted) { _, targeted in
-                if targeted {
+                if targeted && isCollapsed {
                     windowManager.showFolderList()
                 }
             }
@@ -58,14 +48,11 @@ struct CollapsedView: View {
     
     // MARK: - Computed Properties
     
-    private var iconColor: Color {
-        isDragging ? Theme.textPrimary : Theme.textPrimary
-    }
-    
-    private var borderColor: Color {
-        if isDragging { return Theme.borderHover }
-        if isDropTargeted { return Theme.borderHover }
-        return .clear
+    private var isCollapsed: Bool {
+        if case .collapsed = windowManager.panelState {
+            return true
+        }
+        return false
     }
     
     private var scaleEffect: CGFloat {
@@ -74,7 +61,7 @@ struct CollapsedView: View {
         return 1.0
     }
     
-    // MARK: - Timer
+    // MARK: - Timer Management
     
     private func invalidateTimer() {
         holdTimer?.invalidate()
@@ -95,7 +82,6 @@ struct CollapsedView: View {
     
     private func handleDragChanged(_ value: DragGesture.Value) {
         if holdTimer == nil && !canDrag {
-            // Use .common run loop mode for reliable timer firing
             holdTimer = Timer(timeInterval: holdDuration, repeats: false) { _ in
                 DispatchQueue.main.async {
                     canDrag = true
@@ -115,7 +101,10 @@ struct CollapsedView: View {
         invalidateTimer()
         
         if !canDrag {
-            windowManager.showFolderList()
+            // Quick tap - toggle expansion
+            if isCollapsed {
+                windowManager.showFolderList()
+            }
         } else {
             saveYPosition()
         }
@@ -151,11 +140,4 @@ struct CollapsedView: View {
         let yFromTop = screenRect.maxY - frame.origin.y - frame.height
         windowManager.dockedYPosition = yFromTop
     }
-}
-
-// MARK: - Preview
-
-#Preview {
-    CollapsedView()
-        .environment(WindowManager())
 }

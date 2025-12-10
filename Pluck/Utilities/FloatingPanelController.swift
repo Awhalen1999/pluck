@@ -166,7 +166,7 @@ final class FloatingPanelController {
     private func createPanel() {
         guard let modelContainer = modelContainer else { return }
         
-        let contentView = FloatingPanelView()
+        let contentView = PluckViewCoordinator()
             .environment(windowManager)
             .environment(clipboardWatcher)
             .environment(pasteController)

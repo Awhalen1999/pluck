@@ -1,12 +1,12 @@
 //
-//  FolderCardView.swift
+//  FolderCard.swift
 //  Pluck
 //
 
 import SwiftUI
 import SwiftData
 
-struct FolderCardView: View {
+struct FolderCard: View {
     let folder: DesignFolder
     let onTap: () -> Void
     let onDragStarted: () -> Void
@@ -271,7 +271,7 @@ struct FolderCardView: View {
 
 #Preview {
     let folder = DesignFolder(name: "Test Folder")
-    return FolderCardView(
+    return FolderCard(
         folder: folder,
         onTap: { },
         onDragStarted: { },
