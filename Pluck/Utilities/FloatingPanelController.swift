@@ -74,9 +74,7 @@ final class FloatingPanelController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in
-                self?.updatePanelFrame(animated: false)
-            }
+            self?.updatePanelFrame(animated: false)
         }
         
         heightObserver = NotificationCenter.default.addObserver(
@@ -84,9 +82,7 @@ final class FloatingPanelController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in
-                self?.updatePanelFrame(animated: true)
-            }
+            self?.updatePanelFrame(animated: true)
         }
     }
 
@@ -222,8 +218,15 @@ final class FloatingPanelController {
     func updatePanelFrame(animated: Bool = false) {
         guard let panel = panel, let screen = NSScreen.main else { return }
         
+        // IMPORTANT: Capture current Y position before resizing
+        // This prevents jumps when transitioning between states
+        let currentFrame = panel.frame
+        let screenRect = screen.visibleFrame
+        let currentYFromTop = screenRect.maxY - currentFrame.origin.y - currentFrame.height
+        windowManager.dockedYPosition = currentYFromTop
+        
         let newSize = sizeForCurrentState()
-        let newOrigin = calculateOrigin(for: newSize, in: screen.visibleFrame)
+        let newOrigin = calculateOrigin(for: newSize, in: screenRect)
         let newFrame = NSRect(origin: newOrigin, size: newSize)
         
         guard animated else {
