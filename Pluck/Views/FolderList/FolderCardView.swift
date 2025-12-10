@@ -175,13 +175,15 @@ struct FolderCardView: View {
     
     private func handleDragChanged(_ value: DragGesture.Value) {
         if holdTimer == nil && !canDrag {
-            holdTimer = Timer.scheduledTimer(withTimeInterval: holdDuration, repeats: false) { _ in
+            // Use .common run loop mode for reliable timer firing
+            holdTimer = Timer(timeInterval: holdDuration, repeats: false) { _ in
                 DispatchQueue.main.async {
                     canDrag = true
                     isWiggling = true
                     onDragStarted()
                 }
             }
+            RunLoop.current.add(holdTimer!, forMode: .common)
         }
         
         if canDrag {

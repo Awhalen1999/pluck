@@ -36,10 +36,12 @@ final class ClipboardWatcher {
     func startWatching() {
         checkClipboard()
         
-        timer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
+        // Use .common run loop mode for reliable timer firing
+        timer = Timer(timeInterval: checkInterval, repeats: true) { [weak self] _ in
             guard let self else { return }
             self.checkClipboard()
         }
+        RunLoop.main.add(timer!, forMode: .common)
     }
     
     func stopWatching() {
