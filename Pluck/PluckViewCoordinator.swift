@@ -9,83 +9,60 @@ import SwiftUI
 import SwiftData
 
 /// Main coordinator that manages panel state and displays the appropriate view
+/// Simple switch statement - one state = one view
 struct PluckViewCoordinator: View {
     @Environment(WindowManager.self) private var windowManager
     
     var body: some View {
-        VStack(spacing: 0) {
-            // The icon/header is always present
-            CollapsedView()
-                .frame(
-                    width: PanelDimensions.collapsedSize.width,
-                    height: PanelDimensions.collapsedSize.height
-                )
-            
-            // Content expands below when not collapsed
-            if !isCollapsed {
-                expandedContent
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-        }
-        .frame(
-            width: currentWidth,
-            height: currentHeight
-        )
-        .background(panelBackground)
-        .clipShape(DockedPanelShape(dockedEdge: windowManager.dockedEdge, cornerRadius: cornerRadius))
-        .overlay(
-            DockedPanelShape(dockedEdge: windowManager.dockedEdge, cornerRadius: cornerRadius)
-                .stroke(Theme.border, lineWidth: 1)
-        )
-        .animation(animationForCurrentTransition, value: windowManager.panelState)
+        currentView
+            .frame(width: currentWidth, height: currentHeight)
+            .background(panelBackground)
+            .clipShape(DockedPanelShape(dockedEdge: windowManager.dockedEdge, cornerRadius: cornerRadius))
+            .overlay(
+                DockedPanelShape(dockedEdge: windowManager.dockedEdge, cornerRadius: cornerRadius)
+                    .stroke(Theme.border, lineWidth: 1)
+            )
+            .animation(animationForCurrentTransition, value: windowManager.panelState)
     }
     
-    // MARK: - State Helpers
-    
-    private var isCollapsed: Bool {
-        if case .collapsed = windowManager.panelState {
-            return true
-        }
-        return false
-    }
-    
-    /// Choose appropriate animation based on state transition
-    private var animationForCurrentTransition: Animation {
-        // Use faster collapse animation when closing
-        isCollapsed ? .panelCollapse : .panelExpand
-    }
-    
-    // MARK: - Expanded Content Router
+    // MARK: - View Router (Clean & Simple)
     
     @ViewBuilder
-    private var expandedContent: some View {
-        Group {
-            switch windowManager.panelState {
-            case .collapsed:
-                EmptyView()
-                
-            case .folderList:
-                FolderListView()
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.9).combined(with: .opacity),
-                        removal: .opacity
-                    ))
-                    
-            case .folderOpen(let folder):
-                FolderDetailView(folder: folder)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .trailing).combined(with: .opacity)
-                    ))
-                    
-            case .imageFocused(let image):
-                ImageDetailView(image: image)
-                    .transition(.scale(scale: 0.92).combined(with: .opacity))
-            }
+    private var currentView: some View {
+        switch windowManager.panelState {
+        case .collapsed:
+            CollapsedView()
+                .transition(.scaleAndFade)
+            
+        case .folderList:
+            FolderListView()
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.9).combined(with: .opacity),
+                    removal: .opacity
+                ))
+            
+        case .folderOpen(let folder):
+            FolderDetailView(folder: folder)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .trailing).combined(with: .opacity)
+                ))
+            
+        case .imageFocused(let image):
+            ImageDetailView(image: image)
+                .transition(.scale(scale: 0.92).combined(with: .opacity))
         }
-        // Add subtle blur during state transitions
-        .opacity(isCollapsed ? 0 : 1)
-        .blur(radius: isCollapsed ? 8 : 0)
+    }
+    
+    // MARK: - Animation
+    
+    private var animationForCurrentTransition: Animation {
+        switch windowManager.panelState {
+        case .collapsed:
+            return .panelCollapse
+        default:
+            return .panelExpand
+        }
     }
     
     // MARK: - Dynamic Dimensions
@@ -111,7 +88,12 @@ struct PluckViewCoordinator: View {
     // MARK: - Styling
     
     private var cornerRadius: CGFloat {
-        isCollapsed ? PanelDimensions.collapsedCornerRadius : PanelDimensions.expandedCornerRadius
+        switch windowManager.panelState {
+        case .collapsed:
+            return PanelDimensions.collapsedCornerRadius
+        default:
+            return PanelDimensions.expandedCornerRadius
+        }
     }
     
     private var panelBackground: some View {
