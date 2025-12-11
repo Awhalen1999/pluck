@@ -61,6 +61,12 @@ final class WindowManager {
         dockedYPosition = y
     }
     
+    func setDockedEdge(_ edge: DockedEdge) {
+        guard edge != dockedEdge else { return }
+        dockedEdge = edge
+        notifyStateChanged()
+    }
+    
     // MARK: - Notifications
     
     private func notifyStateChanged() {

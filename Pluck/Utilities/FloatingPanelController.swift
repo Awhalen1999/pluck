@@ -47,7 +47,9 @@ final class FloatingPanelController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.animateToCurrentState()
+            Task { @MainActor in
+                self?.animateToCurrentState()
+            }
         }
     }
     
@@ -65,10 +67,27 @@ final class FloatingPanelController {
         panel?.orderOut(nil)
     }
     
+    func togglePanel() {
+        guard let panel else {
+            showPanel()
+            return
+        }
+        
+        if panel.isVisible {
+            hidePanel()
+        } else {
+            showPanel()
+        }
+    }
+    
     // MARK: - Panel Creation
     
     private func createPanel() {
         guard let screen = NSScreen.main else { return }
+        
+        // Initialize edge tracking
+        lastDockedEdge = windowManager.dockedEdge
+        lastPanelState = windowManager.panelState
         
         let frame = PanelDimensions.calculateFrame(
             for: .closed,
@@ -108,12 +127,22 @@ final class FloatingPanelController {
         panel.contentView = NSHostingView(rootView: content)
     }
     
-    // MARK: - Frame Animation
+    // MARK: - Frame Updates
+    
+    private var lastDockedEdge: DockedEdge?
+    private var lastPanelState: PanelState?
     
     private func animateToCurrentState() {
         guard let panel, let screen = NSScreen.main else { return }
         
-        // Preserve Y position during resize
+        // Detect what changed
+        let edgeChanged = lastDockedEdge != nil && lastDockedEdge != windowManager.dockedEdge
+        
+        // Update tracking
+        lastDockedEdge = windowManager.dockedEdge
+        lastPanelState = windowManager.panelState
+        
+        // Preserve Y position
         let currentYFromTop = calculateYFromTop(panel: panel, screen: screen)
         windowManager.updateYPosition(currentYFromTop)
         
@@ -124,10 +153,19 @@ final class FloatingPanelController {
             screen: screen
         )
         
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = animationDuration
-            context.timingFunction = animationTiming
-            panel.animator().setFrame(newFrame, display: true)
+        if edgeChanged {
+            // Teleport instantly for edge switch - no animation
+            NSAnimationContext.beginGrouping()
+            NSAnimationContext.current.duration = 0
+            panel.setFrame(newFrame, display: true)
+            NSAnimationContext.endGrouping()
+        } else {
+            // Animate for open/close
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = animationDuration
+                context.timingFunction = animationTiming
+                panel.animator().setFrame(newFrame, display: true)
+            }
         }
     }
     

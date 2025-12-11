@@ -66,7 +66,7 @@ struct PluckViewCoordinator: View {
         }
         .foregroundStyle(Color.white.opacity(isDragging ? 0.35 : 0.15))
         .padding(.vertical, 6)
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .contentShape(Rectangle())
         .gesture(handleDragGesture)
         .animation(.easeOut(duration: 0.15), value: isDragging)
