@@ -11,15 +11,17 @@ import SwiftUI
 struct PluckViewCoordinator: View {
     
     @Environment(WindowManager.self) private var windowManager
+    
     @State private var isHovering = false
+    @State private var isDragging = false
     
     // MARK: - Body
     
     var body: some View {
         GeometryReader { geometry in
             panel(dockedEdge: windowManager.dockedEdge)
-                .onTapGesture { windowManager.toggle() }
                 .onHover { isHovering = $0 }
+                .onTapGesture { windowManager.toggle() }
         }
     }
     
@@ -29,6 +31,7 @@ struct PluckViewCoordinator: View {
         ZStack {
             background(dockedEdge: dockedEdge)
             content
+            dragHandlePositioned
         }
         .clipShape(edgeShape(dockedEdge: dockedEdge))
         .overlay {
@@ -37,15 +40,83 @@ struct PluckViewCoordinator: View {
         }
     }
     
+    // MARK: - Drag Handle Positioning
+    
+    private var dragHandlePositioned: some View {
+        VStack {
+            dragHandle
+            Spacer()
+        }
+    }
+    
+    // MARK: - Drag Handle (Grip Dots)
+    
+    private var dragHandle: some View {
+        VStack(spacing: 2) {
+            HStack(spacing: 3) {
+                Circle().frame(width: 3, height: 3)
+                Circle().frame(width: 3, height: 3)
+                Circle().frame(width: 3, height: 3)
+            }
+            HStack(spacing: 3) {
+                Circle().frame(width: 3, height: 3)
+                Circle().frame(width: 3, height: 3)
+                Circle().frame(width: 3, height: 3)
+            }
+        }
+        .foregroundStyle(Color.white.opacity(isDragging ? 0.35 : 0.15))
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .contentShape(Rectangle())
+        .gesture(handleDragGesture)
+        .animation(.easeOut(duration: 0.15), value: isDragging)
+    }
+    
+    private var handleDragGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                isDragging = true
+                movePanel(by: value.translation.height)
+            }
+            .onEnded { _ in
+                isDragging = false
+                savePosition()
+            }
+    }
+    
+    // MARK: - Panel Movement
+    
+    private func movePanel(by deltaY: CGFloat) {
+        guard let window = NSApplication.shared.windows.first(where: { $0 is FloatingPanel }),
+              let screen = NSScreen.main else { return }
+        
+        let screenRect = screen.visibleFrame
+        var frame = window.frame
+        
+        frame.origin.y -= deltaY
+        frame.origin.y = frame.origin.y.clamped(
+            to: screenRect.minY...screenRect.maxY - frame.height
+        )
+        
+        window.setFrameOrigin(frame.origin)
+    }
+    
+    private func savePosition() {
+        guard let window = NSApplication.shared.windows.first(where: { $0 is FloatingPanel }),
+              let screen = NSScreen.main else { return }
+        
+        let screenRect = screen.visibleFrame
+        let yFromTop = screenRect.maxY - window.frame.origin.y - window.frame.height
+        windowManager.updateYPosition(yFromTop)
+    }
+    
     // MARK: - Edge-Aware Shape
     
-    /// Rounds only the corners facing away from the screen edge
     private func edgeShape(dockedEdge: DockedEdge) -> UnevenRoundedRectangle {
         let r = PanelDimensions.cornerRadius
         
         return switch dockedEdge {
         case .right:
-            // Docked right: round left corners only
             UnevenRoundedRectangle(
                 topLeadingRadius: r,
                 bottomLeadingRadius: r,
@@ -53,7 +124,6 @@ struct PluckViewCoordinator: View {
                 topTrailingRadius: 0
             )
         case .left:
-            // Docked left: round right corners only
             UnevenRoundedRectangle(
                 topLeadingRadius: 0,
                 bottomLeadingRadius: 0,
@@ -129,7 +199,7 @@ struct PluckViewCoordinator: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 8)
-        .padding(.top, 8)
+        .padding(.top, 10)
     }
     
     private var placeholder: some View {
