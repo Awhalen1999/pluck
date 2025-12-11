@@ -2,95 +2,156 @@
 //  PluckViewCoordinator.swift
 //  Pluck
 //
-//  Created by Alex Whalen on 2025-12-10.
+//  Main panel UI that morphs between closed and open states.
+//  Fills the window frame - sizing is controlled by FloatingPanelController.
 //
 
 import SwiftUI
-import SwiftData
 
-/// Main coordinator that manages panel state and displays the appropriate view
-/// Simple switch statement - one state = one view
 struct PluckViewCoordinator: View {
+    
     @Environment(WindowManager.self) private var windowManager
+    @State private var isHovering = false
+    
+    // MARK: - Body
     
     var body: some View {
-        currentView
-            .frame(width: currentWidth, height: currentHeight)
-            .background(panelBackground)
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(Theme.border, lineWidth: 1)
-            )
+        GeometryReader { geometry in
+            panel(dockedEdge: windowManager.dockedEdge)
+                .onTapGesture { windowManager.toggle() }
+                .onHover { isHovering = $0 }
+        }
     }
     
-    // MARK: - View Router (Clean & Simple)
+    // MARK: - Panel
+    
+    private func panel(dockedEdge: DockedEdge) -> some View {
+        ZStack {
+            background(dockedEdge: dockedEdge)
+            content
+        }
+        .clipShape(edgeShape(dockedEdge: dockedEdge))
+        .overlay {
+            edgeShape(dockedEdge: dockedEdge)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        }
+    }
+    
+    // MARK: - Edge-Aware Shape
+    
+    /// Rounds only the corners facing away from the screen edge
+    private func edgeShape(dockedEdge: DockedEdge) -> UnevenRoundedRectangle {
+        let r = PanelDimensions.cornerRadius
+        
+        return switch dockedEdge {
+        case .right:
+            // Docked right: round left corners only
+            UnevenRoundedRectangle(
+                topLeadingRadius: r,
+                bottomLeadingRadius: r,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: 0
+            )
+        case .left:
+            // Docked left: round right corners only
+            UnevenRoundedRectangle(
+                topLeadingRadius: 0,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: r,
+                topTrailingRadius: r
+            )
+        }
+    }
+    
+    // MARK: - Background
+    
+    private func background(dockedEdge: DockedEdge) -> some View {
+        ZStack {
+            Color.black.opacity(0.9)
+            
+            edgeShape(dockedEdge: dockedEdge)
+                .fill(.ultraThinMaterial)
+                .opacity(0.2)
+        }
+    }
+    
+    // MARK: - Content
     
     @ViewBuilder
-    private var currentView: some View {
-        switch windowManager.panelState {
-        case .collapsed:
-            CollapsedView()
-            
-        case .folderList:
-            FolderListView()
-            
-        case .folderOpen(let folder):
-            FolderDetailView(folder: folder)
-            
-        case .imageFocused(let image):
-            ImageDetailView(image: image)
-        }
-    }
-    
-    // MARK: - Dynamic Dimensions
-    
-    private var currentWidth: CGFloat {
-        guard let screen = NSScreen.main else { return PanelDimensions.collapsedSize.width }
-        let size = PanelDimensions.size(
-            for: windowManager.panelState,
-            screenHeight: screen.visibleFrame.height
-        )
-        return size.width
-    }
-    
-    private var currentHeight: CGFloat {
-        guard let screen = NSScreen.main else { return PanelDimensions.collapsedSize.height }
-        let size = PanelDimensions.size(
-            for: windowManager.panelState,
-            screenHeight: screen.visibleFrame.height
-        )
-        return size.height
-    }
-    
-    // MARK: - Styling
-    
-    private var cornerRadius: CGFloat {
-        switch windowManager.panelState {
-        case .collapsed:
-            return PanelDimensions.collapsedCornerRadius
-        default:
-            return PanelDimensions.expandedCornerRadius
-        }
-    }
-    
-    private var panelBackground: some View {
+    private var content: some View {
+        let isOpen = windowManager.isOpen
+        
         ZStack {
-            Theme.backgroundSolid
+            closedContent
+                .opacity(isOpen ? 0 : 1)
+                .scaleEffect(isOpen ? 0.8 : 1)
             
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(.ultraThinMaterial)
-                .opacity(0.3)
+            openContent
+                .opacity(isOpen ? 1 : 0)
+                .scaleEffect(isOpen ? 1 : 0.95)
         }
+        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isOpen)
+    }
+    
+    // MARK: - Closed Content
+    
+    private var closedContent: some View {
+        Image(systemName: "square.stack.3d.up.fill")
+            .font(.system(size: 22))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .scaleEffect(isHovering && !windowManager.isOpen ? 1.1 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovering)
+    }
+    
+    // MARK: - Open Content
+    
+    private var openContent: some View {
+        VStack(spacing: 0) {
+            header
+            Spacer()
+            placeholder
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var header: some View {
+        HStack {
+            Spacer()
+            
+            Button(action: { windowManager.close() }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 8)
+    }
+    
+    private var placeholder: some View {
+        Text("Content goes here")
+            .font(.system(size: 13))
+            .foregroundStyle(.white.opacity(0.4))
     }
 }
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Closed") {
     PluckViewCoordinator()
         .environment(WindowManager())
-        .environment(ClipboardWatcher())
-        .environment(PasteController(windowManager: WindowManager(), clipboardWatcher: ClipboardWatcher()))
-        .modelContainer(for: [DesignFolder.self, DesignImage.self])
+        .frame(width: 50, height: 100)
+}
+
+#Preview("Open") {
+    let manager = WindowManager()
+    manager.open()
+    
+    return PluckViewCoordinator()
+        .environment(manager)
+        .frame(width: 220, height: 400)
 }

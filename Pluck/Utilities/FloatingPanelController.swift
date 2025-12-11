@@ -2,19 +2,21 @@
 //  FloatingPanelController.swift
 //  Pluck
 //
+//  Creates and manages the floating panel window.
+//  Responds to state changes by animating the window frame.
+//
 
 import AppKit
 import SwiftUI
-import SwiftData
 
-// MARK: - FloatingPanel
+// MARK: - Floating Panel
 
-class FloatingPanel: NSPanel {
+final class FloatingPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
 
-// MARK: - FloatingPanelController
+// MARK: - Controller
 
 @MainActor
 final class FloatingPanelController {
@@ -24,125 +26,35 @@ final class FloatingPanelController {
     // MARK: - Properties
     
     let windowManager = WindowManager()
-    let clipboardWatcher = ClipboardWatcher()
-    let pasteController: PasteController
     
     private var panel: FloatingPanel?
-    private var modelContainer: ModelContainer?
     private var stateObserver: NSObjectProtocol?
-    private var globalKeyMonitor: Any?
-    private var localKeyMonitor: Any?
-    private var windowFocusObservers: [NSObjectProtocol] = []
     
-    // MARK: - Initialization
+    // MARK: - Animation Configuration
+    
+    private let animationDuration: TimeInterval = 0.3
+    private let animationTiming = CAMediaTimingFunction(name: .easeInEaseOut)
+    
+    // MARK: - Init
     
     private init() {
-        self.pasteController = PasteController(
-            windowManager: windowManager,
-            clipboardWatcher: clipboardWatcher
-        )
-        
-        setupModelContainer()
-        setupObservers()
-        setupKeyMonitors()
-        setupWindowFocusObservers()
+        observeStateChanges()
     }
     
-    // MARK: - Model Container
-    
-    private func setupModelContainer() {
-        do {
-            let storeURL = FileManagerHelper.appSupportDirectory.appendingPathComponent("Pluck.store")
-            let config = ModelConfiguration(url: storeURL)
-            
-            modelContainer = try ModelContainer(
-                for: DesignFolder.self, DesignImage.self,
-                configurations: config
-            )
-            pasteController.setModelContainer(modelContainer!)
-        } catch {
-            assertionFailure("Failed to create ModelContainer: \(error)")
-        }
-    }
-    
-    // MARK: - Observers
-    
-    private func setupObservers() {
+    private func observeStateChanges() {
         stateObserver = NotificationCenter.default.addObserver(
             forName: .panelStateChanged,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.updatePanelFrame(animated: false)
-        }
-    }
-
-    // MARK: - Window Focus
-
-    private func setupWindowFocusObservers() {
-        let becameKey = NotificationCenter.default.addObserver(
-            forName: NSWindow.didBecomeKeyNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            Task { @MainActor in
-                guard let self,
-                      let window = notification.object as? NSWindow,
-                      window === self.panel else { return }
-                self.windowManager.isWindowActive = true
-            }
-        }
-        
-        let resignedKey = NotificationCenter.default.addObserver(
-            forName: NSWindow.didResignKeyNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            Task { @MainActor in
-                guard let self,
-                      let window = notification.object as? NSWindow,
-                      window === self.panel else { return }
-                self.windowManager.isWindowActive = false
-            }
-        }
-        
-        windowFocusObservers = [becameKey, resignedKey]
-    }
-    
-    // MARK: - Key Monitors
-    
-    private func setupKeyMonitors() {
-        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            _ = self?.handleKeyEvent(event)
-        }
-        
-        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if self?.handleKeyEvent(event) == true {
-                return nil
-            }
-            return event
+            self?.animateToCurrentState()
         }
     }
     
-    private func handleKeyEvent(_ event: NSEvent) -> Bool {
-        guard event.modifierFlags.contains(.command),
-              event.charactersIgnoringModifiers == "v" else { return false }
-        
-        guard isMouseOverPanel() else { return false }
-        
-        return pasteController.handlePaste()
-    }
-    
-    private func isMouseOverPanel() -> Bool {
-        guard let panel = panel else { return false }
-        let mouseLocation = NSEvent.mouseLocation
-        return panel.frame.contains(mouseLocation)
-    }
-    
-    // MARK: - Panel Visibility
+    // MARK: - Public
     
     func showPanel() {
-        if let panel = panel {
+        if let panel {
             panel.orderFront(nil)
             return
         }
@@ -153,47 +65,29 @@ final class FloatingPanelController {
         panel?.orderOut(nil)
     }
     
-    func togglePanel() {
-        guard let panel = panel, panel.isVisible else {
-            showPanel()
-            return
-        }
-        hidePanel()
-    }
-    
     // MARK: - Panel Creation
     
     private func createPanel() {
-        guard let modelContainer = modelContainer else { return }
-        
-        let contentView = PluckViewCoordinator()
-            .environment(windowManager)
-            .environment(clipboardWatcher)
-            .environment(pasteController)
-            .modelContainer(modelContainer)
-        
         guard let screen = NSScreen.main else { return }
         
-        // Use unified sizing system for initial frame
-        let initialFrame = PanelDimensions.calculateFrame(
-            for: .collapsed,
+        let frame = PanelDimensions.calculateFrame(
+            for: .closed,
             dockedEdge: windowManager.dockedEdge,
             yFromTop: windowManager.dockedYPosition,
             screen: screen
         )
         
         let panel = FloatingPanel(
-            contentRect: initialFrame,
+            contentRect: frame,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         
         configurePanel(panel)
+        attachContent(to: panel)
         
-        panel.contentView = NSHostingView(rootView: contentView)
         panel.orderFront(nil)
-        
         self.panel = panel
     }
     
@@ -207,19 +101,22 @@ final class FloatingPanelController {
         panel.hidesOnDeactivate = false
     }
     
-    // MARK: - Frame Updates
+    private func attachContent(to panel: FloatingPanel) {
+        let content = PluckViewCoordinator()
+            .environment(windowManager)
+        
+        panel.contentView = NSHostingView(rootView: content)
+    }
     
-    func updatePanelFrame(animated: Bool = false) {
-        guard let panel = panel, let screen = NSScreen.main else { return }
+    // MARK: - Frame Animation
+    
+    private func animateToCurrentState() {
+        guard let panel, let screen = NSScreen.main else { return }
         
-        // IMPORTANT: Capture current Y position before resizing
-        // This prevents jumps when transitioning between states
-        let currentFrame = panel.frame
-        let screenRect = screen.visibleFrame
-        let currentYFromTop = screenRect.maxY - currentFrame.origin.y - currentFrame.height
-        windowManager.dockedYPosition = currentYFromTop
+        // Preserve Y position during resize
+        let currentYFromTop = calculateYFromTop(panel: panel, screen: screen)
+        windowManager.updateYPosition(currentYFromTop)
         
-        // Use unified sizing system
         let newFrame = PanelDimensions.calculateFrame(
             for: windowManager.panelState,
             dockedEdge: windowManager.dockedEdge,
@@ -227,15 +124,15 @@ final class FloatingPanelController {
             screen: screen
         )
         
-        guard animated else {
-            panel.setFrame(newFrame, display: true)
-            return
-        }
-        
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.25
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            context.duration = animationDuration
+            context.timingFunction = animationTiming
             panel.animator().setFrame(newFrame, display: true)
         }
+    }
+    
+    private func calculateYFromTop(panel: FloatingPanel, screen: NSScreen) -> CGFloat {
+        let screenRect = screen.visibleFrame
+        return screenRect.maxY - panel.frame.origin.y - panel.frame.height
     }
 }

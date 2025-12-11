@@ -2,37 +2,23 @@
 //  WindowManager.swift
 //  Pluck
 //
+//  Central state manager for panel open/close behavior.
+//
 
 import Foundation
-import SwiftUI
 
 // MARK: - Panel State
 
 enum PanelState: Equatable {
-    case collapsed
-    case folderList
-    case folderOpen(DesignFolder)
-    case imageFocused(DesignImage)
-    
-    static func == (lhs: PanelState, rhs: PanelState) -> Bool {
-        switch (lhs, rhs) {
-        case (.collapsed, .collapsed),
-             (.folderList, .folderList):
-            return true
-        case (.folderOpen(let a), .folderOpen(let b)):
-            return a.id == b.id
-        case (.imageFocused(let a), .imageFocused(let b)):
-            return a.id == b.id
-        default:
-            return false
-        }
-    }
+    case closed
+    case open
 }
 
 // MARK: - Docked Edge
 
 enum DockedEdge: String {
-    case left, right
+    case left
+    case right
 }
 
 // MARK: - Window Manager
@@ -40,64 +26,39 @@ enum DockedEdge: String {
 @Observable
 final class WindowManager {
     
-    // MARK: - State
+    // MARK: - Properties
     
-    private(set) var panelState: PanelState = .collapsed
-    private(set) var activeFolder: DesignFolder?
-    var isWindowActive: Bool = false
-    
+    private(set) var panelState: PanelState = .closed
     var dockedEdge: DockedEdge = .right
     var dockedYPosition: CGFloat = 200
     
-    // MARK: - Navigation
+    // MARK: - Computed
     
-    func collapse() {
-        panelState = .collapsed
+    var isOpen: Bool {
+        panelState == .open
+    }
+    
+    // MARK: - Actions
+    
+    func toggle() {
+        panelState = isOpen ? .closed : .open
         notifyStateChanged()
     }
     
-    func showFolderList() {
-        panelState = .folderList
+    func open() {
+        guard !isOpen else { return }
+        panelState = .open
         notifyStateChanged()
     }
     
-    func openFolder(_ folder: DesignFolder) {
-        activeFolder = folder
-        panelState = .folderOpen(folder)
+    func close() {
+        guard isOpen else { return }
+        panelState = .closed
         notifyStateChanged()
     }
     
-    func focusImage(_ image: DesignImage) {
-        panelState = .imageFocused(image)
-        notifyStateChanged()
-    }
-    
-    func goBack() {
-        switch panelState {
-        case .imageFocused:
-            panelState = activeFolder.map { .folderOpen($0) } ?? .folderList
-        case .folderOpen:
-            activeFolder = nil
-            panelState = .folderList
-        case .folderList:
-            panelState = .collapsed
-        case .collapsed:
-            return
-        }
-        notifyStateChanged()
-    }
-    
-    // MARK: - Docking
-    
-    func setDockedEdge(_ edge: DockedEdge) {
-        guard edge != dockedEdge else { return }
-        dockedEdge = edge
-        notifyStateChanged()
-    }
-    
-    func updateYPosition(_ yPosition: CGFloat) {
-        dockedYPosition = yPosition
-        notifyStateChanged()
+    func updateYPosition(_ y: CGFloat) {
+        dockedYPosition = y
     }
     
     // MARK: - Notifications
@@ -107,7 +68,7 @@ final class WindowManager {
     }
 }
 
-// MARK: - Notification Names
+// MARK: - Notifications
 
 extension Notification.Name {
     static let panelStateChanged = Notification.Name("panelStateChanged")
