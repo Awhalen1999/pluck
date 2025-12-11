@@ -6,12 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		68A746EA2EEA2ADB008D5134 /* AnimationPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A746E92EEA2ADA008D5134 /* AnimationPresets.swift */; };
-		68A746EC2EEA2B14008D5134 /* ANIMATION_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 68A746EB2EEA2B14008D5134 /* ANIMATION_GUIDE.md */; };
-		68A746EE2EEA2B88008D5134 /* DockedPanelShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A746ED2EEA2B87008D5134 /* DockedPanelShape.swift */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		689074602EE4ACA2007934D8 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -30,12 +24,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		6890744C2EE4ACA0007934D8 /* Pluck.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pluck.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		6890745F2EE4ACA2007934D8 /* PluckTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PluckTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		689074692EE4ACA2007934D8 /* PluckUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PluckUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		68A746E92EEA2ADA008D5134 /* AnimationPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationPresets.swift; sourceTree = "<group>"; };
-		68A746EB2EEA2B14008D5134 /* ANIMATION_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ANIMATION_GUIDE.md; sourceTree = "<group>"; };
-		68A746ED2EEA2B87008D5134 /* DockedPanelShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockedPanelShape.swift; sourceTree = "<group>"; };
+		6890744C2EE4ACA0007934D8 /* Pluck.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Pluck.app; path = /Users/alexwhalen/Development/personal/pluck/build/Debug/Pluck.app; sourceTree = "<absolute>"; };
+		6890745F2EE4ACA2007934D8 /* PluckTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = PluckTests.xctest; path = /Users/alexwhalen/Development/personal/pluck/build/Debug/Pluck.app/Contents/PlugIns/PluckTests.xctest; sourceTree = "<absolute>"; };
+		689074692EE4ACA2007934D8 /* PluckUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = PluckUITests.xctest; path = "/Users/alexwhalen/Development/personal/pluck/build/Debug/PluckUITests-Runner.app/Contents/PlugIns/PluckUITests.xctest"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -87,21 +78,7 @@
 				6890744E2EE4ACA0007934D8 /* Pluck */,
 				689074622EE4ACA2007934D8 /* PluckTests */,
 				6890746C2EE4ACA2007934D8 /* PluckUITests */,
-				6890744D2EE4ACA0007934D8 /* Products */,
-				68A746E92EEA2ADA008D5134 /* AnimationPresets.swift */,
-				68A746EB2EEA2B14008D5134 /* ANIMATION_GUIDE.md */,
-				68A746ED2EEA2B87008D5134 /* DockedPanelShape.swift */,
 			);
-			sourceTree = "<group>";
-		};
-		6890744D2EE4ACA0007934D8 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				6890744C2EE4ACA0007934D8 /* Pluck.app */,
-				6890745F2EE4ACA2007934D8 /* PluckTests.xctest */,
-				689074692EE4ACA2007934D8 /* PluckUITests.xctest */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -208,7 +185,7 @@
 			mainGroup = 689074432EE4ACA0007934D8;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 6890744D2EE4ACA0007934D8 /* Products */;
+			productRefGroup = 689074432EE4ACA0007934D8;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -224,7 +201,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				68A746EC2EEA2B14008D5134 /* ANIMATION_GUIDE.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -249,8 +225,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				68A746EE2EEA2B88008D5134 /* DockedPanelShape.swift in Sources */,
-				68A746EA2EEA2ADB008D5134 /* AnimationPresets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

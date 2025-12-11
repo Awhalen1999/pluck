@@ -17,12 +17,11 @@ struct PluckViewCoordinator: View {
         currentView
             .frame(width: currentWidth, height: currentHeight)
             .background(panelBackground)
-            .clipShape(DockedPanelShape(dockedEdge: windowManager.dockedEdge, cornerRadius: cornerRadius))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             .overlay(
-                DockedPanelShape(dockedEdge: windowManager.dockedEdge, cornerRadius: cornerRadius)
+                RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(Theme.border, lineWidth: 1)
             )
-            .animation(animationForCurrentTransition, value: windowManager.panelState)
     }
     
     // MARK: - View Router (Clean & Simple)
@@ -32,36 +31,15 @@ struct PluckViewCoordinator: View {
         switch windowManager.panelState {
         case .collapsed:
             CollapsedView()
-                .transition(.scaleAndFade)
             
         case .folderList:
             FolderListView()
-                .transition(.asymmetric(
-                    insertion: .scale(scale: 0.9).combined(with: .opacity),
-                    removal: .opacity
-                ))
             
         case .folderOpen(let folder):
             FolderDetailView(folder: folder)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal: .move(edge: .trailing).combined(with: .opacity)
-                ))
             
         case .imageFocused(let image):
             ImageDetailView(image: image)
-                .transition(.scale(scale: 0.92).combined(with: .opacity))
-        }
-    }
-    
-    // MARK: - Animation
-    
-    private var animationForCurrentTransition: Animation {
-        switch windowManager.panelState {
-        case .collapsed:
-            return .panelCollapse
-        default:
-            return .panelExpand
         }
     }
     
