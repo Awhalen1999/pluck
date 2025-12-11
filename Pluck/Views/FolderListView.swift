@@ -57,7 +57,7 @@ struct FolderListView: View {
     // MARK: - Folder List
     
     private var folderList: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             LazyVStack(spacing: cardSpacing) {
                 ForEach(Array(folders.enumerated()), id: \.element.id) { index, folder in
                     FolderCard(
