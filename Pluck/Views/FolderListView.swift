@@ -16,6 +16,7 @@ struct FolderListView: View {
     @State private var isAddingFolder = false
     @State private var draggingIndex: Int?
     @State private var targetIndex: Int?
+    @State private var isCloseHovered = false
     
     // MARK: - Constants
     
@@ -39,10 +40,15 @@ struct FolderListView: View {
             Button(action: { windowManager.close() }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(isCloseHovered ? .white : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(isCloseHovered ? .white.opacity(0.1) : .clear)
+                    )
             }
             .buttonStyle(.plain)
+            .onHover { isCloseHovered = $0 }
         }
         .padding(.horizontal, 8)
         .padding(.top, 10)

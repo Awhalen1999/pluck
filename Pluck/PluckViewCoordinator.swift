@@ -21,7 +21,6 @@ struct PluckViewCoordinator: View {
         GeometryReader { geometry in
             panel(dockedEdge: windowManager.dockedEdge)
                 .onHover { isHovering = $0 }
-                .onTapGesture { windowManager.toggle() }
         }
     }
     
@@ -172,6 +171,10 @@ struct PluckViewCoordinator: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scaleEffect(isHovering && !windowManager.isOpen ? 1.1 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovering)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                windowManager.toggle()
+            }
     }
     
     // MARK: - Open Content
