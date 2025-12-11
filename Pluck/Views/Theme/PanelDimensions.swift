@@ -12,12 +12,11 @@ enum PanelDimensions {
     
     // MARK: - Panel Sizes
     
-    static let closedSize = CGSize(width: 50, height: 120)
+    static let closedSize = CGSize(width: 50, height: 125)
     static let openSize = CGSize(width: 220, height: 400)
     
     // MARK: - Corner Radius
     
-    /// Radius for the outward-facing corners (away from screen edge)
     static let cornerRadius: CGFloat = 14
     
     // MARK: - Layout
@@ -58,5 +57,3 @@ enum PanelDimensions {
         return NSRect(origin: CGPoint(x: x, y: clampedY), size: size)
     }
 }
-
-

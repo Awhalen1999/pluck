@@ -66,7 +66,7 @@ struct PluckViewCoordinator: View {
         }
         .foregroundStyle(Color.white.opacity(isDragging ? 0.35 : 0.15))
         .padding(.vertical, 6)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 10)
         .contentShape(Rectangle())
         .gesture(handleDragGesture)
         .animation(.easeOut(duration: 0.15), value: isDragging)
@@ -177,35 +177,8 @@ struct PluckViewCoordinator: View {
     // MARK: - Open Content
     
     private var openContent: some View {
-        VStack(spacing: 0) {
-            header
-            Spacer()
-            placeholder
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private var header: some View {
-        HStack {
-            Spacer()
-            
-            Button(action: { windowManager.close() }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 8)
-        .padding(.top, 10)
-    }
-    
-    private var placeholder: some View {
-        Text("Content goes here")
-            .font(.system(size: 13))
-            .foregroundStyle(.white.opacity(0.4))
+        ContentView()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

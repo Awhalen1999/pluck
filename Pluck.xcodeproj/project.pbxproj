@@ -24,9 +24,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		6890744C2EE4ACA0007934D8 /* Pluck.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Pluck.app; path = /Users/alexwhalen/Development/personal/pluck/build/Debug/Pluck.app; sourceTree = "<absolute>"; };
-		6890745F2EE4ACA2007934D8 /* PluckTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = PluckTests.xctest; path = /Users/alexwhalen/Development/personal/pluck/build/Debug/Pluck.app/Contents/PlugIns/PluckTests.xctest; sourceTree = "<absolute>"; };
-		689074692EE4ACA2007934D8 /* PluckUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = PluckUITests.xctest; path = "/Users/alexwhalen/Development/personal/pluck/build/Debug/PluckUITests-Runner.app/Contents/PlugIns/PluckUITests.xctest"; sourceTree = "<absolute>"; };
+		68A748A12EEA6BDB008D5134 /* Pluck.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pluck.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		68A748A22EEA6BDB008D5134 /* PluckTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PluckTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		68A748A32EEA6BDB008D5134 /* PluckUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PluckUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -78,6 +78,9 @@
 				6890744E2EE4ACA0007934D8 /* Pluck */,
 				689074622EE4ACA2007934D8 /* PluckTests */,
 				6890746C2EE4ACA2007934D8 /* PluckUITests */,
+				68A748A12EEA6BDB008D5134 /* Pluck.app */,
+				68A748A22EEA6BDB008D5134 /* PluckTests.xctest */,
+				68A748A32EEA6BDB008D5134 /* PluckUITests.xctest */,
 			);
 			sourceTree = "<group>";
 		};
@@ -103,7 +106,7 @@
 			packageProductDependencies = (
 			);
 			productName = Pluck;
-			productReference = 6890744C2EE4ACA0007934D8 /* Pluck.app */;
+			productReference = 68A748A12EEA6BDB008D5134 /* Pluck.app */;
 			productType = "com.apple.product-type.application";
 		};
 		6890745E2EE4ACA2007934D8 /* PluckTests */ = {
@@ -126,7 +129,7 @@
 			packageProductDependencies = (
 			);
 			productName = PluckTests;
-			productReference = 6890745F2EE4ACA2007934D8 /* PluckTests.xctest */;
+			productReference = 68A748A22EEA6BDB008D5134 /* PluckTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		689074682EE4ACA2007934D8 /* PluckUITests */ = {
@@ -149,7 +152,7 @@
 			packageProductDependencies = (
 			);
 			productName = PluckUITests;
-			productReference = 689074692EE4ACA2007934D8 /* PluckUITests.xctest */;
+			productReference = 68A748A32EEA6BDB008D5134 /* PluckUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */

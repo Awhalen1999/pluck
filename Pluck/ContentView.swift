@@ -2,58 +2,83 @@
 //  ContentView.swift
 //  Pluck
 //
-//  Created by Alex Whalen on 2025-12-06.
+//  Routes between content views. Manages its own navigation state.
 //
 
 import SwiftUI
-import SwiftData
 
-struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+// MARK: - Content State
 
-    var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-            .toolbar {
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
+enum ContentState: Equatable {
+    case folderList
+    case folderDetail(DesignFolder)
+    case imageDetail(DesignImage)
+    
+    static func == (lhs: ContentState, rhs: ContentState) -> Bool {
+        switch (lhs, rhs) {
+        case (.folderList, .folderList):
+            return true
+        case (.folderDetail(let a), .folderDetail(let b)):
+            return a.id == b.id
+        case (.imageDetail(let a), .imageDetail(let b)):
+            return a.id == b.id
+        default:
+            return false
         }
     }
 }
 
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+// MARK: - Content View
+
+struct ContentView: View {
+    @Environment(WindowManager.self) private var windowManager
+    
+    @State private var contentState: ContentState = .folderList
+    @State private var activeFolder: DesignFolder?
+    
+    var body: some View {
+        ZStack {
+            switch contentState {
+            case .folderList:
+                FolderListView(onSelectFolder: openFolder)
+                    .transition(.opacity)
+                
+            case .folderDetail(let folder):
+                FolderDetailView(folder: folder, onBack: goBack, onSelectImage: openImage)
+                    .transition(.opacity)
+                
+            case .imageDetail(let image):
+                ImageDetailView(image: image, onBack: goBack)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: contentState)
+    }
+    
+    // MARK: - Navigation
+    
+    private func openFolder(_ folder: DesignFolder) {
+        activeFolder = folder
+        contentState = .folderDetail(folder)
+    }
+    
+    private func openImage(_ image: DesignImage) {
+        contentState = .imageDetail(image)
+    }
+    
+    private func goBack() {
+        switch contentState {
+        case .folderList:
+            windowManager.close()
+        case .folderDetail:
+            activeFolder = nil
+            contentState = .folderList
+        case .imageDetail:
+            if let folder = activeFolder {
+                contentState = .folderDetail(folder)
+            } else {
+                contentState = .folderList
+            }
+        }
+    }
 }

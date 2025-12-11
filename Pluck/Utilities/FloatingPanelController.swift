@@ -8,6 +8,7 @@
 
 import AppKit
 import SwiftUI
+import SwiftData
 
 // MARK: - Floating Panel
 
@@ -29,6 +30,7 @@ final class FloatingPanelController {
     
     private var panel: FloatingPanel?
     private var stateObserver: NSObjectProtocol?
+    private var modelContainer: ModelContainer?
     
     // MARK: - Animation Configuration
     
@@ -38,7 +40,21 @@ final class FloatingPanelController {
     // MARK: - Init
     
     private init() {
+        setupModelContainer()
         observeStateChanges()
+    }
+    
+    private func setupModelContainer() {
+        do {
+            let storeURL = FileManagerHelper.appSupportDirectory.appendingPathComponent("Pluck.store")
+            let config = ModelConfiguration(url: storeURL)
+            modelContainer = try ModelContainer(
+                for: DesignFolder.self, DesignImage.self,
+                configurations: config
+            )
+        } catch {
+            print("Failed to create ModelContainer: \(error)")
+        }
     }
     
     private func observeStateChanges() {
@@ -121,8 +137,11 @@ final class FloatingPanelController {
     }
     
     private func attachContent(to panel: FloatingPanel) {
+        guard let modelContainer else { return }
+        
         let content = PluckViewCoordinator()
             .environment(windowManager)
+            .modelContainer(modelContainer)
         
         panel.contentView = NSHostingView(rootView: content)
     }
