@@ -13,7 +13,7 @@ enum PanelDimensions {
     // MARK: - Panel Sizes
     
     static let closedSize = CGSize(width: 50, height: 125)
-    static let openSize = CGSize(width: 220, height: 400)
+    static let openSize = CGSize(width: 225, height: 450)
     
     // MARK: - Corner Radius
     
