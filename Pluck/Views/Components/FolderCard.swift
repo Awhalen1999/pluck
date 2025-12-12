@@ -19,6 +19,7 @@ struct FolderCard: View {
     @State private var isHovered = false
     @State private var isDropTargeted = false
     @State private var thumbnails: [NSImage] = []
+    @State private var shouldPulse = false
     
     // Drag state
     @State private var holdTimer: Timer?
@@ -43,6 +44,7 @@ struct FolderCard: View {
         cardContent
             .frame(height: cardHeight)
             .wiggle(when: $canDrag)
+            .pulse(on: $shouldPulse)
             .offset(dragOffset)
             .scaleEffect(canDrag ? 1.02 : 1.0)
             .shadow(color: canDrag ? .black.opacity(0.3) : .clear, radius: canDrag ? 12 : 0, y: canDrag ? 6 : 0)
@@ -78,6 +80,15 @@ struct FolderCard: View {
         .onAppear { loadThumbnails() }
         .onChange(of: folder.images.count) { _, _ in
             loadThumbnails()
+        }
+        .onChange(of: pasteController.lastPastedFolderID) { _, newID in
+            if newID == folder.id {
+                shouldPulse = true
+                // Reset after triggering
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    pasteController.lastPastedFolderID = nil
+                }
+            }
         }
     }
     
@@ -213,7 +224,9 @@ struct FolderCard: View {
     // MARK: - Paste Handling
     
     private func pasteToFolder() {
-        _ = pasteController.pasteToFolder(folder, modelContext: modelContext)
+        if pasteController.pasteToFolder(folder, modelContext: modelContext) {
+            shouldPulse = true
+        }
     }
     
     // MARK: - Drop Handling
@@ -244,6 +257,7 @@ struct FolderCard: View {
                 folder: folder
             )
             modelContext.insert(newImage)
+            shouldPulse = true
         } catch {
             print("Failed to save image: \(error)")
         }

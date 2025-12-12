@@ -37,30 +37,3 @@ extension View {
         modifier(PulseModifier(trigger: trigger, scale: scale))
     }
 }
-
-// MARK: - Preview
-
-#Preview {
-    struct PreviewWrapper: View {
-        @State private var shouldPulse = false
-        
-        var body: some View {
-            VStack(spacing: 20) {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Theme.backgroundCard)
-                    .frame(width: 200, height: 80)
-                    .pulse(on: $shouldPulse)
-                
-                Button("Trigger Pulse") {
-                    shouldPulse = true
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Theme.textPrimary)
-            }
-            .padding()
-            .background(Theme.backgroundSolid)
-        }
-    }
-    
-    return PreviewWrapper()
-}

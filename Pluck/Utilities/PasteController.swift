@@ -14,6 +14,9 @@ final class PasteController {
     /// The folder currently being hovered (for paste targeting)
     var hoveredFolderID: UUID?
     
+    /// Triggers when a paste succeeds (for UI feedback)
+    var lastPastedFolderID: UUID?
+    
     // MARK: - Dependencies
     
     private let windowManager: WindowManager
@@ -54,6 +57,7 @@ final class PasteController {
                 folder: folder
             )
             modelContext.insert(newImage)
+            lastPastedFolderID = folder.id
             return true
         } catch {
             print("Failed to paste image: \(error)")
