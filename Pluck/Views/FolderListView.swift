@@ -10,6 +10,7 @@ struct FolderListView: View {
     let onSelectFolder: (DesignFolder) -> Void
     
     @Environment(WindowManager.self) private var windowManager
+    @Environment(PasteController.self) private var pasteController
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \DesignFolder.sortOrder) private var folders: [DesignFolder]
     
@@ -17,6 +18,7 @@ struct FolderListView: View {
     @State private var draggingIndex: Int?
     @State private var targetIndex: Int?
     @State private var isCloseHovered = false
+    @State private var keyMonitor: Any?
     
     // MARK: - Constants
     
@@ -29,6 +31,37 @@ struct FolderListView: View {
             header
             folderList
         }
+        .onAppear { setupKeyMonitor() }
+        .onDisappear { removeKeyMonitor() }
+    }
+    
+    // MARK: - Keyboard Monitoring
+    
+    private func setupKeyMonitor() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Check for ⌘V
+            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "v" {
+                if handlePaste() {
+                    return nil // Consume the event
+                }
+            }
+            return event
+        }
+    }
+    
+    private func removeKeyMonitor() {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
+    }
+    
+    // MARK: - Paste Handling
+    
+    @discardableResult
+    private func handlePaste() -> Bool {
+        guard windowManager.isWindowActive else { return false }
+        return pasteController.pasteToHoveredFolder(folders: folders, modelContext: modelContext)
     }
     
     // MARK: - Header
@@ -69,6 +102,9 @@ struct FolderListView: View {
                     )
                     .offset(y: offsetForIndex(index))
                     .zIndex(draggingIndex == index ? 100 : 0)
+                    .onHover { hovering in
+                        pasteController.hoveredFolderID = hovering ? folder.id : nil
+                    }
                 }
                 
                 NewFolderCard(isAdding: $isAddingFolder) { name, colorHex in

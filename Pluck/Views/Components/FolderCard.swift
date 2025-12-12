@@ -14,6 +14,7 @@ struct FolderCard: View {
     let onDragEnded: () -> Void
     
     @Environment(\.modelContext) private var modelContext
+    @Environment(PasteController.self) private var pasteController
     
     @State private var isHovered = false
     @State private var isDropTargeted = false
@@ -34,9 +35,14 @@ struct FolderCard: View {
         Color(hex: folder.colorHex) ?? .purple
     }
     
+    private var showPasteBadge: Bool {
+        isHovered && pasteController.canShowPasteUI && !canDrag
+    }
+    
     var body: some View {
         cardContent
             .frame(height: cardHeight)
+            .wiggle(when: $canDrag)
             .offset(dragOffset)
             .scaleEffect(canDrag ? 1.02 : 1.0)
             .shadow(color: canDrag ? .black.opacity(0.3) : .clear, radius: canDrag ? 12 : 0, y: canDrag ? 6 : 0)
@@ -84,10 +90,18 @@ struct FolderCard: View {
             
             Spacer()
             
-            Text("\(folder.imageCount)")
-                .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.5))
+            if showPasteBadge {
+                PasteBadge {
+                    pasteToFolder()
+                }
+                .transition(.scale.combined(with: .opacity))
+            } else {
+                Text("\(folder.imageCount)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
         }
+        .animation(.easeOut(duration: 0.15), value: showPasteBadge)
     }
     
     @ViewBuilder
@@ -194,6 +208,12 @@ struct FolderCard: View {
                 self.thumbnails = loaded
             }
         }
+    }
+    
+    // MARK: - Paste Handling
+    
+    private func pasteToFolder() {
+        _ = pasteController.pasteToFolder(folder, modelContext: modelContext)
     }
     
     // MARK: - Drop Handling

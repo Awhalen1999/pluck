@@ -27,9 +27,13 @@ final class FloatingPanelController {
     // MARK: - Properties
     
     let windowManager = WindowManager()
+    let clipboardWatcher = ClipboardWatcher()
+    lazy var pasteController = PasteController(windowManager: windowManager, clipboardWatcher: clipboardWatcher)
     
     private var panel: FloatingPanel?
     private var stateObserver: NSObjectProtocol?
+    private var windowActiveObserver: NSObjectProtocol?
+    private var windowResignObserver: NSObjectProtocol?
     private var modelContainer: ModelContainer?
     
     // MARK: - Animation Configuration
@@ -66,6 +70,27 @@ final class FloatingPanelController {
             Task { @MainActor in
                 self?.animateToCurrentState()
             }
+        }
+        
+        // Track window active state
+        windowActiveObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let window = notification.object as? FloatingPanel,
+                  window === self?.panel else { return }
+            self?.windowManager.isWindowActive = true
+        }
+        
+        windowResignObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let window = notification.object as? FloatingPanel,
+                  window === self?.panel else { return }
+            self?.windowManager.isWindowActive = false
         }
     }
     
@@ -141,6 +166,7 @@ final class FloatingPanelController {
         
         let content = PluckViewCoordinator()
             .environment(windowManager)
+            .environment(pasteController)
             .modelContainer(modelContainer)
         
         panel.contentView = NSHostingView(rootView: content)

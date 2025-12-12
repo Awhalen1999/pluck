@@ -31,6 +31,7 @@ final class WindowManager {
     private(set) var panelState: PanelState = .closed
     var dockedEdge: DockedEdge = .right
     var dockedYPosition: CGFloat = 200
+    var isWindowActive: Bool = false
     
     // MARK: - Computed
     

@@ -44,27 +44,3 @@ extension View {
         modifier(WiggleModifier(isWiggling: isWiggling, angle: angle))
     }
 }
-
-// MARK: - Preview
-
-#Preview {
-    struct WigglePreview: View {
-        @State private var isWiggling = false
-        
-        var body: some View {
-            VStack(spacing: 20) {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.purple)
-                    .frame(width: 80, height: 80)
-                    .wiggle(when: $isWiggling)
-                
-                Button(isWiggling ? "Stop" : "Wiggle") {
-                    isWiggling.toggle()
-                }
-            }
-            .padding()
-        }
-    }
-    
-    return WigglePreview()
-}
