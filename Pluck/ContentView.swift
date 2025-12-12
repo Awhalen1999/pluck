@@ -44,8 +44,13 @@ struct ContentView: View {
                     .transition(.opacity)
                 
             case .folderDetail(let folder):
-                FolderDetailView(folder: folder, onBack: goBack, onSelectImage: openImage)
-                    .transition(.opacity)
+                FolderDetailView(
+                    folder: folder,
+                    onBack: goBack,
+                    onSelectImage: openImage,
+                    onDelete: { handleFolderDeleted() }
+                )
+                .transition(.opacity)
                 
             case .imageDetail(let image):
                 ImageDetailView(image: image, onBack: goBack)
@@ -80,5 +85,10 @@ struct ContentView: View {
                 contentState = .folderList
             }
         }
+    }
+    
+    private func handleFolderDeleted() {
+        activeFolder = nil
+        contentState = .folderList
     }
 }

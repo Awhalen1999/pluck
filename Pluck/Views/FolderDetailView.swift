@@ -10,6 +10,7 @@ struct FolderDetailView: View {
     let folder: DesignFolder
     let onBack: () -> Void
     let onSelectImage: (DesignImage) -> Void
+    let onDelete: () -> Void
     
     @Environment(WindowManager.self) private var windowManager
     @Environment(PasteController.self) private var pasteController
@@ -17,8 +18,17 @@ struct FolderDetailView: View {
     
     @State private var isBackHovered = false
     @State private var isCloseHovered = false
+    @State private var isEditHovered = false
     @State private var isDropTargeted = false
     @State private var shouldPulse = false
+    
+    // Edit mode
+    @State private var isEditing = false
+    @State private var editedName: String = ""
+    @State private var editedColorIndex: Int = 0
+    @State private var isDeleteHovered = false
+    @State private var isSaveHovered = false
+    @FocusState private var isNameFocused: Bool
     
     // MARK: - Constants
     
@@ -31,7 +41,10 @@ struct FolderDetailView: View {
     private let thumbnailCornerRadius: CGFloat = 8
     
     private var folderColor: Color {
-        Color(hex: folder.colorHex) ?? .purple
+        if isEditing {
+            return Color(hex: FolderColors.all[editedColorIndex]) ?? .purple
+        }
+        return Color(hex: folder.colorHex) ?? .purple
     }
     
     var body: some View {
@@ -54,8 +67,8 @@ struct FolderDetailView: View {
     
     private var header: some View {
         HStack(spacing: 8) {
-            // Back button
-            Button(action: onBack) {
+            // Back button (cancels edit if editing)
+            Button(action: { isEditing ? cancelEdit() : onBack() }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(isBackHovered ? .white : .white.opacity(0.6))
@@ -68,23 +81,69 @@ struct FolderDetailView: View {
             .buttonStyle(.plain)
             .onHover { isBackHovered = $0 }
             
-            // Color dot
+            // Color dot (tappable in edit mode)
             Circle()
                 .fill(folderColor)
                 .frame(width: 8, height: 8)
+                .onTapGesture {
+                    if isEditing {
+                        cycleColor()
+                    }
+                }
+                .animation(.easeOut(duration: 0.15), value: editedColorIndex)
             
-            // Folder name
-            Text(folder.name)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white)
-                .lineLimit(1)
+            // Folder name (editable in edit mode)
+            if isEditing {
+                TextField("Folder name", text: $editedName)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white)
+                    .focused($isNameFocused)
+                    .onSubmit { saveEdit() }
+            } else {
+                Text(folder.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
             
             Spacer()
+            
+            // Action buttons
+            if isEditing {
+                editModeButtons
+            } else {
+                normalModeButtons
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 16)
+        .padding(.bottom, 6)
+    }
+    
+    // MARK: - Normal Mode Buttons
+    
+    private var normalModeButtons: some View {
+        HStack(spacing: 4) {
+            // Edit button
+            Button(action: { startEdit() }) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(isEditHovered ? .white : .white.opacity(0.6))
+                    .frame(width: 24, height: 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(isEditHovered ? .white.opacity(0.1) : .clear)
+                    )
+            }
+            .buttonStyle(.plain)
+            .onHover { isEditHovered = $0 }
             
             // Image count
             Text("\(folder.imageCount)")
                 .font(.system(size: 11))
                 .foregroundStyle(.white.opacity(0.5))
+                .frame(minWidth: 20)
             
             // Close button
             Button(action: { windowManager.close() }) {
@@ -100,9 +159,79 @@ struct FolderDetailView: View {
             .buttonStyle(.plain)
             .onHover { isCloseHovered = $0 }
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 16)
-        .padding(.bottom, 6)
+    }
+    
+    // MARK: - Edit Mode Buttons
+    
+    private var editModeButtons: some View {
+        HStack(spacing: 4) {
+            // Delete button
+            Button(action: { deleteFolder() }) {
+                Image(systemName: "trash")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(isDeleteHovered ? .red : .white.opacity(0.6))
+                    .frame(width: 24, height: 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(isDeleteHovered ? .red.opacity(0.15) : .clear)
+                    )
+            }
+            .buttonStyle(.plain)
+            .onHover { isDeleteHovered = $0 }
+            
+            // Save button
+            Button(action: { saveEdit() }) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(isSaveHovered ? .white : .white.opacity(0.6))
+                    .frame(width: 24, height: 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(isSaveHovered ? .white.opacity(0.1) : .clear)
+                    )
+            }
+            .buttonStyle(.plain)
+            .onHover { isSaveHovered = $0 }
+        }
+    }
+    
+    // MARK: - Edit Actions
+    
+    private func startEdit() {
+        editedName = folder.name
+        editedColorIndex = FolderColors.all.firstIndex(of: folder.colorHex) ?? 0
+        isEditing = true
+        isNameFocused = true
+    }
+    
+    private func cancelEdit() {
+        isEditing = false
+        isNameFocused = false
+    }
+    
+    private func saveEdit() {
+        let trimmedName = editedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            cancelEdit()
+            return
+        }
+        
+        folder.name = trimmedName
+        folder.colorHex = FolderColors.all[editedColorIndex]
+        try? modelContext.save()
+        
+        isEditing = false
+        isNameFocused = false
+    }
+    
+    private func cycleColor() {
+        editedColorIndex = (editedColorIndex + 1) % FolderColors.all.count
+    }
+    
+    private func deleteFolder() {
+        modelContext.delete(folder)
+        try? modelContext.save()
+        onDelete()
     }
     
     // MARK: - Content
@@ -223,6 +352,7 @@ struct ImageThumbnail: View {
         thumbnailContent
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(isHovered ? .white.opacity(0.3) : .white.opacity(0.1), lineWidth: 1)
