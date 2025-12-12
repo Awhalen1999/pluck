@@ -53,8 +53,12 @@ struct ContentView: View {
                 .transition(.opacity)
                 
             case .imageDetail(let image):
-                ImageDetailView(image: image, onBack: goBack)
-                    .transition(.opacity)
+                ImageDetailView(
+                    image: image,
+                    onBack: goBack,
+                    onDelete: { handleImageDeleted() }
+                )
+                .transition(.opacity)
             }
         }
         .animation(.easeOut(duration: 0.2), value: contentState)
@@ -97,5 +101,14 @@ struct ContentView: View {
     private func handleFolderDeleted() {
         activeFolder = nil
         contentState = .folderList
+    }
+    
+    private func handleImageDeleted() {
+        // Go back to folder detail
+        if let folder = activeFolder {
+            contentState = .folderDetail(folder)
+        } else {
+            contentState = .folderList
+        }
     }
 }
