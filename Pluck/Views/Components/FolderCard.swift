@@ -101,7 +101,10 @@ struct FolderCard: View {
             
             Spacer()
             
-            if showPasteBadge {
+            if isDropTargeted {
+                DropBadge()
+                    .transition(.scale.combined(with: .opacity))
+            } else if showPasteBadge {
                 PasteBadge {
                     pasteToFolder()
                 }
@@ -113,6 +116,7 @@ struct FolderCard: View {
             }
         }
         .animation(.easeOut(duration: 0.15), value: showPasteBadge)
+        .animation(.easeOut(duration: 0.15), value: isDropTargeted)
     }
     
     @ViewBuilder
@@ -148,12 +152,11 @@ struct FolderCard: View {
     
     private var cardBorder: some View {
         RoundedRectangle(cornerRadius: cardCornerRadius)
-            .stroke(borderColor, lineWidth: isDropTargeted ? 1.5 : 1)
+            .stroke(borderColor, lineWidth: 1)
     }
     
     private var borderColor: Color {
-        if isDropTargeted { return folderColor }
-        if isHovered { return .white.opacity(0.2) }
+        if isDropTargeted || isHovered { return .white.opacity(0.2) }
         return .white.opacity(0.1)
     }
     
