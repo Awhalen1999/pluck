@@ -84,7 +84,7 @@ struct FolderListView: View {
             .onHover { isCloseHovered = $0 }
         }
         .padding(.horizontal, 8)
-        .padding(.top, 10)
+        .padding(.top, 16)
     }
     
     // MARK: - Folder List
