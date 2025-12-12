@@ -58,6 +58,13 @@ struct ContentView: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: contentState)
+        .onChange(of: windowManager.isOpen) { _, isOpen in
+            if !isOpen {
+                // Reset to folder list when panel closes
+                activeFolder = nil
+                contentState = .folderList
+            }
+        }
     }
     
     // MARK: - Navigation
