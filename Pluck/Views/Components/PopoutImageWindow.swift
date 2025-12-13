@@ -72,7 +72,7 @@ final class PopoutWindowManager {
         
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.hasShadow = true
+        window.hasShadow = false // removed shadow
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.isMovableByWindowBackground = true
@@ -159,9 +159,18 @@ final class PopoutWindowManager {
             anchorTop = true
         }
         
-        // Calculate new size maintaining aspect ratio
+        // Calculate new width maintaining aspect ratio
         var newWidth = frame.width + deltaWidth
-        newWidth = max(160, min(newWidth, maxSize.width))
+        
+        // Enforce both min width and min height (same value), and cap by original size on both axes.
+        let minWidth: CGFloat = 175
+        let minHeight: CGFloat = 175
+        
+        // Convert min/max constraints to width space using aspect ratio
+        let effectiveMinWidth = max(minWidth, minHeight * aspectRatio)
+        let effectiveMaxWidth = min(maxSize.width, maxSize.height * aspectRatio)
+        
+        newWidth = max(effectiveMinWidth, min(newWidth, effectiveMaxWidth))
         let newHeight = newWidth / aspectRatio
         
         // Calculate new origin based on anchor
@@ -172,7 +181,6 @@ final class PopoutWindowManager {
             // Keep top edge fixed (in macOS coordinates, top = origin.y + height)
             frame.origin.y = frame.origin.y + frame.height - newHeight
         }
-        // If not anchoring that edge, origin stays the same
         
         frame.size = NSSize(width: newWidth, height: newHeight)
         window.setFrame(frame, display: true, animate: false)
@@ -210,7 +218,8 @@ struct PopoutImageView: View {
             Image(nsImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .shadow(color: .black.opacity(0.3), radius: 15, y: 8)
+                // shadow removed
+                //.shadow(color: .black.opacity(0.3), radius: 15, y: 8)
             
             // Mode indicators (always visible when in that mode)
             modeIndicators
