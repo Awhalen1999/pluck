@@ -38,11 +38,11 @@ struct ImageDetailView: View {
     // MARK: - Header
     
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 2) {
             // Back button (cancels edit if editing)
             Button(action: { isEditing ? cancelEdit() : onBack() }) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(isBackHovered ? .white : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
                     .background(
@@ -57,13 +57,13 @@ struct ImageDetailView: View {
             if isEditing {
                 TextField("Image name", text: $editedName)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
                     .focused($isNameFocused)
                     .onSubmit { saveEdit() }
             } else {
                 Text(image.originalName)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
                     .lineLimit(1)
             }
@@ -117,7 +117,7 @@ struct ImageDetailView: View {
             // Close button
             Button(action: { windowManager.close() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(isCloseHovered ? .white : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
                     .background(
