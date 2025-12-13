@@ -24,7 +24,6 @@ struct FolderListView: View {
     
     private let cardHeight: CGFloat = 68
     private let cardSpacing: CGFloat = 8
-    private let contentPadding: CGFloat = 12
     
     var body: some View {
         VStack(spacing: 0) {
@@ -85,6 +84,7 @@ struct FolderListView: View {
         }
         .padding(.horizontal, 8)
         .padding(.top, 16)
+        .padding(.bottom, 6)
     }
     
     // MARK: - Folder List
@@ -112,7 +112,8 @@ struct FolderListView: View {
                 }
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, contentPadding)
+            .padding(.bottom, 12)
+            .padding(.top, 2)
             .animation(draggingIndex != nil ? .spring(response: 0.3, dampingFraction: 0.75) : nil, value: targetIndex)
         }
     }
