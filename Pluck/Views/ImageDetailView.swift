@@ -42,7 +42,7 @@ struct ImageDetailView: View {
             // Back button (cancels edit if editing)
             Button(action: { isEditing ? cancelEdit() : onBack() }) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(isBackHovered ? .white : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
                     .background(
@@ -89,7 +89,7 @@ struct ImageDetailView: View {
             // Popout button
             Button(action: { popoutImage() }) {
                 Image(systemName: "arrow.up.forward.square")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(isPopoutHovered ? .white : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
                     .background(
@@ -103,7 +103,7 @@ struct ImageDetailView: View {
             // Edit button
             Button(action: { startEdit() }) {
                 Image(systemName: "pencil")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(isEditHovered ? .white : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
                     .background(
@@ -117,7 +117,7 @@ struct ImageDetailView: View {
             // Close button
             Button(action: { windowManager.close() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(isCloseHovered ? .white : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
                     .background(
@@ -137,7 +137,7 @@ struct ImageDetailView: View {
             // Delete button
             Button(action: { deleteImage() }) {
                 Image(systemName: "trash")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(isDeleteHovered ? .red : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
                     .background(
@@ -151,7 +151,7 @@ struct ImageDetailView: View {
             // Save button
             Button(action: { saveEdit() }) {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(isSaveHovered ? .white : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
                     .background(

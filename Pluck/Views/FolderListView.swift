@@ -71,7 +71,7 @@ struct FolderListView: View {
             
             Button(action: { windowManager.close() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(isCloseHovered ? .white : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
                     .background(
