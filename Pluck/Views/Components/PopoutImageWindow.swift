@@ -72,7 +72,7 @@ final class PopoutWindowManager {
         
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.hasShadow = false // removed shadow
+        window.hasShadow = false
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.isMovableByWindowBackground = true
@@ -178,7 +178,6 @@ final class PopoutWindowManager {
             frame.origin.x = frame.origin.x + frame.width - newWidth
         }
         if anchorTop {
-            // Keep top edge fixed (in macOS coordinates, top = origin.y + height)
             frame.origin.y = frame.origin.y + frame.height - newHeight
         }
         
@@ -199,6 +198,11 @@ final class PopoutImagePanel: NSPanel {
 
 // MARK: - Popout Image View
 
+private enum OverlayContrastStyle {
+    case lightOnDark   // white primary with dark halo
+    case darkOnLight   // dark primary with light halo
+}
+
 struct PopoutImageView: View {
     let image: NSImage
     let title: String
@@ -211,6 +215,7 @@ struct PopoutImageView: View {
     
     @State private var currentMode: PopoutWindowMode = .drag
     @State private var isHovered = false
+    @State private var contrastStyle: OverlayContrastStyle = .lightOnDark
     
     var body: some View {
         ZStack {
@@ -218,8 +223,6 @@ struct PopoutImageView: View {
             Image(nsImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                // shadow removed
-                //.shadow(color: .black.opacity(0.3), radius: 15, y: 8)
             
             // Mode indicators (always visible when in that mode)
             modeIndicators
@@ -229,9 +232,17 @@ struct PopoutImageView: View {
                 controlsOverlay
             }
         }
+        .onAppear { updateContrastStyle() }
         .onHover { isHovered = $0 }
         .animation(.easeOut(duration: 0.15), value: isHovered)
         .animation(.easeOut(duration: 0.2), value: currentMode)
+    }
+    
+    // MARK: - Luminance -> Contrast Style
+    
+    private func updateContrastStyle() {
+        let luminance = image.averageLuminanceFast()
+        contrastStyle = luminance > 0.55 ? .darkOnLight : .lightOnDark
     }
     
     // MARK: - Mode Indicators
@@ -248,15 +259,16 @@ struct PopoutImageView: View {
         }
     }
     
-    // Subtle drag indicator - small icon in bottom right
+    // Drag indicator - icon only, adaptive color
     private var dragIndicator: some View {
-        VStack {
+        let iconColor: Color = (contrastStyle == .darkOnLight) ? .black.opacity(0.85) : .white
+        return VStack {
             Spacer()
             HStack {
                 Spacer()
                 Image(systemName: "hand.draw")
                     .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(iconColor.opacity(0.9))
                     .padding(8)
             }
         }
@@ -269,54 +281,52 @@ struct PopoutImageView: View {
             // Top-left
             VStack {
                 HStack {
-                    ResizeCornerHandle(corner: .topLeft)
+                    ResizeCornerHandle(corner: .topLeft, style: contrastStyle)
                         .gesture(resizeGesture(for: .topLeft))
                     Spacer()
                 }
                 Spacer()
             }
-            
             // Top-right
             VStack {
                 HStack {
                     Spacer()
-                    ResizeCornerHandle(corner: .topRight)
+                    ResizeCornerHandle(corner: .topRight, style: contrastStyle)
                         .gesture(resizeGesture(for: .topRight))
                 }
                 Spacer()
             }
-            
             // Bottom-left
             VStack {
                 Spacer()
                 HStack {
-                    ResizeCornerHandle(corner: .bottomLeft)
+                    ResizeCornerHandle(corner: .bottomLeft, style: contrastStyle)
                         .gesture(resizeGesture(for: .bottomLeft))
                     Spacer()
                 }
             }
-            
             // Bottom-right
             VStack {
                 Spacer()
                 HStack {
                     Spacer()
-                    ResizeCornerHandle(corner: .bottomRight)
+                    ResizeCornerHandle(corner: .bottomRight, style: contrastStyle)
                         .gesture(resizeGesture(for: .bottomRight))
                 }
             }
         }
     }
     
-    // Locked indicator - subtle lock overlay
+    // Locked indicator - icon only, adaptive color
     private var lockedIndicator: some View {
-        VStack {
+        let iconColor: Color = (contrastStyle == .darkOnLight) ? .black.opacity(0.85) : .white
+        return VStack {
             Spacer()
             HStack {
                 Spacer()
                 Image(systemName: "lock.fill")
                     .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(iconColor.opacity(0.9))
                     .padding(8)
             }
         }
@@ -327,9 +337,7 @@ struct PopoutImageView: View {
     
     private var controlsOverlay: some View {
         HStack {
-            // Left side - vertical toolbar
             VStack(spacing: 4) {
-                // Mode buttons
                 ForEach(PopoutWindowMode.allCases, id: \.self) { mode in
                     ModeButton(
                         mode: mode,
@@ -341,14 +349,10 @@ struct PopoutImageView: View {
                     )
                 }
                 
-                Spacer()
-                    .frame(height: 8)
-                
-                // Close button
+                Spacer().frame(height: 8)
                 CloseButton(action: onClose)
             }
             .padding(8)
-            
             Spacer()
         }
         .transition(.opacity)
@@ -385,31 +389,23 @@ struct ModeButton: View {
     
     @State private var isHovered = false
     
+    private var baseBG: Color { .black.opacity(0.5) }
+    private var hoverBG: Color { .black.opacity(0.7) }
+    private var selectedBG: Color { .black.opacity(0.8) } // darker gray when selected
+    
     var body: some View {
         Button(action: action) {
             Image(systemName: isSelected ? mode.activeIcon : mode.icon)
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(foregroundColor)
+                .foregroundStyle(isSelected ? .white : (isHovered ? .white : .white.opacity(0.7)))
                 .frame(width: 24, height: 24)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(backgroundColor)
+                        .fill(isSelected ? selectedBG : (isHovered ? hoverBG : baseBG))
                 )
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-    }
-    
-    private var foregroundColor: Color {
-        if isSelected { return .white }
-        if isHovered { return .white }
-        return .white.opacity(0.7)
-    }
-    
-    private var backgroundColor: Color {
-        if isSelected { return .white.opacity(0.25) }
-        if isHovered { return .black.opacity(0.7) }
-        return .black.opacity(0.5)
     }
 }
 
@@ -434,46 +430,131 @@ struct CloseButton: View {
     }
 }
 
-struct ResizeCornerHandle: View {
+fileprivate struct ResizeCornerHandle: View {
     let corner: ResizeCorner
+    let style: OverlayContrastStyle
     
     @State private var isHovered = false
     
     var body: some View {
-        Canvas { context, size in
+        let fg: Color
+        let halo: Color
+        
+        switch style {
+        case .lightOnDark:
+            fg = .white
+            halo = .black.opacity(0.35)
+        case .darkOnLight:
+            fg = .black.opacity(0.9)
+            halo = .white.opacity(0.7)
+        }
+        
+        return Canvas { context, size in
             let lineWidth: CGFloat = 3
             let armLength: CGFloat = 14
             let inset: CGFloat = 6
-            let color = isHovered ? Color.white : Color.white.opacity(0.5)
             
+            // Halo (slightly thicker)
+            var haloPath = Path()
+            switch corner {
+            case .topLeft:
+                haloPath.move(to: CGPoint(x: inset, y: inset + armLength))
+                haloPath.addLine(to: CGPoint(x: inset, y: inset))
+                haloPath.addLine(to: CGPoint(x: inset + armLength, y: inset))
+            case .topRight:
+                haloPath.move(to: CGPoint(x: size.width - inset - armLength, y: inset))
+                haloPath.addLine(to: CGPoint(x: size.width - inset, y: inset))
+                haloPath.addLine(to: CGPoint(x: size.width - inset, y: inset + armLength))
+            case .bottomLeft:
+                haloPath.move(to: CGPoint(x: inset, y: size.height - inset - armLength))
+                haloPath.addLine(to: CGPoint(x: inset, y: size.height - inset))
+                haloPath.addLine(to: CGPoint(x: inset + armLength, y: size.height - inset))
+            case .bottomRight:
+                haloPath.move(to: CGPoint(x: size.width - inset - armLength, y: size.height - inset))
+                haloPath.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset))
+                haloPath.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset - armLength))
+            }
+            context.stroke(
+                haloPath,
+                with: .color(halo.opacity(isHovered ? 0.35 : 0.25)),
+                style: StrokeStyle(lineWidth: lineWidth + 2, lineCap: .round, lineJoin: .round)
+            )
+            
+            // Foreground stroke
             var path = Path()
-            
             switch corner {
             case .topLeft:
                 path.move(to: CGPoint(x: inset, y: inset + armLength))
                 path.addLine(to: CGPoint(x: inset, y: inset))
                 path.addLine(to: CGPoint(x: inset + armLength, y: inset))
-                
             case .topRight:
                 path.move(to: CGPoint(x: size.width - inset - armLength, y: inset))
                 path.addLine(to: CGPoint(x: size.width - inset, y: inset))
                 path.addLine(to: CGPoint(x: size.width - inset, y: inset + armLength))
-                
             case .bottomLeft:
                 path.move(to: CGPoint(x: inset, y: size.height - inset - armLength))
                 path.addLine(to: CGPoint(x: inset, y: size.height - inset))
                 path.addLine(to: CGPoint(x: inset + armLength, y: size.height - inset))
-                
             case .bottomRight:
                 path.move(to: CGPoint(x: size.width - inset - armLength, y: size.height - inset))
                 path.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset))
                 path.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset - armLength))
             }
-            
-            context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+            context.stroke(
+                path,
+                with: .color(fg.opacity(isHovered ? 1.0 : 0.95)),
+                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+            )
         }
         .frame(width: 32, height: 32)
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - NSImage Average Luminance (fast)
+
+private extension NSImage {
+    func averageLuminanceFast(sampleSize: Int = 16) -> CGFloat {
+        // Downscale to small bitmap, average luma (Rec. 709)
+        let targetSize = NSSize(width: sampleSize, height: sampleSize)
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(targetSize.width),
+            pixelsHigh: Int(targetSize.height),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return 0.0 }
+        
+        let ctx = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = ctx
+        NSColor.clear.set()
+        NSRect(origin: .zero, size: targetSize).fill()
+        draw(in: NSRect(origin: .zero, size: targetSize),
+             from: NSRect(origin: .zero, size: size),
+             operation: .copy,
+             fraction: 1.0)
+        NSGraphicsContext.restoreGraphicsState()
+        
+        guard let data = rep.bitmapData else { return 0.0 }
+        let count = Int(targetSize.width * targetSize.height)
+        var sum: CGFloat = 0
+        
+        for i in 0..<count {
+            let offset = i * 4
+            let r = CGFloat(data[offset + 0]) / 255.0
+            let g = CGFloat(data[offset + 1]) / 255.0
+            let b = CGFloat(data[offset + 2]) / 255.0
+            // Rec. 709 luma
+            let y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+            sum += y
+        }
+        return max(0, min(1, sum / CGFloat(count)))
     }
 }
