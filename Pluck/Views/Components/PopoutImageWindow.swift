@@ -255,8 +255,8 @@ struct PopoutImageView: View {
             HStack {
                 Spacer()
                 Image(systemName: "hand.draw")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.5))
                     .padding(8)
             }
         }
@@ -315,8 +315,8 @@ struct PopoutImageView: View {
             HStack {
                 Spacer()
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.5))
                     .padding(8)
             }
         }
