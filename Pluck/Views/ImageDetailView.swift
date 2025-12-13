@@ -17,6 +17,7 @@ struct ImageDetailView: View {
     @State private var isBackHovered = false
     @State private var isCloseHovered = false
     @State private var isEditHovered = false
+    @State private var isPopoutHovered = false
     @State private var loadedImage: NSImage?
     
     // Edit mode
@@ -85,6 +86,20 @@ struct ImageDetailView: View {
     
     private var normalModeButtons: some View {
         HStack(spacing: 4) {
+            // Popout button
+            Button(action: { popoutImage() }) {
+                Image(systemName: "arrow.up.forward.square")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(isPopoutHovered ? .white : .white.opacity(0.6))
+                    .frame(width: 24, height: 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(isPopoutHovered ? .white.opacity(0.1) : .clear)
+                    )
+            }
+            .buttonStyle(.plain)
+            .onHover { isPopoutHovered = $0 }
+            
             // Edit button
             Button(action: { startEdit() }) {
                 Image(systemName: "pencil")
@@ -185,6 +200,10 @@ struct ImageDetailView: View {
         try? modelContext.save()
         
         onDelete()
+    }
+    
+    private func popoutImage() {
+        PopoutWindowManager.shared.openImage(image)
     }
     
     // MARK: - Image Content
