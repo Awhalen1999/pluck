@@ -89,16 +89,16 @@ final class PopoutWindowManager {
                 self?.setWindowMode(id: windowID, mode: mode)
             },
             onResizeTopLeft: { [weak self] delta in
-                self?.resizeFromTopLeft(id: windowID, delta: delta)
+                self?.resizeFromCorner(id: windowID, corner: .topLeft, delta: delta)
             },
             onResizeTopRight: { [weak self] delta in
-                self?.resizeFromTopRight(id: windowID, delta: delta)
+                self?.resizeFromCorner(id: windowID, corner: .topRight, delta: delta)
             },
             onResizeBottomLeft: { [weak self] delta in
-                self?.resizeFromBottomLeft(id: windowID, delta: delta)
+                self?.resizeFromCorner(id: windowID, corner: .bottomLeft, delta: delta)
             },
             onResizeBottomRight: { [weak self] delta in
-                self?.resizeFromBottomRight(id: windowID, delta: delta)
+                self?.resizeFromCorner(id: windowID, corner: .bottomRight, delta: delta)
             }
         )
         
@@ -128,46 +128,51 @@ final class PopoutWindowManager {
     
     // MARK: - Resize Methods
     
-    private func resizeFromTopLeft(id: UUID, delta: CGSize) {
+    private func resizeFromCorner(id: UUID, corner: ResizeCorner, delta: CGSize) {
         guard let window = windows[id] else { return }
-        resize(window: window, deltaWidth: -delta.width, anchorRight: true, anchorBottom: true)
-    }
-    
-    private func resizeFromTopRight(id: UUID, delta: CGSize) {
-        guard let window = windows[id] else { return }
-        resize(window: window, deltaWidth: delta.width, anchorRight: false, anchorBottom: true)
-    }
-    
-    private func resizeFromBottomLeft(id: UUID, delta: CGSize) {
-        guard let window = windows[id] else { return }
-        resize(window: window, deltaWidth: -delta.width, anchorRight: true, anchorBottom: false)
-    }
-    
-    private func resizeFromBottomRight(id: UUID, delta: CGSize) {
-        guard let window = windows[id] else { return }
-        resize(window: window, deltaWidth: delta.width, anchorRight: false, anchorBottom: false)
-    }
-    
-    private func resize(window: PopoutImagePanel, deltaWidth: CGFloat, anchorRight: Bool, anchorBottom: Bool) {
+        
         let aspectRatio = window.imageAspectRatio
         let maxSize = window.originalImageSize
-        
-        var newWidth = window.frame.width + deltaWidth
-        newWidth = max(100, min(newWidth, maxSize.width))
-        let newHeight = newWidth / aspectRatio
-        
         var frame = window.frame
         
-        // Anchor calculations
+        // Determine resize direction based on corner
+        let deltaWidth: CGFloat
+        let anchorRight: Bool
+        let anchorTop: Bool
+        
+        switch corner {
+        case .topLeft:
+            deltaWidth = -delta.width
+            anchorRight = true
+            anchorTop = false
+        case .topRight:
+            deltaWidth = delta.width
+            anchorRight = false
+            anchorTop = false
+        case .bottomLeft:
+            deltaWidth = -delta.width
+            anchorRight = true
+            anchorTop = true
+        case .bottomRight:
+            deltaWidth = delta.width
+            anchorRight = false
+            anchorTop = true
+        }
+        
+        // Calculate new size maintaining aspect ratio
+        var newWidth = frame.width + deltaWidth
+        newWidth = max(160, min(newWidth, maxSize.width))
+        let newHeight = newWidth / aspectRatio
+        
+        // Calculate new origin based on anchor
         if anchorRight {
             frame.origin.x = frame.origin.x + frame.width - newWidth
         }
-        if anchorBottom {
-            // Keep bottom edge fixed
-        } else {
-            // Keep top edge fixed (move origin down)
+        if anchorTop {
+            // Keep top edge fixed (in macOS coordinates, top = origin.y + height)
             frame.origin.y = frame.origin.y + frame.height - newHeight
         }
+        // If not anchoring that edge, origin stays the same
         
         frame.size = NSSize(width: newWidth, height: newHeight)
         window.setFrame(frame, display: true, animate: false)
@@ -234,24 +239,22 @@ struct PopoutImageView: View {
         }
     }
     
-    // Subtle drag indicator - shows grab handles on sides
+    // Subtle drag indicator - small icon in bottom right
     private var dragIndicator: some View {
-        ZStack {
-            // Left edge indicator
-            HStack {
-                DragEdgeIndicator()
-                Spacer()
-            }
-            // Right edge indicator
+        VStack {
+            Spacer()
             HStack {
                 Spacer()
-                DragEdgeIndicator()
+                Image(systemName: "hand.draw")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.4))
+                    .padding(8)
             }
         }
         .allowsHitTesting(false)
     }
     
-    // Resize handles in all 4 corners
+    // Corner handles - one in each corner
     private var resizeHandles: some View {
         ZStack {
             // Top-left
@@ -314,9 +317,9 @@ struct PopoutImageView: View {
     // MARK: - Controls Overlay
     
     private var controlsOverlay: some View {
-        VStack {
-            // Top toolbar
-            HStack(spacing: 4) {
+        HStack {
+            // Left side - vertical toolbar
+            VStack(spacing: 4) {
                 // Mode buttons
                 ForEach(PopoutWindowMode.allCases, id: \.self) { mode in
                     ModeButton(
@@ -330,6 +333,7 @@ struct PopoutImageView: View {
                 }
                 
                 Spacer()
+                    .frame(height: 8)
                 
                 // Close button
                 CloseButton(action: onClose)
@@ -361,15 +365,6 @@ struct PopoutImageView: View {
 
 enum ResizeCorner {
     case topLeft, topRight, bottomLeft, bottomRight
-    
-    var icon: String {
-        switch self {
-        case .topLeft: return "arrow.up.left"
-        case .topRight: return "arrow.up.right"
-        case .bottomLeft: return "arrow.down.left"
-        case .bottomRight: return "arrow.down.right"
-        }
-    }
 }
 
 // MARK: - Component Views
@@ -430,35 +425,46 @@ struct CloseButton: View {
     }
 }
 
-struct DragEdgeIndicator: View {
-    var body: some View {
-        VStack(spacing: 3) {
-            ForEach(0..<3, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(.white.opacity(0.3))
-                    .frame(width: 3, height: 12)
-            }
-        }
-        .padding(.horizontal, 6)
-    }
-}
-
 struct ResizeCornerHandle: View {
     let corner: ResizeCorner
     
     @State private var isHovered = false
     
     var body: some View {
-        Image(systemName: corner.icon)
-            .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(isHovered ? .white : .white.opacity(0.8))
-            .frame(width: 28, height: 28)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovered ? .black.opacity(0.8) : .black.opacity(0.5))
-            )
-            .padding(6)
-            .onHover { isHovered = $0 }
-            .contentShape(Rectangle())
+        Canvas { context, size in
+            let lineWidth: CGFloat = 3
+            let armLength: CGFloat = 14
+            let inset: CGFloat = 6
+            let color = isHovered ? Color.white : Color.white.opacity(0.5)
+            
+            var path = Path()
+            
+            switch corner {
+            case .topLeft:
+                path.move(to: CGPoint(x: inset, y: inset + armLength))
+                path.addLine(to: CGPoint(x: inset, y: inset))
+                path.addLine(to: CGPoint(x: inset + armLength, y: inset))
+                
+            case .topRight:
+                path.move(to: CGPoint(x: size.width - inset - armLength, y: inset))
+                path.addLine(to: CGPoint(x: size.width - inset, y: inset))
+                path.addLine(to: CGPoint(x: size.width - inset, y: inset + armLength))
+                
+            case .bottomLeft:
+                path.move(to: CGPoint(x: inset, y: size.height - inset - armLength))
+                path.addLine(to: CGPoint(x: inset, y: size.height - inset))
+                path.addLine(to: CGPoint(x: inset + armLength, y: size.height - inset))
+                
+            case .bottomRight:
+                path.move(to: CGPoint(x: size.width - inset - armLength, y: size.height - inset))
+                path.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset))
+                path.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset - armLength))
+            }
+            
+            context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+        }
+        .frame(width: 32, height: 32)
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
     }
 }
