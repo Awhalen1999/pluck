@@ -132,7 +132,6 @@ final class PopoutWindowManager {
         guard let window = windows[id] else { return }
         
         let aspectRatio = window.imageAspectRatio
-        let maxSize = window.originalImageSize
         var frame = window.frame
         
         // Determine resize direction based on corner
@@ -159,21 +158,28 @@ final class PopoutWindowManager {
             anchorTop = true
         }
         
-        // Calculate new width maintaining aspect ratio
+        // Proposed new width maintaining aspect ratio
         var newWidth = frame.width + deltaWidth
         
-        // Enforce both min width and min height (same value), and cap by original size on both axes.
+        // Robust constraints:
+        // - Minimums: never let the window go below these (one-way bridge).
+        // - Maximums: generous, based on screen visible frame, so users can always grow.
         let minWidth: CGFloat = 175
         let minHeight: CGFloat = 175
         
-        // Convert min/max constraints to width space using aspect ratio
+        // Compute effective min/max in width-space
         let effectiveMinWidth = max(minWidth, minHeight * aspectRatio)
-        let effectiveMaxWidth = min(maxSize.width, maxSize.height * aspectRatio)
+        
+        // Screen-based maximum (use 90% of visible frame)
+        let screenSize = NSScreen.main?.visibleFrame.size ?? NSSize(width: 4000, height: 4000)
+        let screenMaxWidth = screenSize.width * 0.9
+        let screenMaxHeightAsWidth = screenSize.height * aspectRatio * 0.9
+        let effectiveMaxWidth = max(200, min(screenMaxWidth, screenMaxHeightAsWidth))
         
         newWidth = max(effectiveMinWidth, min(newWidth, effectiveMaxWidth))
         let newHeight = newWidth / aspectRatio
         
-        // Calculate new origin based on anchor
+        // Re-anchor origin so the opposite corner stays fixed
         if anchorRight {
             frame.origin.x = frame.origin.x + frame.width - newWidth
         }
