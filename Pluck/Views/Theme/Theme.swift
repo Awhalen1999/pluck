@@ -12,82 +12,46 @@ import SwiftUI
 enum Theme {
     
     // MARK: - Background (Liquid Glass)
-    
-    /// Main panel/window background - very transparent for liquid glass effect
-    static let background = Color.white.opacity(0.45)
-    
-    /// Card/cell background - subtle lift from base
-    static let cardBackground = Color.white.opacity(0.35)
-    
-    /// Hovered card state
-    static let cardBackgroundHover = Color.white.opacity(0.50)
-    
-    /// Active/pressed card state
-    static let cardBackgroundActive = Color.white.opacity(0.60)
+    static let background = Color.white.opacity(0.24)
+    static let cardBackground = Color.white.opacity(0.26)
+    static let cardBackgroundHover = Color.white.opacity(0.33)
+    static let cardBackgroundActive = Color.white.opacity(0.42)
     
     // MARK: - Text
+    static let textPrimary = Color.black.opacity(0.80)
+    static let textSecondary = Color.black.opacity(0.55)
+    static let textTertiary = Color.black.opacity(0.35)
     
-    /// Primary text - high contrast on light
-    static let textPrimary = Color.black.opacity(0.85)
+    // MARK: - Borders (softened)
+    // Softer base, gentle hover/active—keeps shape without heavy outline.
+    static let border = Color.white.opacity(0.55)
+    static let borderHover = Color.white.opacity(0.70)
+    static let borderActive = Color.white.opacity(0.85)
     
-    /// Secondary/supporting text
-    static let textSecondary = Color.black.opacity(0.50)
-    
-    /// Tertiary/hint text
-    static let textTertiary = Color.black.opacity(0.30)
-    
-    // MARK: - Borders
-    
-    /// Default border - barely visible structure
-    static let border = Color.white.opacity(0.60)
-    
-    /// Hover/focus border
-    static let borderHover = Color.white.opacity(0.80)
-    
-    /// Active/selected border
-    static let borderActive = Color.white.opacity(0.90)
+    // Inner contour (slightly reduced)
+    static let innerContour = Color.black.opacity(0.05)
     
     // MARK: - Shadows
-    
-    /// Subtle shadow for cards
-    static let shadowLight = Color.black.opacity(0.06)
-    
-    /// Medium shadow for elevated elements
+    static let shadowLight = Color.black.opacity(0.05)
     static let shadowMedium = Color.black.opacity(0.10)
-    
-    /// Heavy shadow for floating/dragged elements
     static let shadowHeavy = Color.black.opacity(0.18)
     
     // MARK: - Inactive State
-    
-    /// Saturation multiplier when window is inactive
-    static let inactiveSaturation: Double = 0.6
-    
-    /// Brightness adjustment when window is inactive
+    static let inactiveSaturation: Double = 0.85
     static let inactiveBrightness: Double = 0.03
+    static let inactiveOpacity: Double = 0.85
     
-    /// Opacity for interactive elements when inactive
-    static let inactiveOpacity: Double = 0.7
-    
-    // MARK: - Accent
-    
-    /// System accent for interactive elements
+    // MARK: - Accent / Status
     static let accent = Color.accentColor
-    
-    /// Danger/destructive actions
     static let danger = Color.red
-    
-    /// Success/confirmation
     static let success = Color.green
     
     // MARK: - Dimensions
-    
     enum Radius {
-        static let small: CGFloat = 6
-        static let medium: CGFloat = 10
-        static let large: CGFloat = 14
+        static let small: CGFloat = 8
+        static let medium: CGFloat = 12
+        static let large: CGFloat = 16
     }
-    
     enum Spacing {
         static let xs: CGFloat = 4
         static let sm: CGFloat = 8
@@ -96,11 +60,7 @@ enum Theme {
     }
     
     // MARK: - Icon Button Styling
-    
-    /// Standard icon button size
     static let iconButtonSize: CGFloat = 28
-    
-    /// Icon font size
     static let iconSize: CGFloat = 12
 }
 
@@ -108,21 +68,38 @@ enum Theme {
 
 extension View {
     
-    /// Standard frosted card style
+    /// Standard frosted card style with luminous edge and inner contour
     func cardStyle(isHovered: Bool = false, isActive: Bool = false) -> some View {
         self
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                    .fill(isActive ? Theme.cardBackgroundActive : (isHovered ? Theme.cardBackgroundHover : Theme.cardBackground))
+                    .fill(isActive ? Theme.cardBackgroundActive :
+                          (isHovered ? Theme.cardBackgroundHover : Theme.cardBackground))
+                    .overlay(GlassHighlight(cornerRadius: Theme.Radius.medium))
                     .shadow(color: Theme.shadowLight, radius: 2, y: 1)
             )
+            // Softer outer border (hairline)
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                    .stroke(isHovered ? Theme.borderHover : Theme.border, lineWidth: 1)
+                    .stroke(isHovered ? Theme.borderHover : Theme.border, lineWidth: 0.75)
+            )
+            // Very faint inner highlight to keep definition without heaviness
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.medium - 0.5)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 0.5)
+                    .blendMode(.plusLighter)
+                    .padding(0.5)
+            )
+            // Subtle inner contour
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.medium - 1)
+                    .stroke(Theme.innerContour, lineWidth: 0.5)
+                    .blendMode(.multiply)
+                    .padding(1)
             )
     }
     
-    /// Icon button background
+    /// Icon button background (kept crisp)
     func iconButtonStyle(isHovered: Bool = false) -> some View {
         self
             .frame(width: Theme.iconButtonSize, height: Theme.iconButtonSize)
@@ -137,13 +114,13 @@ extension View {
         self
             .saturation(isInactive ? Theme.inactiveSaturation : 1.0)
             .brightness(isInactive ? Theme.inactiveBrightness : 0)
+            .opacity(isInactive ? Theme.inactiveOpacity : 1.0)
             .animation(.easeInOut(duration: 0.15), value: isInactive)
     }
 }
 
 // MARK: - Reusable Components
 
-/// Standard icon button used throughout the app
 struct IconButton: View {
     let icon: String
     let action: () -> Void
@@ -173,5 +150,60 @@ struct IconButton: View {
             return Theme.danger
         }
         return isHovered ? Theme.textPrimary : Theme.textSecondary
+    }
+}
+
+// MARK: - Glass Helpers
+
+private struct GlassHighlight: View {
+    let cornerRadius: CGFloat
+    
+    var body: some View {
+        ZStack {
+            // Top specular highlight
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.40),
+                            Color.white.opacity(0.00)
+                        ],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+                .blendMode(.plusLighter)
+            
+            // Gentle vertical tint
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.07),
+                            Color.white.opacity(0.12)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .blendMode(.screen)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+struct GlassBackground: View {
+    let cornerRadius: CGFloat
+    
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .fill(Theme.background)
+            .overlay(GlassHighlight(cornerRadius: cornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(Theme.border, lineWidth: 0.75)
+            )
+            .shadow(color: Theme.shadowMedium, radius: 12, y: 0)
+            .allowsHitTesting(false)
     }
 }

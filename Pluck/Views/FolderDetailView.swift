@@ -66,7 +66,7 @@ struct FolderDetailView: View {
     
     private var header: some View {
         HStack(spacing: 2) {
-            // Back button (now using IconButton)
+            // Back button (IconButton)
             IconButton(
                 icon: "chevron.left",
                 action: { isEditing ? cancelEdit() : onBack() },
@@ -295,10 +295,7 @@ struct ImageThumbnail: View {
                 .frame(width: size, height: size)
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius)
-                        .stroke(isHovered ? Theme.borderActive : Theme.border, lineWidth: 1)
-                )
+                // Removed border stroke to get a cleaner thumbnail
                 .shadow(color: Theme.shadowLight, radius: 2, y: 1)
             
             if isPopoutOpen {

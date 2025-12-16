@@ -308,9 +308,11 @@ struct PopoutImageView: View {
     // MARK: - Controls Overlay
     
     private var controlsOverlay: some View {
-        HStack {
-            Spacer()
+        // Left edge, vertically centered so it doesn't interfere with corners
+        HStack(spacing: 0) {
             VStack(spacing: 4) {
+                Spacer(minLength: 0)
+                
                 ForEach(PopoutWindowMode.allCases, id: \.self) { mode in
                     PopoutModeButton(
                         mode: mode,
@@ -324,9 +326,12 @@ struct PopoutImageView: View {
                 
                 Spacer().frame(height: 8)
                 PopoutCloseButton(action: onClose)
+                
+                Spacer(minLength: 0)
             }
-            .padding(8)
-            Spacer()
+            .padding(.leading, 8)
+            
+            Spacer(minLength: 0)
         }
         .transition(.opacity)
     }
