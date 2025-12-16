@@ -29,8 +29,6 @@ struct FolderCard: View {
     // MARK: - Constants
     
     private let cardHeight: CGFloat = 68
-    private let cardCornerRadius: CGFloat = 10
-    private let holdDuration: TimeInterval = 0.5
     
     private var folderColor: Color {
         Color(hex: folder.colorHex) ?? .purple
@@ -47,7 +45,11 @@ struct FolderCard: View {
             .pulse(on: $shouldPulse)
             .offset(dragOffset)
             .scaleEffect(canDrag ? 1.02 : 1.0)
-            .shadow(color: canDrag ? .black.opacity(0.3) : .clear, radius: canDrag ? 12 : 0, y: canDrag ? 6 : 0)
+            .shadow(
+                color: canDrag ? Theme.shadowHeavy : .clear,
+                radius: canDrag ? 12 : 0,
+                y: canDrag ? 4 : 0
+            )
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: canDrag)
             .animation(.easeOut(duration: 0.15), value: isDropTargeted)
             .gesture(dragGesture)
@@ -62,7 +64,8 @@ struct FolderCard: View {
     // MARK: - Card Content
     
     private var cardContent: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.md) {
+            // Color indicator
             RoundedRectangle(cornerRadius: 2)
                 .fill(folderColor)
                 .frame(width: 4)
@@ -72,8 +75,8 @@ struct FolderCard: View {
                 thumbnailRow
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.vertical, Theme.Spacing.sm)
         .background(cardBackground)
         .overlay(cardBorder)
         .onHover { isHovered = $0 }
@@ -84,7 +87,6 @@ struct FolderCard: View {
         .onChange(of: pasteController.lastPastedFolderID) { _, newID in
             if newID == folder.id {
                 shouldPulse = true
-                // Reset after triggering
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     pasteController.lastPastedFolderID = nil
                 }
@@ -96,7 +98,7 @@ struct FolderCard: View {
         HStack {
             Text(folder.name)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
             
             Spacer()
@@ -112,7 +114,7 @@ struct FolderCard: View {
             } else {
                 Text("\(folder.imageCount)")
                     .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(Theme.textTertiary)
             }
         }
         .animation(.easeOut(duration: 0.15), value: showPasteBadge)
@@ -128,7 +130,7 @@ struct FolderCard: View {
                 Text("Drop images here")
                     .font(.system(size: 10))
             }
-            .foregroundStyle(.white.opacity(0.4))
+            .foregroundStyle(Theme.textTertiary)
         } else {
             ThumbnailStack(
                 thumbnails: thumbnails,
@@ -140,24 +142,26 @@ struct FolderCard: View {
     // MARK: - Styling
     
     private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: cardCornerRadius)
+        RoundedRectangle(cornerRadius: Theme.Radius.medium)
             .fill(backgroundFill)
+            .shadow(color: Theme.shadowLight, radius: 2, y: 1)
     }
     
     private var backgroundFill: Color {
-        if canDrag { return .white.opacity(0.15) }
-        if isDropTargeted || isHovered { return .white.opacity(0.1) }
-        return .white.opacity(0.05)
+        if canDrag { return Theme.cardBackgroundActive }
+        if isDropTargeted || isHovered { return Theme.cardBackgroundHover }
+        return Theme.cardBackground
     }
     
     private var cardBorder: some View {
-        RoundedRectangle(cornerRadius: cardCornerRadius)
+        RoundedRectangle(cornerRadius: Theme.Radius.medium)
             .stroke(borderColor, lineWidth: 1)
     }
     
     private var borderColor: Color {
-        if isDropTargeted || isHovered { return .white.opacity(0.2) }
-        return .white.opacity(0.1)
+        if isDropTargeted { return Theme.accent.opacity(0.5) }
+        if isHovered { return Theme.borderHover }
+        return Theme.border
     }
     
     // MARK: - Timer
@@ -180,6 +184,8 @@ struct FolderCard: View {
     }
     
     private func handleDragChanged(_ value: DragGesture.Value) {
+        let holdDuration: TimeInterval = 0.5
+        
         if holdTimer == nil && !canDrag {
             holdTimer = Timer(timeInterval: holdDuration, repeats: false) { _ in
                 DispatchQueue.main.async {

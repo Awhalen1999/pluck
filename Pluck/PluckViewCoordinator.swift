@@ -35,8 +35,9 @@ struct PluckViewCoordinator: View {
         .clipShape(edgeShape(dockedEdge: dockedEdge))
         .overlay {
             edgeShape(dockedEdge: dockedEdge)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(Theme.border, lineWidth: 1)
         }
+        .shadow(color: Theme.shadowMedium, radius: 12, x: dockedEdge == .right ? -4 : 4, y: 0)
     }
     
     // MARK: - Drag Handle Positioning
@@ -63,7 +64,7 @@ struct PluckViewCoordinator: View {
                 Circle().frame(width: 3, height: 3)
             }
         }
-        .foregroundStyle(Color.white.opacity(isDragging ? 0.35 : 0.15))
+        .foregroundStyle(isDragging ? Theme.textSecondary : Theme.textTertiary)
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
         .contentShape(Rectangle())
@@ -136,11 +137,13 @@ struct PluckViewCoordinator: View {
     
     private func background(dockedEdge: DockedEdge) -> some View {
         ZStack {
-            Color.black.opacity(0.9)
-            
+            // Base frosted material
             edgeShape(dockedEdge: dockedEdge)
                 .fill(.ultraThinMaterial)
-                .opacity(0.2)
+            
+            // Subtle white overlay for the frosted look
+            edgeShape(dockedEdge: dockedEdge)
+                .fill(Theme.background)
         }
     }
     
@@ -167,7 +170,7 @@ struct PluckViewCoordinator: View {
     private var closedContent: some View {
         Image(systemName: "square.stack.3d.up.fill")
             .font(.system(size: 22))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.textSecondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scaleEffect(isHovering && !windowManager.isOpen ? 1.1 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovering)

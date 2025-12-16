@@ -17,8 +17,6 @@ struct NewFolderCard: View {
     // MARK: - Constants
     
     private let cardHeight: CGFloat = 44
-    private let cardCornerRadius: CGFloat = 10
-    private let contentPadding: CGFloat = 12
     
     private var selectedColor: String {
         FolderColors.all[selectedColorIndex]
@@ -39,7 +37,7 @@ struct NewFolderCard: View {
     
     private var addButton: some View {
         Button(action: startAdding) {
-            HStack(spacing: 10) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "plus")
                     .font(.system(size: 12, weight: .medium))
                 
@@ -48,17 +46,17 @@ struct NewFolderCard: View {
                 
                 Spacer()
             }
-            .foregroundStyle(isHovered ? .white.opacity(0.7) : .white.opacity(0.4))
-            .padding(.horizontal, contentPadding)
+            .foregroundStyle(isHovered ? Theme.textSecondary : Theme.textTertiary)
+            .padding(.horizontal, Theme.Spacing.md)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: cardCornerRadius)
-                    .fill(isHovered ? .white.opacity(0.05) : .clear)
+                RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                    .fill(isHovered ? Theme.cardBackground : .clear)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: cardCornerRadius)
+                RoundedRectangle(cornerRadius: Theme.Radius.medium)
                     .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
-                    .foregroundStyle(isHovered ? .white.opacity(0.2) : .white.opacity(0.1))
+                    .foregroundStyle(isHovered ? Theme.borderHover : Theme.border)
             )
         }
         .buttonStyle(.plain)
@@ -70,25 +68,26 @@ struct NewFolderCard: View {
     private var editingCard: some View {
         HStack(spacing: 0) {
             colorPicker
-                .padding(.trailing, 10)
+                .padding(.trailing, Theme.Spacing.sm)
             
             textField
             
-            HStack(spacing: 8) {
+            HStack(spacing: Theme.Spacing.sm) {
                 cancelButton
                 confirmButton
             }
-            .padding(.leading, 10)
+            .padding(.leading, Theme.Spacing.sm)
         }
-        .padding(.horizontal, contentPadding)
+        .padding(.horizontal, Theme.Spacing.md)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: cardCornerRadius)
-                .fill(.white.opacity(0.1))
+            RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                .fill(Theme.cardBackgroundHover)
+                .shadow(color: Theme.shadowLight, radius: 2, y: 1)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: cardCornerRadius)
-                .stroke(.white.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                .stroke(Theme.borderHover, lineWidth: 1)
         )
         .onAppear {
             isTextFieldFocused = true
@@ -112,7 +111,7 @@ struct NewFolderCard: View {
         TextField("Folder name", text: $folderName)
             .textFieldStyle(.plain)
             .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.textPrimary)
             .focused($isTextFieldFocused)
             .frame(maxWidth: 130)
             .onSubmit { createFolder() }
@@ -123,7 +122,7 @@ struct NewFolderCard: View {
         Button(action: cancelAdding) {
             Image(systemName: "xmark")
                 .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(.white.opacity(0.4))
+                .foregroundStyle(Theme.textTertiary)
         }
         .buttonStyle(.plain)
     }
@@ -132,7 +131,7 @@ struct NewFolderCard: View {
         Button(action: createFolder) {
             Image(systemName: "checkmark")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(Theme.textSecondary)
         }
         .buttonStyle(.plain)
     }

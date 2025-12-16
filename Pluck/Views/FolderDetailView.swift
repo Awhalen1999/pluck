@@ -67,127 +67,69 @@ struct FolderDetailView: View {
     
     private var header: some View {
         HStack(spacing: 2) {
-            // Back button (cancels edit if editing)
+            // Back button
             Button(action: { isEditing ? cancelEdit() : onBack() }) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(isBackHovered ? .white : .white.opacity(0.6))
-                    .frame(width: 24, height: 24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(isBackHovered ? .white.opacity(0.1) : .clear)
-                    )
+                    .font(.system(size: Theme.iconSize, weight: .medium))
+                    .foregroundStyle(isBackHovered ? Theme.textPrimary : Theme.textSecondary)
+                    .iconButtonStyle(isHovered: isBackHovered)
             }
             .buttonStyle(.plain)
             .onHover { isBackHovered = $0 }
             
-            // Color dot (tappable in edit mode)
+            // Color dot
             Circle()
                 .fill(folderColor)
                 .frame(width: 8, height: 8)
                 .onTapGesture {
-                    if isEditing {
-                        cycleColor()
-                    }
+                    if isEditing { cycleColor() }
                 }
                 .padding(.trailing, 4)
                 .animation(.easeOut(duration: 0.15), value: editedColorIndex)
             
-            // Folder name (editable in edit mode)
+            // Folder name
             if isEditing {
                 TextField("Folder name", text: $editedName)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.textPrimary)
                     .focused($isNameFocused)
                     .onSubmit { saveEdit() }
             } else {
                 Text(folder.name)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
             }
             
             Spacer()
             
-            // Action buttons
             if isEditing {
                 editModeButtons
             } else {
                 normalModeButtons
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 16)
-        .padding(.bottom, 6)
+        .padding(.horizontal, Theme.Spacing.sm)
+        .padding(.top, Theme.Spacing.lg)
+        .padding(.bottom, Theme.Spacing.xs)
     }
     
     // MARK: - Normal Mode Buttons
     
     private var normalModeButtons: some View {
-        HStack(spacing: 4) {
-            // Edit button
-            Button(action: { startEdit() }) {
-                Image(systemName: "pencil")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(isEditHovered ? .white : .white.opacity(0.6))
-                    .frame(width: 24, height: 24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(isEditHovered ? .white.opacity(0.1) : .clear)
-                    )
-            }
-            .buttonStyle(.plain)
-            .onHover { isEditHovered = $0 }
-           
-            
-            // Close button
-            Button(action: { windowManager.close() }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(isCloseHovered ? .white : .white.opacity(0.6))
-                    .frame(width: 24, height: 24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(isCloseHovered ? .white.opacity(0.1) : .clear)
-                    )
-            }
-            .buttonStyle(.plain)
-            .onHover { isCloseHovered = $0 }
+        HStack(spacing: Theme.Spacing.xs) {
+            IconButton(icon: "pencil", action: startEdit)
+            IconButton(icon: "xmark", action: { windowManager.close() })
         }
     }
     
     // MARK: - Edit Mode Buttons
     
     private var editModeButtons: some View {
-        HStack(spacing: 4) {
-            // Delete button
-            Button(action: { deleteFolder() }) {
-                Image(systemName: "trash")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(isDeleteHovered ? .red : .white.opacity(0.6))
-                    .frame(width: 24, height: 24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(isDeleteHovered ? .red.opacity(0.15) : .clear)
-                    )
-            }
-            .buttonStyle(.plain)
-            .onHover { isDeleteHovered = $0 }
-            
-            // Save button
-            Button(action: { saveEdit() }) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(isSaveHovered ? .white : .white.opacity(0.6))
-                    .frame(width: 24, height: 24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(isSaveHovered ? .white.opacity(0.1) : .clear)
-                    )
-            }
-            .buttonStyle(.plain)
-            .onHover { isSaveHovered = $0 }
+        HStack(spacing: Theme.Spacing.xs) {
+            IconButton(icon: "trash", action: deleteFolder, isDestructive: true)
+            IconButton(icon: "checkmark", action: saveEdit)
         }
     }
     
@@ -244,28 +186,28 @@ struct FolderDetailView: View {
     // MARK: - Empty State
     
     private var emptyState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Theme.Spacing.md) {
             Spacer()
             
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 28))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(Theme.textTertiary)
             
             Text("Drop images here")
                 .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.4))
+                .foregroundStyle(Theme.textTertiary)
             
             if pasteController.canShowPasteUI {
                 PasteBadge {
                     pasteToFolder()
                 }
-                .padding(.top, 4)
+                .padding(.top, Theme.Spacing.xs)
             }
             
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .background(isDropTargeted ? Color.white.opacity(0.05) : .clear)
+        .background(isDropTargeted ? Theme.cardBackground : .clear)
         .animation(.easeOut(duration: 0.15), value: isDropTargeted)
     }
     
@@ -283,10 +225,10 @@ struct FolderDetailView: View {
                     )
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.vertical, Theme.Spacing.sm)
         }
-        .background(isDropTargeted ? Color.white.opacity(0.03) : .clear)
+        .background(isDropTargeted ? Theme.cardBackground.opacity(0.5) : .clear)
         .animation(.easeOut(duration: 0.15), value: isDropTargeted)
     }
     
@@ -345,7 +287,6 @@ struct ImageThumbnail: View {
     @State private var isHovered = false
     @State private var isPinHovered = false
     
-    // Observe the popout window manager to track open windows
     private var popoutManager: PopoutWindowManager { PopoutWindowManager.shared }
     
     private var isPopoutOpen: Bool {
@@ -360,10 +301,10 @@ struct ImageThumbnail: View {
                 .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
-                        .stroke(isHovered ? .white.opacity(0.3) : .white.opacity(0.1), lineWidth: 1)
+                        .stroke(isHovered ? Theme.borderActive : Theme.border, lineWidth: 1)
                 )
+                .shadow(color: Theme.shadowLight, radius: 2, y: 1)
             
-            // Popout indicator (clickable to close)
             if isPopoutOpen {
                 PopoutIndicator(isHovered: isPinHovered)
                     .onHover { isPinHovered = $0 }
@@ -388,7 +329,7 @@ struct ImageThumbnail: View {
                     .aspectRatio(contentMode: .fill)
             } else {
                 Rectangle()
-                    .fill(.white.opacity(0.05))
+                    .fill(Theme.cardBackground)
                     .overlay(
                         ProgressView()
                             .scaleEffect(0.5)
@@ -416,15 +357,16 @@ struct PopoutIndicator: View {
     var body: some View {
         Image(systemName: "pin.fill")
             .font(.system(size: 8, weight: .medium))
-            .foregroundStyle(isHovered ? .white : .white.opacity(0.8))
+            .foregroundStyle(isHovered ? Theme.textPrimary : Theme.textSecondary)
             .frame(width: 16, height: 16)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(isHovered ? .black.opacity(0.8) : .black.opacity(0.5))
+                    .fill(isHovered ? Theme.cardBackgroundActive : Theme.cardBackground)
+                    .shadow(color: Theme.shadowLight, radius: 1, y: 1)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
-                    .stroke(.white.opacity(0.15), lineWidth: 0.5)
+                    .stroke(Theme.border, lineWidth: 0.5)
             )
             .animation(.easeOut(duration: 0.15), value: isHovered)
     }

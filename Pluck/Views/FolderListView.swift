@@ -38,10 +38,9 @@ struct FolderListView: View {
     
     private func setupKeyMonitor() {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            // Check for ⌘V
             if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "v" {
                 if handlePaste() {
-                    return nil // Consume the event
+                    return nil
                 }
             }
             return event
@@ -68,23 +67,11 @@ struct FolderListView: View {
     private var header: some View {
         HStack {
             Spacer()
-            
-            Button(action: { windowManager.close() }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(isCloseHovered ? .white : .white.opacity(0.6))
-                    .frame(width: 24, height: 24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(isCloseHovered ? .white.opacity(0.1) : .clear)
-                    )
-            }
-            .buttonStyle(.plain)
-            .onHover { isCloseHovered = $0 }
+            IconButton(icon: "xmark", action: { windowManager.close() })
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 16)
-        .padding(.bottom, 6)
+        .padding(.horizontal, Theme.Spacing.sm)
+        .padding(.top, Theme.Spacing.lg)
+        .padding(.bottom, Theme.Spacing.xs)
     }
     
     // MARK: - Folder List
@@ -111,8 +98,8 @@ struct FolderListView: View {
                     createFolder(name: name, colorHex: colorHex)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 12)
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.bottom, Theme.Spacing.md)
             .padding(.top, 2)
             .animation(draggingIndex != nil ? .spring(response: 0.3, dampingFraction: 0.75) : nil, value: targetIndex)
         }

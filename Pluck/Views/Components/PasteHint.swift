@@ -29,6 +29,10 @@ struct PasteBadge: View {
             Capsule()
                 .fill(backgroundColor)
         )
+        .overlay(
+            Capsule()
+                .stroke(Theme.border, lineWidth: 0.5)
+        )
         .scaleEffect(isPressed ? 0.92 : 1.0)
         .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
         .animation(.easeOut(duration: 0.12), value: isHovered)
@@ -51,13 +55,13 @@ struct PasteBadge: View {
     }
     
     private var foregroundColor: Color {
-        isHovered ? .white : .white.opacity(0.6)
+        isHovered ? Theme.textPrimary : Theme.textSecondary
     }
     
     private var backgroundColor: Color {
-        if isPressed { return .white.opacity(0.15) }
-        if isHovered { return .white.opacity(0.1) }
-        return .white.opacity(0.05)
+        if isPressed { return Theme.cardBackgroundActive }
+        if isHovered { return Theme.cardBackgroundHover }
+        return Theme.cardBackground
     }
 }
 
@@ -88,19 +92,20 @@ struct PasteOverlay: View {
                     .padding(.vertical, 2)
                     .background(
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(.white.opacity(0.05))
+                            .fill(Theme.cardBackground)
                     )
                 }
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(Theme.textSecondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(
                     Capsule()
-                        .fill(.black.opacity(0.8))
-                        .overlay(
-                            Capsule()
-                                .stroke(.white.opacity(0.1), lineWidth: 0.5)
-                        )
+                        .fill(Theme.background)
+                        .shadow(color: Theme.shadowMedium, radius: 8, y: 2)
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(Theme.border, lineWidth: 0.5)
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }

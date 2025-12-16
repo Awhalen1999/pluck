@@ -23,15 +23,16 @@ struct ThumbnailStack: View {
                     .clipShape(RoundedRectangle(cornerRadius: 4))
                     .overlay(
                         RoundedRectangle(cornerRadius: 4)
-                            .stroke(.black.opacity(0.3), lineWidth: 1)
+                            .stroke(Theme.border, lineWidth: 1)
                     )
+                    .shadow(color: Theme.shadowLight, radius: 1, y: 1)
                     .zIndex(Double(maxVisible - index))
             }
             
             if totalCount > maxVisible {
                 Text("+\(totalCount - maxVisible)")
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(Theme.textTertiary)
                     .padding(.leading, overlap + 4)
             }
             

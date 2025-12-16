@@ -64,7 +64,6 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.2), value: contentState)
         .onChange(of: windowManager.isOpen) { _, isOpen in
             if !isOpen {
-                // Reset to folder list when panel closes
                 activeFolder = nil
                 contentState = .folderList
             }
@@ -104,7 +103,6 @@ struct ContentView: View {
     }
     
     private func handleImageDeleted() {
-        // Go back to folder detail
         if let folder = activeFolder {
             contentState = .folderDetail(folder)
         } else {

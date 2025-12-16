@@ -82,7 +82,7 @@ final class PopoutWindowManager {
         window.isMovableByWindowBackground = true
         window.imageAspectRatio = imageSize.width / imageSize.height
         window.originalImageSize = imageSize
-        window.designImageID = imageID  // Store the image ID in the window
+        window.designImageID = imageID
         
         let content = PopoutImageView(
             image: nsImage,
@@ -114,12 +114,10 @@ final class PopoutWindowManager {
         openImageIDs.insert(imageID)
     }
     
-    /// Check if a specific image is currently open in a popout window
     func isImageOpen(_ imageID: UUID) -> Bool {
         openImageIDs.contains(imageID)
     }
     
-    /// Close the popout window for a specific image
     func closeImage(_ imageID: UUID) {
         guard let (windowID, _) = windows.first(where: { $0.value.designImageID == imageID }) else { return }
         closeWindow(id: windowID)
@@ -154,7 +152,6 @@ final class PopoutWindowManager {
         let aspectRatio = window.imageAspectRatio
         var frame = window.frame
         
-        // Determine resize direction based on corner
         let deltaWidth: CGFloat
         let anchorRight: Bool
         let anchorTop: Bool
@@ -178,19 +175,12 @@ final class PopoutWindowManager {
             anchorTop = true
         }
         
-        // Proposed new width maintaining aspect ratio
         var newWidth = frame.width + deltaWidth
         
-        // Robust constraints:
-        // - Minimums: never let the window go below these (one-way bridge).
-        // - Maximums: generous, based on screen visible frame, so users can always grow.
         let minWidth: CGFloat = 175
         let minHeight: CGFloat = 175
-        
-        // Compute effective min/max in width-space
         let effectiveMinWidth = max(minWidth, minHeight * aspectRatio)
         
-        // Screen-based maximum (use 90% of visible frame)
         let screenSize = NSScreen.main?.visibleFrame.size ?? NSSize(width: 4000, height: 4000)
         let screenMaxWidth = screenSize.width * 0.9
         let screenMaxHeightAsWidth = screenSize.height * aspectRatio * 0.9
@@ -199,7 +189,6 @@ final class PopoutWindowManager {
         newWidth = max(effectiveMinWidth, min(newWidth, effectiveMaxWidth))
         let newHeight = newWidth / aspectRatio
         
-        // Re-anchor origin so the opposite corner stays fixed
         if anchorRight {
             frame.origin.x = frame.origin.x + frame.width - newWidth
         }
@@ -217,18 +206,17 @@ final class PopoutWindowManager {
 final class PopoutImagePanel: NSPanel {
     var imageAspectRatio: CGFloat = 1.0
     var originalImageSize: NSSize = NSSize(width: 400, height: 400)
-    var designImageID: UUID?  // Track which DesignImage this window displays
-    
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { false }
+    var designImageID: UUID?
+}
+
+// MARK: - Overlay Contrast Style
+
+enum OverlayContrastStyle {
+    case lightOnDark
+    case darkOnLight
 }
 
 // MARK: - Popout Image View
-
-private enum OverlayContrastStyle {
-    case lightOnDark   // white primary with dark halo
-    case darkOnLight   // dark primary with light halo
-}
 
 struct PopoutImageView: View {
     let image: NSImage
@@ -240,96 +228,91 @@ struct PopoutImageView: View {
     let onResizeBottomLeft: (CGSize) -> Void
     let onResizeBottomRight: (CGSize) -> Void
     
+    @State private var isHovering = false
     @State private var currentMode: PopoutWindowMode = .drag
-    @State private var isHovered = false
-    @State private var overlayStyle: OverlayContrastStyle = .lightOnDark
+    @State private var contrastStyle: OverlayContrastStyle = .lightOnDark
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Image
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                
-                // Controls overlay (visible on hover)
-                if isHovered {
-                    controlsOverlay
-                }
-                
-                // Resize handles (only in resize mode)
-                if currentMode == .resize {
-                    resizeHandles(style: overlayStyle)
-                }
+        ZStack {
+            // Image
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .shadow(color: Color.black.opacity(0.25), radius: 12, y: 4)
+            
+            // Controls overlay
+            if isHovering {
+                controlsOverlay
             }
-            .contentShape(Rectangle())
-            .onHover { hovering in
-                withAnimation(.easeOut(duration: 0.15)) {
-                    isHovered = hovering
-                }
+            
+            // Resize handles (only in resize mode)
+            if currentMode == .resize {
+                resizeHandles
             }
         }
+        .onHover { isHovering = $0 }
         .onAppear {
-            // Determine overlay style based on image luminance
-            let luminance = image.averageLuminanceFast()
-            overlayStyle = luminance > 0.5 ? .darkOnLight : .lightOnDark
+            let luma = image.averageLuminanceFast()
+            contrastStyle = luma > 0.5 ? .darkOnLight : .lightOnDark
         }
     }
     
     // MARK: - Resize Handles
     
-    @ViewBuilder
-    private func resizeHandles(style: OverlayContrastStyle) -> some View {
-        // Top-left
-        VStack {
-            HStack {
-                ResizeCornerHandle(corner: .topLeft, style: style)
-                    .gesture(resizeGesture(for: .topLeft))
+    private var resizeHandles: some View {
+        ZStack {
+            // Top-left
+            VStack {
+                HStack {
+                    ResizeCornerHandle(corner: .topLeft, style: contrastStyle)
+                        .gesture(resizeGesture(for: .topLeft))
+                    Spacer()
+                }
                 Spacer()
             }
-            Spacer()
-        }
-        
-        // Top-right
-        VStack {
-            HStack {
-                Spacer()
-                ResizeCornerHandle(corner: .topRight, style: style)
-                    .gesture(resizeGesture(for: .topRight))
-            }
-            Spacer()
-        }
-        
-        // Bottom-left
-        VStack {
-            Spacer()
-            HStack {
-                ResizeCornerHandle(corner: .bottomLeft, style: style)
-                    .gesture(resizeGesture(for: .bottomLeft))
+            
+            // Top-right
+            VStack {
+                HStack {
+                    Spacer()
+                    ResizeCornerHandle(corner: .topRight, style: contrastStyle)
+                        .gesture(resizeGesture(for: .topRight))
+                }
                 Spacer()
             }
-        }
-        
-        // Bottom-right
-        VStack {
-            Spacer()
-            HStack {
+            
+            // Bottom-left
+            VStack {
                 Spacer()
-                ResizeCornerHandle(corner: .bottomRight, style: style)
-                    .gesture(resizeGesture(for: .bottomRight))
+                HStack {
+                    ResizeCornerHandle(corner: .bottomLeft, style: contrastStyle)
+                        .gesture(resizeGesture(for: .bottomLeft))
+                    Spacer()
+                }
+            }
+            
+            // Bottom-right
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    ResizeCornerHandle(corner: .bottomRight, style: contrastStyle)
+                        .gesture(resizeGesture(for: .bottomRight))
+                }
             }
         }
+        .transition(.opacity)
     }
     
     // MARK: - Controls Overlay
     
     private var controlsOverlay: some View {
         HStack {
+            Spacer()
             VStack(spacing: 4) {
                 ForEach(PopoutWindowMode.allCases, id: \.self) { mode in
-                    ModeButton(
+                    PopoutModeButton(
                         mode: mode,
                         isSelected: currentMode == mode,
                         action: {
@@ -340,7 +323,7 @@ struct PopoutImageView: View {
                 }
                 
                 Spacer().frame(height: 8)
-                CloseButton(action: onClose)
+                PopoutCloseButton(action: onClose)
             }
             .padding(8)
             Spacer()
@@ -370,36 +353,44 @@ enum ResizeCorner {
     case topLeft, topRight, bottomLeft, bottomRight
 }
 
-// MARK: - Component Views
+// MARK: - Popout Mode Button
 
-struct ModeButton: View {
+struct PopoutModeButton: View {
     let mode: PopoutWindowMode
     let isSelected: Bool
     let action: () -> Void
     
     @State private var isHovered = false
     
-    private var baseBG: Color { .black.opacity(0.5) }
-    private var hoverBG: Color { .black.opacity(0.7) }
-    private var selectedBG: Color { .black.opacity(0.8) } // darker gray when selected
-    
     var body: some View {
         Button(action: action) {
             Image(systemName: isSelected ? mode.activeIcon : mode.icon)
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(isSelected ? .white : (isHovered ? .white : .white.opacity(0.7)))
+                .foregroundStyle(foregroundColor)
                 .frame(width: 24, height: 24)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(isSelected ? selectedBG : (isHovered ? hoverBG : baseBG))
+                        .fill(backgroundColor)
                 )
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
     }
+    
+    private var foregroundColor: Color {
+        if isSelected { return .white }
+        return isHovered ? .white : .white.opacity(0.7)
+    }
+    
+    private var backgroundColor: Color {
+        if isSelected { return .black.opacity(0.7) }
+        return isHovered ? .black.opacity(0.6) : .black.opacity(0.4)
+    }
 }
 
-struct CloseButton: View {
+// MARK: - Popout Close Button
+
+struct PopoutCloseButton: View {
     let action: () -> Void
     
     @State private var isHovered = false
@@ -412,13 +403,15 @@ struct CloseButton: View {
                 .frame(width: 24, height: 24)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(isHovered ? .black.opacity(0.8) : .black.opacity(0.5))
+                        .fill(isHovered ? .black.opacity(0.7) : .black.opacity(0.4))
                 )
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
     }
 }
+
+// MARK: - Resize Corner Handle
 
 fileprivate struct ResizeCornerHandle: View {
     let corner: ResizeCorner
@@ -444,7 +437,7 @@ fileprivate struct ResizeCornerHandle: View {
             let armLength: CGFloat = 14
             let inset: CGFloat = 6
             
-            // Halo (slightly thicker)
+            // Halo
             var haloPath = Path()
             switch corner {
             case .topLeft:
@@ -502,11 +495,10 @@ fileprivate struct ResizeCornerHandle: View {
     }
 }
 
-// MARK: - NSImage Average Luminance (fast)
+// MARK: - NSImage Average Luminance
 
 private extension NSImage {
     func averageLuminanceFast(sampleSize: Int = 16) -> CGFloat {
-        // Downscale to small bitmap, average luma (Rec. 709)
         let targetSize = NSSize(width: sampleSize, height: sampleSize)
         guard let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
@@ -541,7 +533,6 @@ private extension NSImage {
             let r = CGFloat(data[offset + 0]) / 255.0
             let g = CGFloat(data[offset + 1]) / 255.0
             let b = CGFloat(data[offset + 2]) / 255.0
-            // Rec. 709 luma
             let y = 0.2126 * r + 0.7152 * g + 0.0722 * b
             sum += y
         }
