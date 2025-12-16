@@ -6,6 +6,8 @@
 import SwiftUI
 
 struct DropBadge: View {
+    @State private var isHovered = false
+    
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "plus")
@@ -13,12 +15,18 @@ struct DropBadge: View {
             Text("Drop")
                 .font(.system(size: 9, weight: .semibold))
         }
-        .foregroundStyle(.white.opacity(0.6))
+        .foregroundStyle(isHovered ? Theme.textPrimary : Theme.textSecondary)
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(.white.opacity(0.1))
+                .fill(isHovered ? Theme.cardBackgroundHover : Theme.cardBackground)
         )
+        .overlay(
+            Capsule()
+                .stroke(Theme.border, lineWidth: 0.5)
+        )
+        .onHover { isHovered = $0 }
+        .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 }

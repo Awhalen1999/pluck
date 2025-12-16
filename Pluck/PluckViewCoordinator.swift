@@ -39,11 +39,11 @@ struct PluckViewCoordinator: View {
             dragHandlePositioned
         }
         .clipShape(edgeShape(dockedEdge: dockedEdge))
-        .overlay {
-            edgeShape(dockedEdge: dockedEdge)
-                .stroke(Theme.border, lineWidth: 1)
-        }
-        .shadow(color: Theme.shadowMedium, radius: 16, x: dockedEdge == .right ? -2 : 2, y: 0)
+        // Removed the full-view outer border stroke to achieve a cleaner, more minimal look.
+        // .overlay {
+        //     edgeShape(dockedEdge: dockedEdge)
+        //         .stroke(Theme.border, lineWidth: 1)
+        // }
     }
     
     // MARK: - Drag Handle Positioning

@@ -2,7 +2,7 @@
 //  Theme.swift
 //  Pluck
 //
-//  A clean, liquid glass theme inspired by Apple's design language.
+//  A dark, minimal liquid glass theme inspired by Apple's design language.
 //
 
 import SwiftUI
@@ -11,34 +11,34 @@ import SwiftUI
 
 enum Theme {
     
-    // MARK: - Background (Liquid Glass)
-    static let background = Color.white.opacity(0.24)
-    static let cardBackground = Color.white.opacity(0.26)
-    static let cardBackgroundHover = Color.white.opacity(0.33)
-    static let cardBackgroundActive = Color.white.opacity(0.42)
+    // MARK: - Background (Liquid Glass) — DARK GLASS (more minimal)
+    static let background = Color.black.opacity(0.26)
+    static let cardBackground = Color.black.opacity(0.28)
+    static let cardBackgroundHover = Color.black.opacity(0.33)
+    static let cardBackgroundActive = Color.black.opacity(0.40)
     
-    // MARK: - Text
-    static let textPrimary = Color.black.opacity(0.80)
-    static let textSecondary = Color.black.opacity(0.55)
-    static let textTertiary = Color.black.opacity(0.35)
+    // MARK: - Text (light on dark) — brighter
+    static let textPrimary = Color.white.opacity(0.98)
+    static let textSecondary = Color.white.opacity(0.82)
+    static let textTertiary = Color.white.opacity(0.62)
     
-    // MARK: - Borders (softened)
-    // Softer base, gentle hover/active—keeps shape without heavy outline.
-    static let border = Color.white.opacity(0.55)
-    static let borderHover = Color.white.opacity(0.70)
-    static let borderActive = Color.white.opacity(0.85)
+    // MARK: - Borders (more blended/darker)
+    // Lower opacities so the outline recedes into the glass.
+    static let border = Color.white.opacity(0.08)
+    static let borderHover = Color.white.opacity(0.11)
+    static let borderActive = Color.white.opacity(0.14)
     
-    // Inner contour (slightly reduced)
-    static let innerContour = Color.black.opacity(0.05)
+    // Inner contour — darker, faint.
+    static let innerContour = Color.black.opacity(0.30)
     
-    // MARK: - Shadows
-    static let shadowLight = Color.black.opacity(0.05)
-    static let shadowMedium = Color.black.opacity(0.10)
-    static let shadowHeavy = Color.black.opacity(0.18)
+    // MARK: - Shadows (tight + soft)
+    static let shadowLight = Color.black.opacity(0.14)
+    static let shadowMedium = Color.black.opacity(0.22)
+    static let shadowHeavy = Color.black.opacity(0.34)
     
     // MARK: - Inactive State
     static let inactiveSaturation: Double = 0.85
-    static let inactiveBrightness: Double = 0.03
+    static let inactiveBrightness: Double = -0.02
     static let inactiveOpacity: Double = 0.85
     
     // MARK: - Accent / Status
@@ -68,7 +68,7 @@ enum Theme {
 
 extension View {
     
-    /// Standard frosted card style with luminous edge and inner contour
+    /// Standard frosted card style with minimal edge and inner contour (dark)
     func cardStyle(isHovered: Bool = false, isActive: Bool = false) -> some View {
         self
             .background(
@@ -76,21 +76,21 @@ extension View {
                     .fill(isActive ? Theme.cardBackgroundActive :
                           (isHovered ? Theme.cardBackgroundHover : Theme.cardBackground))
                     .overlay(GlassHighlight(cornerRadius: Theme.Radius.medium))
-                    .shadow(color: Theme.shadowLight, radius: 2, y: 1)
+                    .shadow(color: Theme.shadowLight, radius: 1.5, y: 1)
             )
-            // Softer outer border (hairline)
+            // Ultra‑subtle outer border
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                    .stroke(isHovered ? Theme.borderHover : Theme.border, lineWidth: 0.75)
+                    .stroke((isHovered ? Theme.borderHover : Theme.border), lineWidth: 0.75)
             )
-            // Very faint inner highlight to keep definition without heaviness
+            // Soft inner light to define the edge without a visible border
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.medium - 0.5)
-                    .stroke(Color.white.opacity(0.10), lineWidth: 0.5)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 0.5)
                     .blendMode(.plusLighter)
                     .padding(0.5)
             )
-            // Subtle inner contour
+            // Subtle inner contour for depth
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.medium - 1)
                     .stroke(Theme.innerContour, lineWidth: 0.5)
@@ -160,12 +160,12 @@ private struct GlassHighlight: View {
     
     var body: some View {
         ZStack {
-            // Top specular highlight
+            // Top specular highlight (very soft)
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.40),
+                            Color.white.opacity(0.18),
                             Color.white.opacity(0.00)
                         ],
                         startPoint: .top,
@@ -174,13 +174,13 @@ private struct GlassHighlight: View {
                 )
                 .blendMode(.plusLighter)
             
-            // Gentle vertical tint
+            // Gentle vertical tint (cool)
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.07),
-                            Color.white.opacity(0.12)
+                            Color.white.opacity(0.05),
+                            Color.white.opacity(0.08)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -199,11 +199,12 @@ struct GlassBackground: View {
         RoundedRectangle(cornerRadius: cornerRadius)
             .fill(Theme.background)
             .overlay(GlassHighlight(cornerRadius: cornerRadius))
+            // Background container border even more blended and thinner
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(Theme.border, lineWidth: 0.75)
+                    .stroke(Theme.border.opacity(0.9), lineWidth: 0.4)
             )
-            .shadow(color: Theme.shadowMedium, radius: 12, y: 0)
+            .shadow(color: Theme.shadowMedium, radius: 10, y: 0)
             .allowsHitTesting(false)
     }
 }
