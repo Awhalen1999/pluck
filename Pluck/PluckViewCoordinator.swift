@@ -39,11 +39,12 @@ struct PluckViewCoordinator: View {
             dragHandlePositioned
         }
         .clipShape(edgeShape(dockedEdge: dockedEdge))
-        // Removed the full-view outer border stroke to achieve a cleaner, more minimal look.
-        // .overlay {
-        //     edgeShape(dockedEdge: dockedEdge)
-        //         .stroke(Theme.border, lineWidth: 1)
-        // }
+        // Subtle outer hairline to separate from the desktop
+        .overlay {
+            edgeShape(dockedEdge: dockedEdge)
+                .stroke(isHovering ? Theme.borderHover : Theme.border, lineWidth: 0.5)
+        }
+        .animation(.easeOut(duration: 0.12), value: isHovering)
     }
     
     // MARK: - Drag Handle Positioning
@@ -150,15 +151,9 @@ struct PluckViewCoordinator: View {
     
     private func background(dockedEdge: DockedEdge) -> some View {
         ZStack {
-            // Heavy blur material for liquid glass
-            edgeShape(dockedEdge: dockedEdge)
-                .fill(.ultraThinMaterial)
-            
-            // Subtle white tint overlay
-            edgeShape(dockedEdge: dockedEdge)
-                .fill(Theme.background)
+            edgeShape(dockedEdge: dockedEdge).fill(.ultraThinMaterial)
+            edgeShape(dockedEdge: dockedEdge).fill(Theme.background)
         }
-        // Slightly desaturate background when inactive
         .saturation(isInactive ? 0.85 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isInactive)
     }
