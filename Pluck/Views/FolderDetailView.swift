@@ -343,19 +343,41 @@ struct ImageThumbnail: View {
     
     @State private var thumbnail: NSImage?
     @State private var isHovered = false
+    @State private var isPinHovered = false
+    
+    // Observe the popout window manager to track open windows
+    private var popoutManager: PopoutWindowManager { PopoutWindowManager.shared }
+    
+    private var isPopoutOpen: Bool {
+        popoutManager.isImageOpen(image.id)
+    }
     
     var body: some View {
-        thumbnailContent
-            .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(isHovered ? .white.opacity(0.3) : .white.opacity(0.1), lineWidth: 1)
-            )
-            .onHover { isHovered = $0 }
-            .onTapGesture { onTap() }
-            .onAppear { loadThumbnail() }
+        ZStack(alignment: .bottomTrailing) {
+            thumbnailContent
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(isHovered ? .white.opacity(0.3) : .white.opacity(0.1), lineWidth: 1)
+                )
+            
+            // Popout indicator (clickable to close)
+            if isPopoutOpen {
+                PopoutIndicator(isHovered: isPinHovered)
+                    .onHover { isPinHovered = $0 }
+                    .onTapGesture { closePopout() }
+                    .padding(4)
+            }
+        }
+        .onHover { isHovered = $0 }
+        .onTapGesture { onTap() }
+        .onAppear { loadThumbnail() }
+    }
+    
+    private func closePopout() {
+        PopoutWindowManager.shared.closeImage(image.id)
     }
     
     private var thumbnailContent: some View {
@@ -383,5 +405,27 @@ struct ImageThumbnail: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Popout Indicator
+
+struct PopoutIndicator: View {
+    var isHovered: Bool = false
+    
+    var body: some View {
+        Image(systemName: "pin.fill")
+            .font(.system(size: 8, weight: .medium))
+            .foregroundStyle(isHovered ? .white : .white.opacity(0.8))
+            .frame(width: 16, height: 16)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isHovered ? .black.opacity(0.8) : .black.opacity(0.5))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(.white.opacity(0.15), lineWidth: 0.5)
+            )
+            .animation(.easeOut(duration: 0.15), value: isHovered)
     }
 }

@@ -32,11 +32,14 @@ enum PopoutWindowMode: String, CaseIterable {
 
 // MARK: - Popout Window Manager
 
-@MainActor
+@MainActor @Observable
 final class PopoutWindowManager {
     static let shared = PopoutWindowManager()
     
     private var windows: [UUID: PopoutImagePanel] = [:]
+    
+    /// Tracks which DesignImage IDs are currently open in popout windows
+    private(set) var openImageIDs: Set<UUID> = []
     
     private init() {}
     
@@ -44,6 +47,7 @@ final class PopoutWindowManager {
         guard let nsImage = FileManagerHelper.loadImage(filename: image.filename) else { return }
         
         let windowID = UUID()
+        let imageID = image.id
         
         // Calculate initial size (max 400px, maintain aspect ratio)
         let maxSize: CGFloat = 400
@@ -78,6 +82,7 @@ final class PopoutWindowManager {
         window.isMovableByWindowBackground = true
         window.imageAspectRatio = imageSize.width / imageSize.height
         window.originalImageSize = imageSize
+        window.designImageID = imageID  // Store the image ID in the window
         
         let content = PopoutImageView(
             image: nsImage,
@@ -106,9 +111,24 @@ final class PopoutWindowManager {
         window.orderFront(nil)
         
         windows[windowID] = window
+        openImageIDs.insert(imageID)
+    }
+    
+    /// Check if a specific image is currently open in a popout window
+    func isImageOpen(_ imageID: UUID) -> Bool {
+        openImageIDs.contains(imageID)
+    }
+    
+    /// Close the popout window for a specific image
+    func closeImage(_ imageID: UUID) {
+        guard let (windowID, _) = windows.first(where: { $0.value.designImageID == imageID }) else { return }
+        closeWindow(id: windowID)
     }
     
     private func closeWindow(id: UUID) {
+        if let window = windows[id], let imageID = window.designImageID {
+            openImageIDs.remove(imageID)
+        }
         windows[id]?.close()
         windows.removeValue(forKey: id)
     }
@@ -197,6 +217,7 @@ final class PopoutWindowManager {
 final class PopoutImagePanel: NSPanel {
     var imageAspectRatio: CGFloat = 1.0
     var originalImageSize: NSSize = NSSize(width: 400, height: 400)
+    var designImageID: UUID?  // Track which DesignImage this window displays
     
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
@@ -221,122 +242,85 @@ struct PopoutImageView: View {
     
     @State private var currentMode: PopoutWindowMode = .drag
     @State private var isHovered = false
-    @State private var contrastStyle: OverlayContrastStyle = .lightOnDark
+    @State private var overlayStyle: OverlayContrastStyle = .lightOnDark
     
     var body: some View {
-        ZStack {
-            // Main image
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-            
-            // Mode indicators (always visible when in that mode)
-            modeIndicators
-            
-            // Controls (visible on hover)
-            if isHovered {
-                controlsOverlay
+        GeometryReader { geometry in
+            ZStack {
+                // Image
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                
+                // Controls overlay (visible on hover)
+                if isHovered {
+                    controlsOverlay
+                }
+                
+                // Resize handles (only in resize mode)
+                if currentMode == .resize {
+                    resizeHandles(style: overlayStyle)
+                }
+            }
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                withAnimation(.easeOut(duration: 0.15)) {
+                    isHovered = hovering
+                }
             }
         }
-        .onAppear { updateContrastStyle() }
-        .onHover { isHovered = $0 }
-        .animation(.easeOut(duration: 0.15), value: isHovered)
-        .animation(.easeOut(duration: 0.2), value: currentMode)
+        .onAppear {
+            // Determine overlay style based on image luminance
+            let luminance = image.averageLuminanceFast()
+            overlayStyle = luminance > 0.5 ? .darkOnLight : .lightOnDark
+        }
     }
     
-    // MARK: - Luminance -> Contrast Style
-    
-    private func updateContrastStyle() {
-        let luminance = image.averageLuminanceFast()
-        contrastStyle = luminance > 0.55 ? .darkOnLight : .lightOnDark
-    }
-    
-    // MARK: - Mode Indicators
+    // MARK: - Resize Handles
     
     @ViewBuilder
-    private var modeIndicators: some View {
-        switch currentMode {
-        case .drag:
-            dragIndicator
-        case .resize:
-            resizeHandles
-        case .locked:
-            lockedIndicator
+    private func resizeHandles(style: OverlayContrastStyle) -> some View {
+        // Top-left
+        VStack {
+            HStack {
+                ResizeCornerHandle(corner: .topLeft, style: style)
+                    .gesture(resizeGesture(for: .topLeft))
+                Spacer()
+            }
+            Spacer()
         }
-    }
-    
-    // Drag indicator - icon only, adaptive color
-    private var dragIndicator: some View {
-        let iconColor: Color = (contrastStyle == .darkOnLight) ? .black.opacity(0.85) : .white
-        return VStack {
+        
+        // Top-right
+        VStack {
+            HStack {
+                Spacer()
+                ResizeCornerHandle(corner: .topRight, style: style)
+                    .gesture(resizeGesture(for: .topRight))
+            }
+            Spacer()
+        }
+        
+        // Bottom-left
+        VStack {
+            Spacer()
+            HStack {
+                ResizeCornerHandle(corner: .bottomLeft, style: style)
+                    .gesture(resizeGesture(for: .bottomLeft))
+                Spacer()
+            }
+        }
+        
+        // Bottom-right
+        VStack {
             Spacer()
             HStack {
                 Spacer()
-                Image(systemName: "hand.draw")
-                    .font(.system(size: 12))
-                    .foregroundStyle(iconColor.opacity(0.9))
-                    .padding(8)
+                ResizeCornerHandle(corner: .bottomRight, style: style)
+                    .gesture(resizeGesture(for: .bottomRight))
             }
         }
-        .allowsHitTesting(false)
-    }
-    
-    // Corner handles - one in each corner
-    private var resizeHandles: some View {
-        ZStack {
-            // Top-left
-            VStack {
-                HStack {
-                    ResizeCornerHandle(corner: .topLeft, style: contrastStyle)
-                        .gesture(resizeGesture(for: .topLeft))
-                    Spacer()
-                }
-                Spacer()
-            }
-            // Top-right
-            VStack {
-                HStack {
-                    Spacer()
-                    ResizeCornerHandle(corner: .topRight, style: contrastStyle)
-                        .gesture(resizeGesture(for: .topRight))
-                }
-                Spacer()
-            }
-            // Bottom-left
-            VStack {
-                Spacer()
-                HStack {
-                    ResizeCornerHandle(corner: .bottomLeft, style: contrastStyle)
-                        .gesture(resizeGesture(for: .bottomLeft))
-                    Spacer()
-                }
-            }
-            // Bottom-right
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    ResizeCornerHandle(corner: .bottomRight, style: contrastStyle)
-                        .gesture(resizeGesture(for: .bottomRight))
-                }
-            }
-        }
-    }
-    
-    // Locked indicator - icon only, adaptive color
-    private var lockedIndicator: some View {
-        let iconColor: Color = (contrastStyle == .darkOnLight) ? .black.opacity(0.85) : .white
-        return VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(iconColor.opacity(0.9))
-                    .padding(8)
-            }
-        }
-        .allowsHitTesting(false)
     }
     
     // MARK: - Controls Overlay

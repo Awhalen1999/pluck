@@ -27,6 +27,13 @@ struct ImageDetailView: View {
     @State private var isSaveHovered = false
     @FocusState private var isNameFocused: Bool
     
+    // Check if image is already open in a popout window
+    private var popoutManager: PopoutWindowManager { PopoutWindowManager.shared }
+    
+    private var isPopoutOpen: Bool {
+        popoutManager.isImageOpen(image.id)
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -86,9 +93,9 @@ struct ImageDetailView: View {
     
     private var normalModeButtons: some View {
         HStack(spacing: 4) {
-            // Popout button
-            Button(action: { popoutImage() }) {
-                Image(systemName: "arrow.up.forward.square")
+            // Popout button (closes if already open)
+            Button(action: { isPopoutOpen ? closePopout() : popoutImage() }) {
+                Image(systemName: isPopoutOpen ? "pin.fill" : "arrow.up.forward.square")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(isPopoutHovered ? .white : .white.opacity(0.6))
                     .frame(width: 24, height: 24)
@@ -203,7 +210,12 @@ struct ImageDetailView: View {
     }
     
     private func popoutImage() {
+        guard !isPopoutOpen else { return }
         PopoutWindowManager.shared.openImage(image)
+    }
+    
+    private func closePopout() {
+        PopoutWindowManager.shared.closeImage(image.id)
     }
     
     // MARK: - Image Content
