@@ -15,6 +15,11 @@ struct PluckViewCoordinator: View {
     @State private var isHovering = false
     @State private var isDragging = false
     
+    /// Whether the window is currently inactive (not key window)
+    private var isInactive: Bool {
+        !windowManager.isWindowActive
+    }
+    
     // MARK: - Body
     
     var body: some View {
@@ -30,6 +35,7 @@ struct PluckViewCoordinator: View {
         ZStack {
             background(dockedEdge: dockedEdge)
             content
+                .inactiveStyle(isInactive)
             dragHandlePositioned
         }
         .clipShape(edgeShape(dockedEdge: dockedEdge))
@@ -37,7 +43,7 @@ struct PluckViewCoordinator: View {
             edgeShape(dockedEdge: dockedEdge)
                 .stroke(Theme.border, lineWidth: 1)
         }
-        .shadow(color: Theme.shadowMedium, radius: 12, x: dockedEdge == .right ? -4 : 4, y: 0)
+        .shadow(color: Theme.shadowMedium, radius: 16, x: dockedEdge == .right ? -2 : 2, y: 0)
     }
     
     // MARK: - Drag Handle Positioning
@@ -64,12 +70,19 @@ struct PluckViewCoordinator: View {
                 Circle().frame(width: 3, height: 3)
             }
         }
-        .foregroundStyle(isDragging ? Theme.textSecondary : Theme.textTertiary)
+        .foregroundStyle(handleColor)
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
         .contentShape(Rectangle())
         .gesture(handleDragGesture)
         .animation(.easeOut(duration: 0.15), value: isDragging)
+        .animation(.easeOut(duration: 0.15), value: isInactive)
+    }
+    
+    private var handleColor: Color {
+        if isDragging { return Theme.textSecondary }
+        if isInactive { return Theme.textTertiary.opacity(0.5) }
+        return Theme.textTertiary
     }
     
     private var handleDragGesture: some Gesture {
@@ -133,18 +146,21 @@ struct PluckViewCoordinator: View {
         }
     }
     
-    // MARK: - Background
+    // MARK: - Background (Liquid Glass)
     
     private func background(dockedEdge: DockedEdge) -> some View {
         ZStack {
-            // Base frosted material
+            // Heavy blur material for liquid glass
             edgeShape(dockedEdge: dockedEdge)
                 .fill(.ultraThinMaterial)
             
-            // Subtle white overlay for the frosted look
+            // Subtle white tint overlay
             edgeShape(dockedEdge: dockedEdge)
                 .fill(Theme.background)
         }
+        // Slightly desaturate background when inactive
+        .saturation(isInactive ? 0.85 : 1.0)
+        .animation(.easeInOut(duration: 0.15), value: isInactive)
     }
     
     // MARK: - Content
@@ -170,10 +186,11 @@ struct PluckViewCoordinator: View {
     private var closedContent: some View {
         Image(systemName: "square.stack.3d.up.fill")
             .font(.system(size: 22))
-            .foregroundStyle(Theme.textSecondary)
+            .foregroundStyle(isInactive ? Theme.textTertiary : Theme.textSecondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scaleEffect(isHovering && !windowManager.isOpen ? 1.1 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovering)
+            .animation(.easeOut(duration: 0.15), value: isInactive)
             .contentShape(Rectangle())
             .onTapGesture {
                 windowManager.toggle()

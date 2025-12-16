@@ -16,7 +16,6 @@ struct FolderDetailView: View {
     @Environment(PasteController.self) private var pasteController
     @Environment(\.modelContext) private var modelContext
     
-    @State private var isBackHovered = false
     @State private var isCloseHovered = false
     @State private var isEditHovered = false
     @State private var isDropTargeted = false
@@ -67,15 +66,12 @@ struct FolderDetailView: View {
     
     private var header: some View {
         HStack(spacing: 2) {
-            // Back button
-            Button(action: { isEditing ? cancelEdit() : onBack() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: Theme.iconSize, weight: .medium))
-                    .foregroundStyle(isBackHovered ? Theme.textPrimary : Theme.textSecondary)
-                    .iconButtonStyle(isHovered: isBackHovered)
-            }
-            .buttonStyle(.plain)
-            .onHover { isBackHovered = $0 }
+            // Back button (now using IconButton)
+            IconButton(
+                icon: "chevron.left",
+                action: { isEditing ? cancelEdit() : onBack() },
+                isInactive: !windowManager.isWindowActive
+            )
             
             // Color dot
             Circle()
@@ -119,8 +115,8 @@ struct FolderDetailView: View {
     
     private var normalModeButtons: some View {
         HStack(spacing: Theme.Spacing.xs) {
-            IconButton(icon: "pencil", action: startEdit)
-            IconButton(icon: "xmark", action: { windowManager.close() })
+            IconButton(icon: "pencil", action: startEdit, isInactive: !windowManager.isWindowActive)
+            IconButton(icon: "xmark", action: { windowManager.close() }, isInactive: !windowManager.isWindowActive)
         }
     }
     
@@ -128,8 +124,8 @@ struct FolderDetailView: View {
     
     private var editModeButtons: some View {
         HStack(spacing: Theme.Spacing.xs) {
-            IconButton(icon: "trash", action: deleteFolder, isDestructive: true)
-            IconButton(icon: "checkmark", action: saveEdit)
+            IconButton(icon: "trash", action: deleteFolder, isDestructive: true, isInactive: !windowManager.isWindowActive)
+            IconButton(icon: "checkmark", action: saveEdit, isInactive: !windowManager.isWindowActive)
         }
     }
     

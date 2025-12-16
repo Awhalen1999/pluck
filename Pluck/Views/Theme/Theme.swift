@@ -2,7 +2,7 @@
 //  Theme.swift
 //  Pluck
 //
-//  A clean, frosted glass theme inspired by native macOS design.
+//  A clean, liquid glass theme inspired by Apple's design language.
 //
 
 import SwiftUI
@@ -11,19 +11,19 @@ import SwiftUI
 
 enum Theme {
     
-    // MARK: - Background
+    // MARK: - Background (Liquid Glass)
     
-    /// Main panel/window background - frosted white glass
-    static let background = Color.white.opacity(0.78)
+    /// Main panel/window background - very transparent for liquid glass effect
+    static let background = Color.white.opacity(0.45)
     
     /// Card/cell background - subtle lift from base
-    static let cardBackground = Color.white.opacity(0.55)
+    static let cardBackground = Color.white.opacity(0.35)
     
     /// Hovered card state
-    static let cardBackgroundHover = Color.white.opacity(0.75)
+    static let cardBackgroundHover = Color.white.opacity(0.50)
     
     /// Active/pressed card state
-    static let cardBackgroundActive = Color.white.opacity(0.85)
+    static let cardBackgroundActive = Color.white.opacity(0.60)
     
     // MARK: - Text
     
@@ -39,24 +39,35 @@ enum Theme {
     // MARK: - Borders
     
     /// Default border - barely visible structure
-    static let border = Color.black.opacity(0.06)
+    static let border = Color.white.opacity(0.60)
     
     /// Hover/focus border
-    static let borderHover = Color.black.opacity(0.12)
+    static let borderHover = Color.white.opacity(0.80)
     
     /// Active/selected border
-    static let borderActive = Color.black.opacity(0.18)
+    static let borderActive = Color.white.opacity(0.90)
     
     // MARK: - Shadows
     
     /// Subtle shadow for cards
-    static let shadowLight = Color.black.opacity(0.04)
+    static let shadowLight = Color.black.opacity(0.06)
     
     /// Medium shadow for elevated elements
-    static let shadowMedium = Color.black.opacity(0.08)
+    static let shadowMedium = Color.black.opacity(0.10)
     
     /// Heavy shadow for floating/dragged elements
-    static let shadowHeavy = Color.black.opacity(0.15)
+    static let shadowHeavy = Color.black.opacity(0.18)
+    
+    // MARK: - Inactive State
+    
+    /// Saturation multiplier when window is inactive
+    static let inactiveSaturation: Double = 0.6
+    
+    /// Brightness adjustment when window is inactive
+    static let inactiveBrightness: Double = 0.03
+    
+    /// Opacity for interactive elements when inactive
+    static let inactiveOpacity: Double = 0.7
     
     // MARK: - Accent
     
@@ -120,6 +131,14 @@ extension View {
                     .fill(isHovered ? Theme.cardBackgroundHover : Color.clear)
             )
     }
+    
+    /// Apply inactive/background window styling
+    func inactiveStyle(_ isInactive: Bool) -> some View {
+        self
+            .saturation(isInactive ? Theme.inactiveSaturation : 1.0)
+            .brightness(isInactive ? Theme.inactiveBrightness : 0)
+            .animation(.easeInOut(duration: 0.15), value: isInactive)
+    }
 }
 
 // MARK: - Reusable Components
@@ -129,6 +148,7 @@ struct IconButton: View {
     let icon: String
     let action: () -> Void
     var isDestructive: Bool = false
+    var isInactive: Bool = false
     
     @State private var isHovered = false
     
@@ -137,13 +157,18 @@ struct IconButton: View {
             Image(systemName: icon)
                 .font(.system(size: Theme.iconSize, weight: .medium))
                 .foregroundStyle(foregroundColor)
-                .iconButtonStyle(isHovered: isHovered)
+                .iconButtonStyle(isHovered: isHovered && !isInactive)
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+        .opacity(isInactive ? Theme.inactiveOpacity : 1.0)
+        .animation(.easeOut(duration: 0.15), value: isInactive)
     }
     
     private var foregroundColor: Color {
+        if isInactive {
+            return Theme.textTertiary
+        }
         if isDestructive && isHovered {
             return Theme.danger
         }
