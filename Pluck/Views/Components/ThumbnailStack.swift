@@ -21,10 +21,6 @@ struct ThumbnailStack: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(width: thumbnailSize, height: thumbnailSize)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Theme.border, lineWidth: 1)
-                    )
                     .shadow(color: Theme.shadowLight, radius: 1, y: 1)
                     .zIndex(Double(maxVisible - index))
             }
