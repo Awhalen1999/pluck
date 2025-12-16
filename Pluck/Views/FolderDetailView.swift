@@ -69,8 +69,7 @@ struct FolderDetailView: View {
             // Back button (IconButton)
             IconButton(
                 icon: "chevron.left",
-                action: { isEditing ? cancelEdit() : onBack() },
-                isInactive: !windowManager.isWindowActive
+                action: { isEditing ? cancelEdit() : onBack() }
             )
             
             // Color dot
@@ -115,8 +114,8 @@ struct FolderDetailView: View {
     
     private var normalModeButtons: some View {
         HStack(spacing: Theme.Spacing.xs) {
-            IconButton(icon: "pencil", action: startEdit, isInactive: !windowManager.isWindowActive)
-            IconButton(icon: "xmark", action: { windowManager.close() }, isInactive: !windowManager.isWindowActive)
+            IconButton(icon: "pencil", action: startEdit)
+            IconButton(icon: "xmark", action: { windowManager.close() })
         }
     }
     
@@ -124,8 +123,8 @@ struct FolderDetailView: View {
     
     private var editModeButtons: some View {
         HStack(spacing: Theme.Spacing.xs) {
-            IconButton(icon: "trash", action: deleteFolder, isDestructive: true, isInactive: !windowManager.isWindowActive)
-            IconButton(icon: "checkmark", action: saveEdit, isInactive: !windowManager.isWindowActive)
+            IconButton(icon: "trash", action: deleteFolder, isDestructive: true)
+            IconButton(icon: "checkmark", action: saveEdit)
         }
     }
     

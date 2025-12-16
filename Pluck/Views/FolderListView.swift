@@ -67,7 +67,7 @@ struct FolderListView: View {
     private var header: some View {
         HStack {
             Spacer()
-            IconButton(icon: "xmark", action: { windowManager.close() }, isInactive: !windowManager.isWindowActive)
+            IconButton(icon: "xmark", action: { windowManager.close() })
         }
         .padding(.horizontal, Theme.Spacing.sm)
         .padding(.top, Theme.Spacing.lg)
