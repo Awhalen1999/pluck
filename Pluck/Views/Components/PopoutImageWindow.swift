@@ -32,7 +32,7 @@ enum PopoutWindowMode: String, CaseIterable {
 
 // MARK: - Popout Window Manager
 
-@MainActor @Observable
+@MainActor
 final class PopoutWindowManager {
     static let shared = PopoutWindowManager()
     
@@ -47,7 +47,6 @@ final class PopoutWindowManager {
         guard let nsImage = FileManagerHelper.loadImage(filename: image.filename) else { return }
         
         let windowID = UUID()
-        let imageID = image.id
         
         // Calculate initial size (max 400px, maintain aspect ratio)
         let maxSize: CGFloat = 400
@@ -82,7 +81,7 @@ final class PopoutWindowManager {
         window.isMovableByWindowBackground = true
         window.imageAspectRatio = imageSize.width / imageSize.height
         window.originalImageSize = imageSize
-        window.designImageID = imageID
+        window.designImageID = image.id   // store the image ID on the panel
         
         let content = PopoutImageView(
             image: nsImage,
@@ -111,21 +110,24 @@ final class PopoutWindowManager {
         window.orderFront(nil)
         
         windows[windowID] = window
-        openImageIDs.insert(imageID)
+        openImageIDs.insert(image.id)   // track as open
     }
     
+    // Re-added API: query if an image’s popout is open
     func isImageOpen(_ imageID: UUID) -> Bool {
         openImageIDs.contains(imageID)
     }
     
+    // Re-added API: close by image ID
     func closeImage(_ imageID: UUID) {
+        // Find the window whose panel holds this image ID
         guard let (windowID, _) = windows.first(where: { $0.value.designImageID == imageID }) else { return }
         closeWindow(id: windowID)
     }
     
     private func closeWindow(id: UUID) {
         if let window = windows[id], let imageID = window.designImageID {
-            openImageIDs.remove(imageID)
+            openImageIDs.remove(imageID)   // untrack when closing
         }
         windows[id]?.close()
         windows.removeValue(forKey: id)
@@ -152,6 +154,7 @@ final class PopoutWindowManager {
         let aspectRatio = window.imageAspectRatio
         var frame = window.frame
         
+        // Determine resize direction based on corner
         let deltaWidth: CGFloat
         let anchorRight: Bool
         let anchorTop: Bool
@@ -175,12 +178,17 @@ final class PopoutWindowManager {
             anchorTop = true
         }
         
+        // Proposed new width maintaining aspect ratio
         var newWidth = frame.width + deltaWidth
         
+        // Robust constraints:
         let minWidth: CGFloat = 175
         let minHeight: CGFloat = 175
+        
+        // Compute effective min/max in width-space
         let effectiveMinWidth = max(minWidth, minHeight * aspectRatio)
         
+        // Screen-based maximum (use 90% of visible frame)
         let screenSize = NSScreen.main?.visibleFrame.size ?? NSSize(width: 4000, height: 4000)
         let screenMaxWidth = screenSize.width * 0.9
         let screenMaxHeightAsWidth = screenSize.height * aspectRatio * 0.9
@@ -189,6 +197,7 @@ final class PopoutWindowManager {
         newWidth = max(effectiveMinWidth, min(newWidth, effectiveMaxWidth))
         let newHeight = newWidth / aspectRatio
         
+        // Re-anchor origin so the opposite corner stays fixed
         if anchorRight {
             frame.origin.x = frame.origin.x + frame.width - newWidth
         }
@@ -206,17 +215,18 @@ final class PopoutWindowManager {
 final class PopoutImagePanel: NSPanel {
     var imageAspectRatio: CGFloat = 1.0
     var originalImageSize: NSSize = NSSize(width: 400, height: 400)
-    var designImageID: UUID?
-}
-
-// MARK: - Overlay Contrast Style
-
-enum OverlayContrastStyle {
-    case lightOnDark
-    case darkOnLight
+    var designImageID: UUID?   // store associated DesignImage ID
+    
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
 }
 
 // MARK: - Popout Image View
+
+private enum OverlayContrastStyle {
+    case lightOnDark   // white primary with dark halo
+    case darkOnLight   // dark primary with light halo
+}
 
 struct PopoutImageView: View {
     let image: NSImage
@@ -228,38 +238,69 @@ struct PopoutImageView: View {
     let onResizeBottomLeft: (CGSize) -> Void
     let onResizeBottomRight: (CGSize) -> Void
     
-    @State private var isHovering = false
     @State private var currentMode: PopoutWindowMode = .drag
+    @State private var isHovered = false
     @State private var contrastStyle: OverlayContrastStyle = .lightOnDark
     
     var body: some View {
         ZStack {
-            // Image
+            // Main image
             Image(nsImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .shadow(color: Color.black.opacity(0.25), radius: 12, y: 4)
             
-            // Controls overlay
-            if isHovering {
+            // Mode indicators (always visible when in that mode)
+            modeIndicators
+            
+            // Controls (visible on hover)
+            if isHovered {
                 controlsOverlay
             }
-            
-            // Resize handles (only in resize mode)
-            if currentMode == .resize {
-                resizeHandles
-            }
         }
-        .onHover { isHovering = $0 }
-        .onAppear {
-            let luma = image.averageLuminanceFast()
-            contrastStyle = luma > 0.5 ? .darkOnLight : .lightOnDark
+        .onAppear { updateContrastStyle() }
+        .onHover { isHovered = $0 }
+        .animation(.easeOut(duration: 0.15), value: isHovered)
+        .animation(.easeOut(duration: 0.2), value: currentMode)
+    }
+    
+    // MARK: - Luminance -> Contrast Style
+    
+    private func updateContrastStyle() {
+        let luminance = image.averageLuminanceFast()
+        contrastStyle = luminance > 0.55 ? .darkOnLight : .lightOnDark
+    }
+    
+    // MARK: - Mode Indicators
+    
+    @ViewBuilder
+    private var modeIndicators: some View {
+        switch currentMode {
+        case .drag:
+            dragIndicator
+        case .resize:
+            resizeHandles
+        case .locked:
+            lockedIndicator
         }
     }
     
-    // MARK: - Resize Handles
+    // Drag indicator - icon only, adaptive color
+    private var dragIndicator: some View {
+        let iconColor: Color = (contrastStyle == .darkOnLight) ? .black.opacity(0.85) : .white
+        return VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                Image(systemName: "hand.draw")
+                    .font(.system(size: 12))
+                    .foregroundStyle(iconColor.opacity(0.9))
+                    .padding(8)
+            }
+        }
+        .allowsHitTesting(false)
+    }
     
+    // Corner handles - one in each corner
     private var resizeHandles: some View {
         ZStack {
             // Top-left
@@ -271,7 +312,6 @@ struct PopoutImageView: View {
                 }
                 Spacer()
             }
-            
             // Top-right
             VStack {
                 HStack {
@@ -281,7 +321,6 @@ struct PopoutImageView: View {
                 }
                 Spacer()
             }
-            
             // Bottom-left
             VStack {
                 Spacer()
@@ -291,7 +330,6 @@ struct PopoutImageView: View {
                     Spacer()
                 }
             }
-            
             // Bottom-right
             VStack {
                 Spacer()
@@ -302,19 +340,31 @@ struct PopoutImageView: View {
                 }
             }
         }
-        .transition(.opacity)
+    }
+    
+    // Locked indicator - icon only, adaptive color
+    private var lockedIndicator: some View {
+        let iconColor: Color = (contrastStyle == .darkOnLight) ? .black.opacity(0.85) : .white
+        return VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(iconColor.opacity(0.9))
+                    .padding(8)
+            }
+        }
+        .allowsHitTesting(false)
     }
     
     // MARK: - Controls Overlay
     
     private var controlsOverlay: some View {
-        // Left edge, vertically centered so it doesn't interfere with corners
-        HStack(spacing: 0) {
+        HStack {
             VStack(spacing: 4) {
-                Spacer(minLength: 0)
-                
                 ForEach(PopoutWindowMode.allCases, id: \.self) { mode in
-                    PopoutModeButton(
+                    ModeButton(
                         mode: mode,
                         isSelected: currentMode == mode,
                         action: {
@@ -325,13 +375,10 @@ struct PopoutImageView: View {
                 }
                 
                 Spacer().frame(height: 8)
-                PopoutCloseButton(action: onClose)
-                
-                Spacer(minLength: 0)
+                CloseButton(action: onClose)
             }
-            .padding(.leading, 8)
-            
-            Spacer(minLength: 0)
+            .padding(8)
+            Spacer()
         }
         .transition(.opacity)
     }
@@ -358,44 +405,36 @@ enum ResizeCorner {
     case topLeft, topRight, bottomLeft, bottomRight
 }
 
-// MARK: - Popout Mode Button
+// MARK: - Component Views
 
-struct PopoutModeButton: View {
+struct ModeButton: View {
     let mode: PopoutWindowMode
     let isSelected: Bool
     let action: () -> Void
     
     @State private var isHovered = false
     
+    private var baseBG: Color { .black.opacity(0.5) }
+    private var hoverBG: Color { .black.opacity(0.7) }
+    private var selectedBG: Color { .black.opacity(0.8) } // darker gray when selected
+    
     var body: some View {
         Button(action: action) {
             Image(systemName: isSelected ? mode.activeIcon : mode.icon)
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(foregroundColor)
+                .foregroundStyle(isSelected ? .white : (isHovered ? .white : .white.opacity(0.7)))
                 .frame(width: 24, height: 24)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(backgroundColor)
+                        .fill(isSelected ? selectedBG : (isHovered ? hoverBG : baseBG))
                 )
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
     }
-    
-    private var foregroundColor: Color {
-        if isSelected { return .white }
-        return isHovered ? .white : .white.opacity(0.7)
-    }
-    
-    private var backgroundColor: Color {
-        if isSelected { return .black.opacity(0.7) }
-        return isHovered ? .black.opacity(0.6) : .black.opacity(0.4)
-    }
 }
 
-// MARK: - Popout Close Button
-
-struct PopoutCloseButton: View {
+struct CloseButton: View {
     let action: () -> Void
     
     @State private var isHovered = false
@@ -408,15 +447,13 @@ struct PopoutCloseButton: View {
                 .frame(width: 24, height: 24)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(isHovered ? .black.opacity(0.7) : .black.opacity(0.4))
+                        .fill(isHovered ? .black.opacity(0.8) : .black.opacity(0.5))
                 )
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
     }
 }
-
-// MARK: - Resize Corner Handle
 
 fileprivate struct ResizeCornerHandle: View {
     let corner: ResizeCorner
@@ -442,7 +479,7 @@ fileprivate struct ResizeCornerHandle: View {
             let armLength: CGFloat = 14
             let inset: CGFloat = 6
             
-            // Halo
+            // Halo (slightly thicker)
             var haloPath = Path()
             switch corner {
             case .topLeft:
@@ -500,10 +537,11 @@ fileprivate struct ResizeCornerHandle: View {
     }
 }
 
-// MARK: - NSImage Average Luminance
+// MARK: - NSImage Average Luminance (fast)
 
 private extension NSImage {
     func averageLuminanceFast(sampleSize: Int = 16) -> CGFloat {
+        // Downscale to small bitmap, average luma (Rec. 709)
         let targetSize = NSSize(width: sampleSize, height: sampleSize)
         guard let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
@@ -538,6 +576,7 @@ private extension NSImage {
             let r = CGFloat(data[offset + 0]) / 255.0
             let g = CGFloat(data[offset + 1]) / 255.0
             let b = CGFloat(data[offset + 2]) / 255.0
+            // Rec. 709 luma
             let y = 0.2126 * r + 0.7152 * g + 0.0722 * b
             sum += y
         }
