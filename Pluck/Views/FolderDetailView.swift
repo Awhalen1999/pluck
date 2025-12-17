@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct FolderDetailView: View {
     let folder: DesignFolder
@@ -46,13 +47,19 @@ struct FolderDetailView: View {
         return Color(hex: folder.colorHex) ?? .purple
     }
     
+    // MARK: - Supported Drop Types
+    
+    private var supportedDropTypes: [UTType] {
+        [.image, .svg, .fileURL]
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             header
             content
         }
         .pulse(on: $shouldPulse)
-        .onDrop(of: ["public.image", "public.file-url"], isTargeted: $isDropTargeted) { providers in
+        .onDrop(of: supportedDropTypes, isTargeted: $isDropTargeted) { providers in
             handleDrop(providers)
         }
         .onChange(of: pasteController.lastPastedFolderID) { _, newID in
@@ -239,12 +246,38 @@ struct FolderDetailView: View {
     
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
         for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier("public.image") {
-                provider.loadDataRepresentation(forTypeIdentifier: "public.image") { data, _ in
+            // Try file URL first (handles SVG and other files)
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, error in
+                    guard let data = item as? Data,
+                          let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+                    
+                    DispatchQueue.main.async {
+                        saveImageFromURL(url)
+                    }
+                }
+                return true
+            }
+            
+            // Try SVG specifically
+            if provider.hasItemConformingToTypeIdentifier(UTType.svg.identifier) {
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.svg.identifier) { data, error in
                     guard let data = data else { return }
                     
                     DispatchQueue.main.async {
-                        saveImage(data)
+                        saveImage(data, fileExtension: "svg")
+                    }
+                }
+                return true
+            }
+            
+            // Try generic image data
+            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, error in
+                    guard let data = data else { return }
+                    
+                    DispatchQueue.main.async {
+                        saveImage(data, fileExtension: nil)
                     }
                 }
                 return true
@@ -253,9 +286,28 @@ struct FolderDetailView: View {
         return false
     }
     
-    private func saveImage(_ data: Data) {
+    private func saveImageFromURL(_ url: URL) {
+        let ext = url.pathExtension.lowercased()
+        guard FileManagerHelper.supportedImageExtensions.contains(ext) else { return }
+        
         do {
-            let filename = try FileManagerHelper.saveImage(data, originalName: "Dropped Image")
+            let filename = try FileManagerHelper.saveImageFromURL(url, originalName: url.lastPathComponent)
+            let newImage = DesignImage(
+                filename: filename,
+                originalName: url.deletingPathExtension().lastPathComponent,
+                sortOrder: folder.images.count,
+                folder: folder
+            )
+            modelContext.insert(newImage)
+            shouldPulse = true
+        } catch {
+            print("Failed to save image from URL: \(error)")
+        }
+    }
+    
+    private func saveImage(_ data: Data, fileExtension: String?) {
+        do {
+            let filename = try FileManagerHelper.saveImage(data, originalName: "Dropped Image", fileExtension: fileExtension)
             let newImage = DesignImage(
                 filename: filename,
                 originalName: "Dropped Image",

@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct FolderCard: View {
     let folder: DesignFolder
@@ -53,12 +54,18 @@ struct FolderCard: View {
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: canDrag)
             .animation(.easeOut(duration: 0.15), value: isDropTargeted)
             .gesture(dragGesture)
-            .onDrop(of: ["public.image", "public.file-url"], isTargeted: $isDropTargeted) { providers in
+            .onDrop(of: supportedDropTypes, isTargeted: $isDropTargeted) { providers in
                 handleImageDrop(providers)
             }
             .onDisappear {
                 invalidateTimer()
             }
+    }
+    
+    // MARK: - Supported Drop Types
+    
+    private var supportedDropTypes: [UTType] {
+        [.image, .svg, .fileURL]
     }
     
     // MARK: - Card Content
@@ -242,12 +249,38 @@ struct FolderCard: View {
     
     private func handleImageDrop(_ providers: [NSItemProvider]) -> Bool {
         for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier("public.image") {
-                provider.loadDataRepresentation(forTypeIdentifier: "public.image") { data, _ in
+            // Try file URL first (handles SVG and other files)
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, error in
+                    guard let data = item as? Data,
+                          let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+                    
+                    DispatchQueue.main.async {
+                        saveImageFromURL(url)
+                    }
+                }
+                return true
+            }
+            
+            // Try SVG specifically
+            if provider.hasItemConformingToTypeIdentifier(UTType.svg.identifier) {
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.svg.identifier) { data, error in
                     guard let data = data else { return }
                     
                     DispatchQueue.main.async {
-                        saveImage(data, name: "Dropped Image")
+                        saveImage(data, name: "Dropped Image", fileExtension: "svg")
+                    }
+                }
+                return true
+            }
+            
+            // Try generic image data (PNG, JPEG, etc.)
+            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, error in
+                    guard let data = data else { return }
+                    
+                    DispatchQueue.main.async {
+                        saveImage(data, name: "Dropped Image", fileExtension: nil)
                     }
                 }
                 return true
@@ -256,9 +289,28 @@ struct FolderCard: View {
         return false
     }
     
-    private func saveImage(_ data: Data, name: String) {
+    private func saveImageFromURL(_ url: URL) {
+        let ext = url.pathExtension.lowercased()
+        guard FileManagerHelper.supportedImageExtensions.contains(ext) else { return }
+        
         do {
-            let filename = try FileManagerHelper.saveImage(data, originalName: name)
+            let filename = try FileManagerHelper.saveImageFromURL(url, originalName: url.lastPathComponent)
+            let newImage = DesignImage(
+                filename: filename,
+                originalName: url.deletingPathExtension().lastPathComponent,
+                sortOrder: folder.images.count,
+                folder: folder
+            )
+            modelContext.insert(newImage)
+            shouldPulse = true
+        } catch {
+            print("Failed to save image from URL: \(error)")
+        }
+    }
+    
+    private func saveImage(_ data: Data, name: String, fileExtension: String?) {
+        do {
+            let filename = try FileManagerHelper.saveImage(data, originalName: name, fileExtension: fileExtension)
             let newImage = DesignImage(
                 filename: filename,
                 originalName: name,
