@@ -11,30 +11,29 @@ import SwiftUI
 
 enum Theme {
     
-    // MARK: - Background (Liquid Glass) — DARK GLASS (more minimal)
-    static let background = Color.black.opacity(0.26)
-    static let cardBackground = Color.black.opacity(0.28)
-    static let cardBackgroundHover = Color.black.opacity(0.33)
-    static let cardBackgroundActive = Color.black.opacity(0.40)
+    // MARK: - Background (Clean Minimal Black) — SaaS floating overlay
+    static let background = Color.black.opacity(0.55)
+    static let cardBackground = Color.black.opacity(0.35)
+    static let cardBackgroundHover = Color.black.opacity(0.45)
+    static let cardBackgroundActive = Color.black.opacity(0.55)
     
     // MARK: - Text (light on dark) — brighter
     static let textPrimary = Color.white.opacity(0.98)
     static let textSecondary = Color.white.opacity(0.82)
     static let textTertiary = Color.white.opacity(0.62)
     
-    // MARK: - Borders (more blended/darker)
-    // Lower opacities so the outline recedes into the glass.
-    static let border = Color.white.opacity(0.08)
-    static let borderHover = Color.white.opacity(0.11)
-    static let borderActive = Color.white.opacity(0.14)
+    // MARK: - Borders (clean and minimal)
+    static let border = Color.white.opacity(0.10)
+    static let borderHover = Color.white.opacity(0.15)
+    static let borderActive = Color.white.opacity(0.20)
     
-    // Inner contour — darker, faint.
+    // No inner contour needed for clean look
     static let innerContour = Color.black.opacity(0.30)
     
-    // MARK: - Shadows (tight + soft)
-    static let shadowLight = Color.black.opacity(0.14)
-    static let shadowMedium = Color.black.opacity(0.22)
-    static let shadowHeavy = Color.black.opacity(0.34)
+    // MARK: - Shadows (clean and floating)
+    static let shadowLight = Color.black.opacity(0.20)
+    static let shadowMedium = Color.black.opacity(0.30)
+    static let shadowHeavy = Color.black.opacity(0.45)
     
     // MARK: - Inactive State
     static let inactiveSaturation: Double = 0.85
@@ -68,35 +67,20 @@ enum Theme {
 
 extension View {
     
-    /// Standard frosted card style with minimal edge and inner contour (dark)
+    /// Clean minimal card style for floating overlay
     func cardStyle(isHovered: Bool = false, isActive: Bool = false) -> some View {
         self
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.medium)
                     .fill(isActive ? Theme.cardBackgroundActive :
                           (isHovered ? Theme.cardBackgroundHover : Theme.cardBackground))
-                    .overlay(GlassHighlight(cornerRadius: Theme.Radius.medium))
-                    .shadow(color: Theme.shadowLight, radius: 1.5, y: 1)
             )
-            // Ultra‑subtle outer border
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                    .stroke((isHovered ? Theme.borderHover : Theme.border), lineWidth: 0.75)
+                    .stroke(isActive ? Theme.borderActive :
+                           (isHovered ? Theme.borderHover : Theme.border), lineWidth: 1)
             )
-            // Soft inner light to define the edge without a visible border
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.medium - 0.5)
-                    .stroke(Color.white.opacity(0.07), lineWidth: 0.5)
-                    .blendMode(.plusLighter)
-                    .padding(0.5)
-            )
-            // Subtle inner contour for depth
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.medium - 1)
-                    .stroke(Theme.innerContour, lineWidth: 0.5)
-                    .blendMode(.multiply)
-                    .padding(1)
-            )
+            .shadow(color: Theme.shadowMedium, radius: 8, y: 4)
     }
     
     /// Icon button background (kept crisp)
@@ -159,36 +143,19 @@ private struct GlassHighlight: View {
     let cornerRadius: CGFloat
     
     var body: some View {
-        ZStack {
-            // Top specular highlight (very soft)
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.18),
-                            Color.white.opacity(0.00)
-                        ],
-                        startPoint: .top,
-                        endPoint: .center
-                    )
+        // Minimal top highlight for subtle depth
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.08),
+                        Color.white.opacity(0.00)
+                    ],
+                    startPoint: .top,
+                    endPoint: .center
                 )
-                .blendMode(.plusLighter)
-            
-            // Gentle vertical tint (cool)
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.05),
-                            Color.white.opacity(0.08)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .blendMode(.screen)
-        }
-        .allowsHitTesting(false)
+            )
+            .allowsHitTesting(false)
     }
 }
 
@@ -198,13 +165,11 @@ struct GlassBackground: View {
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius)
             .fill(Theme.background)
-            .overlay(GlassHighlight(cornerRadius: cornerRadius))
-            // Background container border even more blended and thinner
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(Theme.border.opacity(0.9), lineWidth: 0.4)
+                    .stroke(Theme.border, lineWidth: 1)
             )
-            .shadow(color: Theme.shadowMedium, radius: 10, y: 0)
+            .shadow(color: Theme.shadowHeavy, radius: 20, y: 10)
             .allowsHitTesting(false)
     }
 }
