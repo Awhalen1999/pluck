@@ -54,18 +54,18 @@ struct FolderCard: View {
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: canDrag)
             .animation(.easeOut(duration: 0.15), value: isDropTargeted)
             .gesture(dragGesture)
-            .onDrop(of: supportedDropTypes, isTargeted: $isDropTargeted) { providers in
-                handleImageDrop(providers)
-            }
+            .onDrop(of: [.item], delegate: ImageDropWatcher(
+                isTargeted: $isDropTargeted,
+                onDrop: { providers in
+                    handleImageDrop(providers)
+                },
+                onSuccess: {
+                    shouldPulse = true
+                }
+            ))
             .onDisappear {
                 invalidateTimer()
             }
-    }
-    
-    // MARK: - Supported Drop Types
-    
-    private var supportedDropTypes: [UTType] {
-        [.image, .svg, .fileURL]
     }
     
     // MARK: - Card Content

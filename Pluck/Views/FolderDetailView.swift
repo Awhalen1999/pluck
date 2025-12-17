@@ -47,21 +47,21 @@ struct FolderDetailView: View {
         return Color(hex: folder.colorHex) ?? .purple
     }
     
-    // MARK: - Supported Drop Types
-    
-    private var supportedDropTypes: [UTType] {
-        [.image, .svg, .fileURL]
-    }
-    
     var body: some View {
         VStack(spacing: 0) {
             header
             content
         }
         .pulse(on: $shouldPulse)
-        .onDrop(of: supportedDropTypes, isTargeted: $isDropTargeted) { providers in
-            handleDrop(providers)
-        }
+        .onDrop(of: [.item], delegate: ImageDropWatcher(
+            isTargeted: $isDropTargeted,
+            onDrop: { providers in
+                handleDrop(providers)
+            },
+            onSuccess: {
+                shouldPulse = true
+            }
+        ))
         .onChange(of: pasteController.lastPastedFolderID) { _, newID in
             if newID == folder.id {
                 shouldPulse = true
