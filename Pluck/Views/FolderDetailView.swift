@@ -21,6 +21,7 @@ struct FolderDetailView: View {
     @State private var isEditHovered = false
     @State private var isDropTargeted = false
     @State private var shouldPulse = false
+    @State private var keyMonitor: Any?
     
     // Edit mode
     @State private var isEditing = false
@@ -66,6 +67,28 @@ struct FolderDetailView: View {
             if newID == folder.id {
                 shouldPulse = true
             }
+        }
+        .onAppear { setupKeyMonitor() }
+        .onDisappear { removeKeyMonitor() }
+    }
+    
+    // MARK: - Keyboard Monitoring
+    
+    private func setupKeyMonitor() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "v" {
+                if pasteToFolder() {
+                    return nil // Consume the event
+                }
+            }
+            return event
+        }
+    }
+    
+    private func removeKeyMonitor() {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
         }
     }
     
@@ -236,10 +259,15 @@ struct FolderDetailView: View {
     
     // MARK: - Paste Handling
     
-    private func pasteToFolder() {
+    @discardableResult
+    private func pasteToFolder() -> Bool {
+        guard windowManager.isWindowActive else { return false }
+        
         if pasteController.pasteToFolder(folder, modelContext: modelContext) {
             shouldPulse = true
+            return true
         }
+        return false
     }
     
     // MARK: - Drop Handling
