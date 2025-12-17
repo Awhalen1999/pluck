@@ -33,13 +33,13 @@ enum PopoutWindowMode: String, CaseIterable {
 // MARK: - Popout Window Manager
 
 @MainActor
-final class PopoutWindowManager {
+final class PopoutWindowManager: ObservableObject {
     static let shared = PopoutWindowManager()
     
     private var windows: [UUID: PopoutImagePanel] = [:]
     
     /// Tracks which DesignImage IDs are currently open in popout windows
-    private(set) var openImageIDs: Set<UUID> = []
+    @Published private(set) var openImageIDs: Set<UUID> = []
     
     private init() {}
     

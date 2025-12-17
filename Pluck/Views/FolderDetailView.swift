@@ -282,7 +282,7 @@ struct ImageThumbnail: View {
     @State private var isHovered = false
     @State private var isPinHovered = false
     
-    private var popoutManager: PopoutWindowManager { PopoutWindowManager.shared }
+    @ObservedObject private var popoutManager = PopoutWindowManager.shared
     
     private var isPopoutOpen: Bool {
         popoutManager.isImageOpen(image.id)

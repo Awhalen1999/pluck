@@ -22,7 +22,7 @@ struct ImageDetailView: View {
     @State private var editedName: String = ""
     @FocusState private var isNameFocused: Bool
     
-    private var popoutManager: PopoutWindowManager { PopoutWindowManager.shared }
+    @ObservedObject private var popoutManager = PopoutWindowManager.shared
     
     private var isPopoutOpen: Bool {
         popoutManager.isImageOpen(image.id)
