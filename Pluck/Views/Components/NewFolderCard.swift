@@ -34,33 +34,32 @@ struct NewFolderCard: View {
     }
     
     // MARK: - Add Button
-    
+
     private var addButton: some View {
-        Button(action: startAdding) {
-            HStack(spacing: Theme.Spacing.sm) {
-                Image(systemName: "plus")
-                    .font(.system(size: 12, weight: .medium))
-                
-                Text("New Folder")
-                    .font(.system(size: 13, weight: .medium))
-                
-                Spacer()
-            }
-            .foregroundStyle(isHovered ? Theme.textSecondary : Theme.textTertiary)
-            .padding(.horizontal, Theme.Spacing.md)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                    .fill(isHovered ? Theme.cardBackground : .clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                    .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
-                    .foregroundStyle(isHovered ? Theme.borderHover : Theme.border)
-            )
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: "plus")
+                .font(.system(size: 12, weight: .medium))
+            
+            Text("New Folder")
+                .font(.system(size: 13, weight: .medium))
+            
+            Spacer()
         }
-        .buttonStyle(.plain)
+        .foregroundStyle(isHovered ? Theme.textSecondary : Theme.textTertiary)
+        .padding(.horizontal, Theme.Spacing.md)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                .fill(isHovered ? Theme.cardBackground : .clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
+                .foregroundStyle(isHovered ? Theme.borderHover : Theme.border)
+        )
+        .contentShape(Rectangle())
         .onHover { isHovered = $0 }
+        .onTapGesture { startAdding() }
     }
     
     // MARK: - Editing Card
