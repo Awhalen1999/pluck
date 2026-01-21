@@ -2,12 +2,18 @@
 //  ImageDropWatcher.swift
 //  Pluck
 //
+//  A drop delegate that validates and handles image drops.
+//  Comprehensive format detection with proper error handling.
+//
 
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// A drop delegate that only shows targeting UI for valid image types
+// MARK: - Image Drop Watcher
+
 struct ImageDropWatcher: DropDelegate {
+    
+    // MARK: - Properties
     
     @Binding var isTargeted: Bool
     let onDrop: ([NSItemProvider]) -> Bool
@@ -18,24 +24,57 @@ struct ImageDropWatcher: DropDelegate {
     private static let supportedExtensions = FileManagerHelper.supportedImageExtensions
     
     private static let imageUTTypes: Set<UTType> = [
-        .png, .jpeg, .gif, .tiff, .bmp, .heic, .svg, .webP,
-        .image // Generic image type
+        .png,
+        .jpeg,
+        .gif,
+        .tiff,
+        .bmp,
+        .heic,
+        .svg,
+        .webP,
+        .image  // Generic image type
     ]
     
-    // MARK: - DropDelegate
+    private static let knownImageIdentifiers: Set<String> = [
+        "public.png",
+        "public.jpeg",
+        "public.jpg",
+        "public.gif",
+        "public.tiff",
+        "public.svg-image",
+        "public.heic",
+        "public.heif",
+        "public.webp",
+        "public.bmp",
+        "public.image",
+        "com.compuserve.gif",
+        "org.webmproject.webp",
+        "com.microsoft.bmp",
+        "com.apple.icns"
+    ]
+    
+    // MARK: - Animation Config
+    
+    private static let animationDuration: TimeInterval = 0.15
+    
+    // MARK: - DropDelegate Implementation
     
     func validateDrop(info: DropInfo) -> Bool {
-        // Check if any provider has a valid image type
-        return hasValidImageContent(info: info)
+        let isValid = hasValidImageContent(info: info)
+        Log.debug("Drop validation: \(isValid)", subsystem: .drop)
+        return isValid
     }
     
     func dropEntered(info: DropInfo) {
-        // Only show targeting if content is valid
-        if hasValidImageContent(info: info) {
-            withAnimation(.easeOut(duration: 0.15)) {
-                isTargeted = true
-            }
+        guard hasValidImageContent(info: info) else {
+            Log.debug("Drop entered but no valid image content", subsystem: .drop)
+            return
         }
+        
+        withAnimation(.easeOut(duration: Self.animationDuration)) {
+            isTargeted = true
+        }
+        Log.debug("Drop targeting activated", subsystem: .drop)
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
@@ -46,30 +85,41 @@ struct ImageDropWatcher: DropDelegate {
     }
     
     func dropExited(info: DropInfo) {
-        withAnimation(.easeOut(duration: 0.15)) {
+        withAnimation(.easeOut(duration: Self.animationDuration)) {
             isTargeted = false
         }
+        Log.debug("Drop targeting deactivated", subsystem: .drop)
     }
     
     func performDrop(info: DropInfo) -> Bool {
+        // Reset targeting state immediately
         isTargeted = false
         
         let providers = info.itemProviders(for: [.item])
         let validProviders = providers.filter { isValidProvider($0) }
         
-        guard !validProviders.isEmpty else { return false }
+        guard !validProviders.isEmpty else {
+            Log.warning("Drop performed but no valid providers found", subsystem: .drop)
+            return false
+        }
+        
+        Log.info("Processing drop with \(validProviders.count) valid provider(s)", subsystem: .drop)
         
         let result = onDrop(validProviders)
+        
         if result {
+            Log.info("Drop handled successfully", subsystem: .drop)
             onSuccess?()
+        } else {
+            Log.warning("Drop handler returned false", subsystem: .drop)
         }
+        
         return result
     }
     
     // MARK: - Validation
     
     private func hasValidImageContent(info: DropInfo) -> Bool {
-        // Get all providers
         let providers = info.itemProviders(for: [.item])
         return providers.contains { isValidProvider($0) }
     }
@@ -82,12 +132,12 @@ struct ImageDropWatcher: DropDelegate {
             }
         }
         
-        // Check registered type identifiers for image conformance
+        // Check registered type identifiers
         let registeredTypes = provider.registeredTypeIdentifiers
         
         for identifier in registeredTypes {
-            // Check if it's a known image identifier
-            if isKnownImageIdentifier(identifier) {
+            // Check against known image identifiers
+            if Self.knownImageIdentifiers.contains(identifier) {
                 return true
             }
             
@@ -97,9 +147,8 @@ struct ImageDropWatcher: DropDelegate {
             }
         }
         
-        // For file URLs, we need to check the suggested name for extension
+        // For file URLs, check the suggested name extension
         if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            // Check suggested name if available
             if let suggestedName = provider.suggestedName {
                 let ext = (suggestedName as NSString).pathExtension.lowercased()
                 if Self.supportedExtensions.contains(ext) {
@@ -107,7 +156,7 @@ struct ImageDropWatcher: DropDelegate {
                 }
             }
             
-            // If it's a file URL but we also have image type, accept it
+            // File URL with any image type indicator
             for type in Self.imageUTTypes {
                 if provider.hasItemConformingToTypeIdentifier(type.identifier) {
                     return true
@@ -116,27 +165,5 @@ struct ImageDropWatcher: DropDelegate {
         }
         
         return false
-    }
-    
-    private func isKnownImageIdentifier(_ identifier: String) -> Bool {
-        let knownIdentifiers: Set<String> = [
-            "public.png",
-            "public.jpeg",
-            "public.jpg",
-            "public.gif",
-            "public.tiff",
-            "public.svg-image",
-            "public.heic",
-            "public.heif",
-            "public.webp",
-            "public.bmp",
-            "public.image",
-            "com.compuserve.gif",
-            "org.webmproject.webp",
-            "com.microsoft.bmp",
-            "com.apple.icns"
-        ]
-        
-        return knownIdentifiers.contains(identifier)
     }
 }

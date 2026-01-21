@@ -8,6 +8,8 @@
 
 import SwiftUI
 
+// MARK: - Pluck View Coordinator
+
 struct PluckViewCoordinator: View {
     
     @Environment(WindowManager.self) private var windowManager
@@ -15,7 +17,8 @@ struct PluckViewCoordinator: View {
     @State private var isHovering = false
     @State private var isDragging = false
     
-    /// Whether the window is currently inactive (not key window)
+    // MARK: - Computed Properties
+    
     private var isInactive: Bool {
         !windowManager.isWindowActive
     }
@@ -23,7 +26,7 @@ struct PluckViewCoordinator: View {
     // MARK: - Body
     
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             panel(dockedEdge: windowManager.dockedEdge)
                 .onHover { isHovering = $0 }
         }
@@ -39,15 +42,18 @@ struct PluckViewCoordinator: View {
             dragHandlePositioned
         }
         .clipShape(edgeShape(dockedEdge: dockedEdge))
-        // Subtle outer hairline to separate from the desktop
         .overlay {
             edgeShape(dockedEdge: dockedEdge)
-                .stroke(isHovering ? Theme.borderHover : Theme.border, lineWidth: 0.5)
+                .stroke(borderColor, lineWidth: 0.5)
         }
         .animation(.easeOut(duration: 0.12), value: isHovering)
     }
     
-    // MARK: - Drag Handle Positioning
+    private var borderColor: Color {
+        isHovering ? Theme.borderHover : Theme.border
+    }
+    
+    // MARK: - Drag Handle
     
     private var dragHandlePositioned: some View {
         VStack {
@@ -56,19 +62,17 @@ struct PluckViewCoordinator: View {
         }
     }
     
-    // MARK: - Drag Handle (Grip Dots)
-    
     private var dragHandle: some View {
         VStack(spacing: 2) {
             HStack(spacing: 3) {
-                Circle().frame(width: 3, height: 3)
-                Circle().frame(width: 3, height: 3)
-                Circle().frame(width: 3, height: 3)
+                ForEach(0..<3, id: \.self) { _ in
+                    Circle().frame(width: 3, height: 3)
+                }
             }
             HStack(spacing: 3) {
-                Circle().frame(width: 3, height: 3)
-                Circle().frame(width: 3, height: 3)
-                Circle().frame(width: 3, height: 3)
+                ForEach(0..<3, id: \.self) { _ in
+                    Circle().frame(width: 3, height: 3)
+                }
             }
         }
         .foregroundStyle(handleColor)
@@ -101,27 +105,36 @@ struct PluckViewCoordinator: View {
     // MARK: - Panel Movement
     
     private func movePanel(by deltaY: CGFloat) {
-        guard let window = NSApplication.shared.windows.first(where: { $0 is FloatingPanel }),
+        guard let window = findFloatingPanel(),
               let screen = NSScreen.main else { return }
         
         let screenRect = screen.visibleFrame
         var frame = window.frame
         
+        // Move in opposite direction (screen coords are inverted)
         frame.origin.y -= deltaY
-        frame.origin.y = frame.origin.y.clamped(
-            to: screenRect.minY...screenRect.maxY - frame.height
-        )
+        
+        // Clamp to screen bounds
+        let minY = screenRect.minY
+        let maxY = screenRect.maxY - frame.height
+        frame.origin.y = min(max(frame.origin.y, minY), maxY)
         
         window.setFrameOrigin(frame.origin)
     }
     
     private func savePosition() {
-        guard let window = NSApplication.shared.windows.first(where: { $0 is FloatingPanel }),
+        guard let window = findFloatingPanel(),
               let screen = NSScreen.main else { return }
         
         let screenRect = screen.visibleFrame
         let yFromTop = screenRect.maxY - window.frame.origin.y - window.frame.height
         windowManager.updateYPosition(yFromTop)
+        
+        Log.debug("Saved panel position: yFromTop=\(yFromTop)", subsystem: .window)
+    }
+    
+    private func findFloatingPanel() -> FloatingPanel? {
+        NSApplication.shared.windows.first { $0 is FloatingPanel } as? FloatingPanel
     }
     
     // MARK: - Edge-Aware Shape
@@ -129,16 +142,16 @@ struct PluckViewCoordinator: View {
     private func edgeShape(dockedEdge: DockedEdge) -> UnevenRoundedRectangle {
         let r = PanelDimensions.cornerRadius
         
-        return switch dockedEdge {
+        switch dockedEdge {
         case .right:
-            UnevenRoundedRectangle(
+            return UnevenRoundedRectangle(
                 topLeadingRadius: r,
                 bottomLeadingRadius: r,
                 bottomTrailingRadius: 0,
                 topTrailingRadius: 0
             )
         case .left:
-            UnevenRoundedRectangle(
+            return UnevenRoundedRectangle(
                 topLeadingRadius: 0,
                 bottomLeadingRadius: 0,
                 bottomTrailingRadius: r,
@@ -147,7 +160,7 @@ struct PluckViewCoordinator: View {
         }
     }
     
-    // MARK: - Background (Liquid Glass)
+    // MARK: - Background
     
     private func background(dockedEdge: DockedEdge) -> some View {
         ZStack {

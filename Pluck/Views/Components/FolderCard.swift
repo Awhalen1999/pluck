@@ -21,6 +21,7 @@ struct FolderCard: View {
     @State private var isDropTargeted = false
     @State private var thumbnails: [NSImage] = []
     @State private var shouldPulse = false
+    @State private var thumbnailRefreshID = UUID()  // Force refresh trigger
     
     // Drag state
     @State private var holdTimer: Timer?
@@ -91,9 +92,14 @@ struct FolderCard: View {
         .onChange(of: folder.images.count) { _, _ in
             loadThumbnails()
         }
+        .onChange(of: thumbnailRefreshID) { _, _ in
+            loadThumbnails()
+        }
         .onChange(of: pasteController.lastPastedFolderID) { _, newID in
             if newID == folder.id {
                 shouldPulse = true
+                // Refresh thumbnails when paste completes
+                refreshThumbnails()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     pasteController.lastPastedFolderID = nil
                 }
@@ -224,6 +230,13 @@ struct FolderCard: View {
     
     // MARK: - Thumbnails
     
+    private func refreshThumbnails() {
+        // Small delay to allow SwiftData to settle, then force refresh
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            thumbnailRefreshID = UUID()
+        }
+    }
+    
     private func loadThumbnails() {
         let imagesToLoad = Array(folder.sortedImages.prefix(4))
         
@@ -242,6 +255,7 @@ struct FolderCard: View {
     private func pasteToFolder() {
         if pasteController.pasteToFolder(folder, modelContext: modelContext) {
             shouldPulse = true
+            refreshThumbnails()
         }
     }
     
@@ -303,8 +317,9 @@ struct FolderCard: View {
             )
             modelContext.insert(newImage)
             shouldPulse = true
+            refreshThumbnails()  // Force thumbnail refresh after drop
         } catch {
-            print("Failed to save image from URL: \(error)")
+            Log.error("Failed to save image from URL", error: error, subsystem: .drop)
         }
     }
     
@@ -319,8 +334,9 @@ struct FolderCard: View {
             )
             modelContext.insert(newImage)
             shouldPulse = true
+            refreshThumbnails()  // Force thumbnail refresh after drop
         } catch {
-            print("Failed to save image: \(error)")
+            Log.error("Failed to save image", error: error, subsystem: .drop)
         }
     }
 }

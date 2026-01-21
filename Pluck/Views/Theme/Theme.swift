@@ -3,6 +3,7 @@
 //  Pluck
 //
 //  A dark, minimal liquid glass theme inspired by Apple's design language.
+//  Centralized styling with type-safe tokens.
 //
 
 import SwiftUI
@@ -11,54 +12,64 @@ import SwiftUI
 
 enum Theme {
     
-    // MARK: - Background (Clean Minimal Black) — SaaS floating overlay
+    // MARK: - Background Colors
+    
     static let background = Color.black.opacity(0.55)
     static let cardBackground = Color.black.opacity(0.35)
     static let cardBackgroundHover = Color.black.opacity(0.45)
     static let cardBackgroundActive = Color.black.opacity(0.55)
     
-    // MARK: - Text (light on dark) — brighter
+    // MARK: - Text Colors
+    
     static let textPrimary = Color.white.opacity(0.98)
     static let textSecondary = Color.white.opacity(0.82)
     static let textTertiary = Color.white.opacity(0.62)
     
-    // MARK: - Borders (clean and minimal)
+    // MARK: - Border Colors
+    
     static let border = Color.white.opacity(0.10)
     static let borderHover = Color.white.opacity(0.15)
     static let borderActive = Color.white.opacity(0.20)
     
-    // No inner contour needed for clean look
+    // Legacy
     static let innerContour = Color.black.opacity(0.30)
     
-    // MARK: - Shadows (clean and floating)
+    // MARK: - Shadows
+    
     static let shadowLight = Color.black.opacity(0.20)
     static let shadowMedium = Color.black.opacity(0.30)
     static let shadowHeavy = Color.black.opacity(0.45)
     
     // MARK: - Inactive State
+    
     static let inactiveSaturation: Double = 0.85
     static let inactiveBrightness: Double = -0.02
     static let inactiveOpacity: Double = 0.85
     
-    // MARK: - Accent / Status
+    // MARK: - Semantic Colors
+    
     static let accent = Color.accentColor
     static let danger = Color.red
     static let success = Color.green
     
     // MARK: - Dimensions
+    
     enum Radius {
         static let small: CGFloat = 8
         static let medium: CGFloat = 12
         static let large: CGFloat = 16
     }
+    
     enum Spacing {
         static let xs: CGFloat = 4
         static let sm: CGFloat = 8
         static let md: CGFloat = 12
         static let lg: CGFloat = 16
+        static let xl: CGFloat = 24
     }
     
-    // MARK: - Icon Button Styling
+    // MARK: - Icon Button
+    
     static let iconButtonSize: CGFloat = 28
     static let iconSize: CGFloat = 12
 }
@@ -67,7 +78,7 @@ enum Theme {
 
 extension View {
     
-    /// Clean minimal card style for floating overlay
+    /// Apply card styling
     func cardStyle(isHovered: Bool = false, isActive: Bool = false) -> some View {
         self
             .background(
@@ -83,7 +94,7 @@ extension View {
             .shadow(color: Theme.shadowMedium, radius: 8, y: 4)
     }
     
-    /// Icon button background (kept crisp)
+    /// Icon button background style
     func iconButtonStyle(isHovered: Bool = false) -> some View {
         self
             .frame(width: Theme.iconButtonSize, height: Theme.iconButtonSize)
@@ -123,6 +134,7 @@ struct IconButton: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .opacity(isInactive ? Theme.inactiveOpacity : 1.0)
+        .animation(.easeOut(duration: 0.15), value: isHovered)
         .animation(.easeOut(duration: 0.15), value: isInactive)
     }
     
@@ -137,27 +149,7 @@ struct IconButton: View {
     }
 }
 
-// MARK: - Glass Helpers
-
-private struct GlassHighlight: View {
-    let cornerRadius: CGFloat
-    
-    var body: some View {
-        // Minimal top highlight for subtle depth
-        RoundedRectangle(cornerRadius: cornerRadius)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.08),
-                        Color.white.opacity(0.00)
-                    ],
-                    startPoint: .top,
-                    endPoint: .center
-                )
-            )
-            .allowsHitTesting(false)
-    }
-}
+// MARK: - Glass Background
 
 struct GlassBackground: View {
     let cornerRadius: CGFloat

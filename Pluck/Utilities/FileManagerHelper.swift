@@ -2,147 +2,290 @@
 //  FileManagerHelper.swift
 //  Pluck
 //
+//  File operations with comprehensive error handling, validation,
+//  and thread-safe operations. Production-ready file management.
+//
 
 import Foundation
 import AppKit
+
+// MARK: - File Manager Errors
+
+enum FileManagerError: LocalizedError {
+    case directoryCreationFailed(URL, Error)
+    case writeFailed(URL, Error)
+    case readFailed(URL, Error)
+    case copyFailed(source: URL, destination: URL, Error)
+    case deleteFailed(URL, Error)
+    case unsupportedFormat(String)
+    case invalidData
+    case thumbnailGenerationFailed(String)
+    case fileTooLarge(size: Int64, maxSize: Int64)
+    case fileNotFound(URL)
+    
+    var errorDescription: String? {
+        switch self {
+        case .directoryCreationFailed(let url, let error):
+            return "Failed to create directory at \(url.path): \(error.localizedDescription)"
+        case .writeFailed(let url, let error):
+            return "Failed to write file at \(url.path): \(error.localizedDescription)"
+        case .readFailed(let url, let error):
+            return "Failed to read file at \(url.path): \(error.localizedDescription)"
+        case .copyFailed(let source, let destination, let error):
+            return "Failed to copy from \(source.path) to \(destination.path): \(error.localizedDescription)"
+        case .deleteFailed(let url, let error):
+            return "Failed to delete file at \(url.path): \(error.localizedDescription)"
+        case .unsupportedFormat(let ext):
+            return "Unsupported image format: \(ext)"
+        case .invalidData:
+            return "Invalid or corrupted image data"
+        case .thumbnailGenerationFailed(let filename):
+            return "Failed to generate thumbnail for \(filename)"
+        case .fileTooLarge(let size, let maxSize):
+            return "File too large: \(size) bytes (max: \(maxSize) bytes)"
+        case .fileNotFound(let url):
+            return "File not found: \(url.path)"
+        }
+    }
+}
+
+// MARK: - File Manager Helper
 
 enum FileManagerHelper {
     
     // MARK: - Configuration
     
     private enum Config {
-        static let thumbnailSize: CGFloat = 200
         static let appFolderName = "Pluck"
+        static let imagesFolderName = "images"
+        static let thumbnailsFolderName = "thumbnails"
+        static let thumbnailSize: CGFloat = 200
+        static let maxFileSizeBytes: Int64 = 100 * 1024 * 1024  // 100MB
+        static let retinaScale: CGFloat = 2.0
     }
     
     // MARK: - Supported Formats
     
-    static let supportedImageExtensions = Set(["png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp", "heic", "svg"])
+    static let supportedImageExtensions: Set<String> = [
+        "png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp", "heic", "svg"
+    ]
+    
+    private static let imageSignatures: [(bytes: [UInt8], extension: String)] = [
+        ([0x89, 0x50, 0x4E, 0x47], "png"),                     // PNG
+        ([0xFF, 0xD8, 0xFF], "jpg"),                           // JPEG
+        ([0x47, 0x49, 0x46, 0x38], "gif"),                     // GIF
+        ([0x52, 0x49, 0x46, 0x46], "webp"),                    // WebP (RIFF header)
+        ([0x49, 0x49, 0x2A, 0x00], "tiff"),                    // TIFF (little endian)
+        ([0x4D, 0x4D, 0x00, 0x2A], "tiff"),                    // TIFF (big endian)
+    ]
     
     // MARK: - Directories
     
+    private static let fileManager = FileManager.default
+    
     static var appSupportDirectory: URL {
-        let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-        let appFolder = paths[0].appendingPathComponent(Config.appFolderName)
-        ensureDirectoryExists(appFolder)
-        return appFolder
+        get throws {
+            let paths = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            guard let basePath = paths.first else {
+                throw FileManagerError.directoryCreationFailed(
+                    URL(fileURLWithPath: "~/Library/Application Support"),
+                    NSError(domain: "FileManagerHelper", code: -1, userInfo: [NSLocalizedDescriptionKey: "No application support directory found"])
+                )
+            }
+            let appFolder = basePath.appendingPathComponent(Config.appFolderName)
+            try ensureDirectoryExists(appFolder)
+            return appFolder
+        }
     }
     
     static var imagesDirectory: URL {
-        let dir = appSupportDirectory.appendingPathComponent("images")
-        ensureDirectoryExists(dir)
-        return dir
+        get throws {
+            let dir = try appSupportDirectory.appendingPathComponent(Config.imagesFolderName)
+            try ensureDirectoryExists(dir)
+            return dir
+        }
     }
     
     static var thumbnailsDirectory: URL {
-        let dir = appSupportDirectory.appendingPathComponent("thumbnails")
-        ensureDirectoryExists(dir)
-        return dir
+        get throws {
+            let dir = try appSupportDirectory.appendingPathComponent(Config.thumbnailsFolderName)
+            try ensureDirectoryExists(dir)
+            return dir
+        }
     }
     
-    private static func ensureDirectoryExists(_ url: URL) {
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    private static func ensureDirectoryExists(_ url: URL) throws {
+        guard !fileManager.fileExists(atPath: url.path) else { return }
+        
+        do {
+            try fileManager.createDirectory(at: url, withIntermediateDirectories: true)
+            Log.debug("Created directory: \(url.path)", subsystem: .file)
+        } catch {
+            Log.error("Failed to create directory: \(url.path)", error: error, subsystem: .file)
+            throw FileManagerError.directoryCreationFailed(url, error)
+        }
     }
     
     // MARK: - URL Helpers
     
-    static func imageURL(for filename: String) -> URL {
-        imagesDirectory.appendingPathComponent(filename)
+    static func imageURL(for filename: String) -> URL? {
+        guard !filename.isEmpty else {
+            Log.warning("Empty filename requested", subsystem: .file)
+            return nil
+        }
+        do {
+            return try imagesDirectory.appendingPathComponent(filename)
+        } catch {
+            Log.error("Failed to get images directory", error: error, subsystem: .file)
+            return nil
+        }
     }
     
-    static func thumbnailURL(for filename: String) -> URL {
-        // Thumbnails are always PNG, even for SVGs
-        let baseName = (filename as NSString).deletingPathExtension
-        return thumbnailsDirectory.appendingPathComponent(baseName + ".png")
+    static func thumbnailURL(for filename: String) -> URL? {
+        guard !filename.isEmpty else { return nil }
+        do {
+            let baseName = (filename as NSString).deletingPathExtension
+            return try thumbnailsDirectory.appendingPathComponent(baseName + ".png")
+        } catch {
+            Log.error("Failed to get thumbnails directory", error: error, subsystem: .file)
+            return nil
+        }
     }
     
     static func isSVG(filename: String) -> Bool {
         filename.lowercased().hasSuffix(".svg")
     }
     
-    // MARK: - Save Image
-    
-    enum SaveError: Error {
-        case writeFailed(Error)
-        case thumbnailGenerationFailed
-        case unsupportedFormat
+    static func isSupported(extension ext: String) -> Bool {
+        supportedImageExtensions.contains(ext.lowercased())
     }
     
-    /// Save image data with automatic format detection
+    // MARK: - Save Image from Data
+    
     static func saveImage(_ imageData: Data, originalName: String, fileExtension: String? = nil) throws -> String {
-        // Determine the file extension
-        let ext = fileExtension?.lowercased() ?? detectImageFormat(from: imageData) ?? "png"
-        let filename = UUID().uuidString + "." + ext
-        let fileURL = imageURL(for: filename)
-        
-        do {
-            try imageData.write(to: fileURL)
-        } catch {
-            throw SaveError.writeFailed(error)
+        guard !imageData.isEmpty else {
+            Log.error("Empty image data provided", subsystem: .file)
+            throw FileManagerError.invalidData
         }
         
-        generateThumbnail(from: fileURL, filename: filename)
+        // Validate file size
+        let dataSize = Int64(imageData.count)
+        guard dataSize <= Config.maxFileSizeBytes else {
+            Log.error("File too large: \(dataSize) bytes", subsystem: .file)
+            throw FileManagerError.fileTooLarge(size: dataSize, maxSize: Config.maxFileSizeBytes)
+        }
+        
+        // Determine file extension
+        let ext: String
+        if let provided = fileExtension?.lowercased(), isSupported(extension: provided) {
+            ext = provided
+        } else if let detected = detectImageFormat(from: imageData) {
+            ext = detected
+        } else {
+            ext = "png"  // Fallback
+        }
+        
+        let filename = UUID().uuidString + "." + ext
+        
+        guard let fileURL = imageURL(for: filename) else {
+            throw FileManagerError.invalidData
+        }
+        
+        do {
+            try imageData.write(to: fileURL, options: .atomic)
+            Log.info("Saved image: \(filename) (\(dataSize) bytes)", subsystem: .file)
+        } catch {
+            Log.error("Failed to write image", error: error, subsystem: .file)
+            throw FileManagerError.writeFailed(fileURL, error)
+        }
+        
+        // Generate thumbnail asynchronously (don't fail the save)
+        Task.detached(priority: .utility) {
+            await generateThumbnailAsync(from: fileURL, filename: filename)
+        }
+        
         return filename
     }
     
-    /// Save image from a file URL (preserves original format)
+    // MARK: - Save Image from URL
+    
     static func saveImageFromURL(_ sourceURL: URL, originalName: String) throws -> String {
         let ext = sourceURL.pathExtension.lowercased()
-        guard supportedImageExtensions.contains(ext) else {
-            throw SaveError.unsupportedFormat
+        
+        guard isSupported(extension: ext) else {
+            Log.error("Unsupported format: \(ext)", subsystem: .file)
+            throw FileManagerError.unsupportedFormat(ext)
+        }
+        
+        // Verify source exists
+        guard fileManager.fileExists(atPath: sourceURL.path) else {
+            Log.error("Source file not found: \(sourceURL.path)", subsystem: .file)
+            throw FileManagerError.fileNotFound(sourceURL)
+        }
+        
+        // Check file size
+        do {
+            let attributes = try fileManager.attributesOfItem(atPath: sourceURL.path)
+            if let fileSize = attributes[.size] as? Int64, fileSize > Config.maxFileSizeBytes {
+                throw FileManagerError.fileTooLarge(size: fileSize, maxSize: Config.maxFileSizeBytes)
+            }
+        } catch let error as FileManagerError {
+            throw error
+        } catch {
+            Log.warning("Could not check file size: \(error.localizedDescription)", subsystem: .file)
         }
         
         let filename = UUID().uuidString + "." + ext
-        let destURL = imageURL(for: filename)
         
-        do {
-            try FileManager.default.copyItem(at: sourceURL, to: destURL)
-        } catch {
-            throw SaveError.writeFailed(error)
+        guard let destURL = imageURL(for: filename) else {
+            throw FileManagerError.invalidData
         }
         
-        generateThumbnail(from: destURL, filename: filename)
+        do {
+            try fileManager.copyItem(at: sourceURL, to: destURL)
+            Log.info("Copied image: \(sourceURL.lastPathComponent) → \(filename)", subsystem: .file)
+        } catch {
+            Log.error("Failed to copy image", error: error, subsystem: .file)
+            throw FileManagerError.copyFailed(source: sourceURL, destination: destURL, error)
+        }
+        
+        // Generate thumbnail asynchronously
+        Task.detached(priority: .utility) {
+            await generateThumbnailAsync(from: destURL, filename: filename)
+        }
+        
         return filename
     }
     
-    /// Detect image format from data
+    // MARK: - Format Detection
+    
     private static func detectImageFormat(from data: Data) -> String? {
         guard data.count >= 12 else { return nil }
         
         let bytes = [UInt8](data.prefix(12))
         
-        // PNG: 89 50 4E 47
-        if bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47 {
-            return "png"
-        }
-        
-        // JPEG: FF D8 FF
-        if bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF {
-            return "jpg"
-        }
-        
-        // GIF: 47 49 46 38
-        if bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38 {
-            return "gif"
-        }
-        
-        // WebP: RIFF....WEBP
-        if bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
-           bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50 {
-            return "webp"
-        }
-        
-        // SVG: Check for XML/SVG markers (text-based)
-        if let str = String(data: data.prefix(1000), encoding: .utf8) {
-            if str.contains("<svg") || str.contains("<?xml") && str.contains("svg") {
-                return "svg"
+        // Check known signatures
+        for (signature, ext) in imageSignatures {
+            if bytes.starts(with: signature) {
+                // Special handling for WebP (need to check WEBP marker)
+                if ext == "webp" {
+                    guard data.count >= 12 else { continue }
+                    let webpMarker = [UInt8](data[8..<12])
+                    if webpMarker == [0x57, 0x45, 0x42, 0x50] {
+                        return "webp"
+                    }
+                    continue
+                }
+                return ext
             }
         }
         
-        // TIFF: 49 49 2A 00 or 4D 4D 00 2A
-        if (bytes[0] == 0x49 && bytes[1] == 0x49 && bytes[2] == 0x2A && bytes[3] == 0x00) ||
-           (bytes[0] == 0x4D && bytes[1] == 0x4D && bytes[2] == 0x00 && bytes[3] == 0x2A) {
-            return "tiff"
+        // Check for SVG (text-based)
+        if let str = String(data: data.prefix(1000), encoding: .utf8) {
+            let lowercased = str.lowercased()
+            if lowercased.contains("<svg") || (lowercased.contains("<?xml") && lowercased.contains("svg")) {
+                return "svg"
+            }
         }
         
         return nil
@@ -151,26 +294,46 @@ enum FileManagerHelper {
     // MARK: - Load Images
     
     static func loadImage(filename: String) -> NSImage? {
-        let url = imageURL(for: filename)
+        guard let url = imageURL(for: filename) else { return nil }
+        
+        guard fileManager.fileExists(atPath: url.path) else {
+            Log.warning("Image file not found: \(filename)", subsystem: .file)
+            return nil
+        }
         
         if isSVG(filename: filename) {
             return loadSVGImage(from: url)
         }
         
-        return NSImage(contentsOf: url)
+        guard let image = NSImage(contentsOf: url) else {
+            Log.warning("Failed to load image: \(filename)", subsystem: .file)
+            return nil
+        }
+        
+        return image
     }
     
     static func loadThumbnail(filename: String) -> NSImage? {
-        NSImage(contentsOf: thumbnailURL(for: filename))
+        guard let url = thumbnailURL(for: filename) else { return nil }
+        
+        guard fileManager.fileExists(atPath: url.path) else {
+            // Thumbnail might not exist yet - try to regenerate
+            if let imageURL = imageURL(for: filename), fileManager.fileExists(atPath: imageURL.path) {
+                Task.detached(priority: .utility) {
+                    await generateThumbnailAsync(from: imageURL, filename: filename)
+                }
+            }
+            return nil
+        }
+        
+        return NSImage(contentsOf: url)
     }
     
-    /// Load SVG with proper rendering
     private static func loadSVGImage(from url: URL) -> NSImage? {
         guard let image = NSImage(contentsOf: url) else { return nil }
         
-        // NSImage can load SVGs, but we may need to ensure it renders at a good size
-        // If the image has no size, set a reasonable default
-        if image.size.width == 0 || image.size.height == 0 {
+        // SVGs can report zero size - set reasonable default
+        if image.size.width <= 0 || image.size.height <= 0 {
             image.size = NSSize(width: 512, height: 512)
         }
         
@@ -180,107 +343,104 @@ enum FileManagerHelper {
     // MARK: - Delete Image
     
     static func deleteImage(filename: String) {
-        try? FileManager.default.removeItem(at: imageURL(for: filename))
-        try? FileManager.default.removeItem(at: thumbnailURL(for: filename))
+        guard !filename.isEmpty else { return }
+        
+        // Delete main image
+        if let imageURL = imageURL(for: filename), fileManager.fileExists(atPath: imageURL.path) {
+            do {
+                try fileManager.removeItem(at: imageURL)
+                Log.info("Deleted image: \(filename)", subsystem: .file)
+            } catch {
+                Log.error("Failed to delete image: \(filename)", error: error, subsystem: .file)
+            }
+        }
+        
+        // Delete thumbnail
+        if let thumbURL = thumbnailURL(for: filename), fileManager.fileExists(atPath: thumbURL.path) {
+            do {
+                try fileManager.removeItem(at: thumbURL)
+            } catch {
+                Log.warning("Failed to delete thumbnail for: \(filename)", subsystem: .file)
+            }
+        }
     }
     
     // MARK: - Thumbnail Generation
     
-    private static func generateThumbnail(from imageURL: URL, filename: String) {
+    @MainActor
+    private static func generateThumbnailAsync(from imageURL: URL, filename: String) async {
         let maxDimension = Config.thumbnailSize
         
-        // For SVGs, render directly at target size for best quality
-        if isSVG(filename: filename) {
-            guard let thumbnail = renderSVGThumbnail(from: imageURL, maxSize: maxDimension),
-                  let pngData = thumbnail.pngData else { return }
-            try? pngData.write(to: thumbnailURL(for: filename))
-            return
+        guard let thumbURL = thumbnailURL(for: filename) else { return }
+        
+        // Skip if thumbnail already exists
+        if fileManager.fileExists(atPath: thumbURL.path) { return }
+        
+        do {
+            if isSVG(filename: filename) {
+                guard let thumbnail = renderSVGThumbnail(from: imageURL, maxSize: maxDimension),
+                      let pngData = thumbnail.pngData else {
+                    throw FileManagerError.thumbnailGenerationFailed(filename)
+                }
+                try pngData.write(to: thumbURL, options: .atomic)
+            } else {
+                guard let image = NSImage(contentsOf: imageURL),
+                      image.size.width > 0, image.size.height > 0 else {
+                    throw FileManagerError.thumbnailGenerationFailed(filename)
+                }
+                
+                let newSize = calculateThumbnailSize(originalSize: image.size, maxDimension: maxDimension)
+                
+                guard let thumbnail = renderImageToSize(image, size: newSize),
+                      let pngData = thumbnail.pngData else {
+                    throw FileManagerError.thumbnailGenerationFailed(filename)
+                }
+                
+                try pngData.write(to: thumbURL, options: .atomic)
+            }
+            
+            Log.debug("Generated thumbnail: \(filename)", subsystem: .file)
+        } catch {
+            Log.warning("Thumbnail generation failed for \(filename): \(error.localizedDescription)", subsystem: .file)
         }
-        
-        // For raster images, scale down normally
-        guard let image = NSImage(contentsOf: imageURL) else { return }
-        
-        var size = image.size
-        if size.width == 0 || size.height == 0 { return }
-        
-        let aspectRatio = size.width / size.height
-        
-        let newSize: NSSize
-        if aspectRatio > 1 {
-            newSize = NSSize(width: maxDimension, height: maxDimension / aspectRatio)
-        } else {
-            newSize = NSSize(width: maxDimension * aspectRatio, height: maxDimension)
-        }
-        
-        guard let thumbnail = renderImageToSize(image, size: newSize),
-              let pngData = thumbnail.pngData else { return }
-        
-        try? pngData.write(to: thumbnailURL(for: filename))
     }
     
-    /// Render SVG at target size for crisp thumbnails
+    private static func calculateThumbnailSize(originalSize: NSSize, maxDimension: CGFloat) -> NSSize {
+        guard originalSize.width > 0, originalSize.height > 0 else {
+            return NSSize(width: maxDimension, height: maxDimension)
+        }
+        
+        let aspectRatio = originalSize.width / originalSize.height
+        
+        if aspectRatio > 1 {
+            return NSSize(width: maxDimension, height: maxDimension / aspectRatio)
+        } else {
+            return NSSize(width: maxDimension * aspectRatio, height: maxDimension)
+        }
+    }
+    
     private static func renderSVGThumbnail(from url: URL, maxSize: CGFloat) -> NSImage? {
         guard let image = NSImage(contentsOf: url) else { return nil }
         
         var size = image.size
-        
-        // SVGs can report 0 size - try to get a reasonable default
         if size.width <= 0 || size.height <= 0 {
             size = NSSize(width: 100, height: 100)
         }
         
-        let aspectRatio = size.width / size.height
-        
-        let targetSize: NSSize
-        if aspectRatio > 1 {
-            targetSize = NSSize(width: maxSize, height: maxSize / aspectRatio)
-        } else {
-            targetSize = NSSize(width: maxSize * aspectRatio, height: maxSize)
-        }
-        
-        // Create a bitmap context at exactly the target size
-        // This lets the SVG render at the right resolution instead of scaling
-        guard let bitmapRep = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: Int(targetSize.width * 2), // 2x for retina
-            pixelsHigh: Int(targetSize.height * 2),
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
-        ) else { return nil }
-        
-        bitmapRep.size = targetSize // Points, not pixels
-        
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmapRep)
-        NSGraphicsContext.current?.imageInterpolation = .high
-        NSGraphicsContext.current?.shouldAntialias = true
-        
-        // Draw the SVG - it will render vectors at the bitmap's resolution
-        image.draw(
-            in: NSRect(origin: .zero, size: targetSize),
-            from: NSRect(origin: .zero, size: size),
-            operation: .copy,
-            fraction: 1.0
-        )
-        
-        NSGraphicsContext.restoreGraphicsState()
-        
-        let result = NSImage(size: targetSize)
-        result.addRepresentation(bitmapRep)
-        return result
+        let targetSize = calculateThumbnailSize(originalSize: size, maxDimension: maxSize)
+        return renderImageToSize(image, size: targetSize)
     }
     
-    /// Render a raster image to a specific size
     private static func renderImageToSize(_ image: NSImage, size: NSSize) -> NSImage? {
+        let pixelWidth = Int(size.width * Config.retinaScale)
+        let pixelHeight = Int(size.height * Config.retinaScale)
+        
+        guard pixelWidth > 0, pixelHeight > 0 else { return nil }
+        
         guard let bitmapRep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
-            pixelsWide: Int(size.width * 2),
-            pixelsHigh: Int(size.height * 2),
+            pixelsWide: pixelWidth,
+            pixelsHigh: pixelHeight,
             bitsPerSample: 8,
             samplesPerPixel: 4,
             hasAlpha: true,
@@ -290,12 +450,15 @@ enum FileManagerHelper {
             bitsPerPixel: 0
         ) else { return nil }
         
-        bitmapRep.size = size
+        bitmapRep.size = size  // Points, not pixels
         
         NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmapRep)
-        NSGraphicsContext.current?.imageInterpolation = .high
-        NSGraphicsContext.current?.shouldAntialias = true
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmapRep) else { return nil }
+        NSGraphicsContext.current = context
+        context.imageInterpolation = .high
+        context.shouldAntialias = true
         
         image.draw(
             in: NSRect(origin: .zero, size: size),
@@ -303,8 +466,6 @@ enum FileManagerHelper {
             operation: .copy,
             fraction: 1.0
         )
-        
-        NSGraphicsContext.restoreGraphicsState()
         
         let result = NSImage(size: size)
         result.addRepresentation(bitmapRep)
