@@ -28,7 +28,15 @@ Alex is the designer and PM. Claude is the tech lead and owns the code end to en
 - Pluck only touches files tagged as screenshots (see Platform facts). Every
   other file in the folder is left alone.
 - Removing a shot always means `FileManager.trashItem`, never a delete, so
-  Finder's Put Back works. Pinned shots are never removed by cleanup.
+  Finder's Put Back works.
+- Cleanup rules (approved by Alex):
+  - Pinned shots are always kept. There is no setting to turn that off.
+  - Shots taken before Pluck's first launch are never removed automatically.
+  - Unpinning restarts a shot's clock, so it never vanishes the moment it's
+    unpinned.
+  - "Move to" lets go: a shot filed elsewhere leaves Pluck for good.
+  - Renaming a shot keeps its pin. An unpinned renamed shot is still cleaned
+    up on schedule.
 - Pluck changes the macOS screenshot settings (save location, floating
   thumbnail) only through the user's choices, snapshots the originals on first
   launch, and can restore them from About.
