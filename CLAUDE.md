@@ -110,6 +110,16 @@ without a physical notch), **Idle / Peek / Shelf / Preview** (its states),
 - Hermetic: temp directories and an injected clock. No test reads the real
   screenshot folder or writes `com.apple.screencapture`.
 - No UI or snapshot tests.
+- Run: `xcodebuild test -project Pluck.xcodeproj -scheme Pluck -destination 'platform=macOS'`
+
+## Project
+
+- The Xcode project uses synced folders: a new file under `Pluck/` or
+  `PluckTests/` is in the build automatically. Edit `project.pbxproj` only for
+  build settings.
+- Swift 6 language mode, main actor by default. Not sandboxed, hardened runtime.
+- Unit tests run inside the app, so `AppDelegate` starts nothing under XCTest.
+  Anything that touches the system starts from there.
 
 ## Workflow
 
