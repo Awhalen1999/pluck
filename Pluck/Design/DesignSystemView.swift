@@ -30,7 +30,7 @@ struct DesignSystemView: View {
     // MARK: Notch
 
     private var notchSection: some View {
-        section("Notch", "The shape opens with Motion.open and closes with Motion.close. Content appears as the shape reaches it; on close it leaves first.") {
+        section("Notch", "The shape opens with Motion.open and closes with Motion.close. Content arrives as one piece on the same spring; on close it leaves first.") {
             Picker("State", selection: Binding(get: { state }, set: { next in
                 withAnimation(next == .idle ? Theme.Motion.close : Theme.Motion.open) { state = next }
             })) {
@@ -186,18 +186,16 @@ struct NotchDemoStage: View {
         HStack(spacing: Theme.Space.s) {
             ForEach(0..<Theme.Notch.peekTileCount, id: \.self) { i in
                 DemoTile(hue: Demo.hue(i)).frame(width: Theme.Notch.peekTile.width, height: Theme.Notch.peekTile.height)
-                    .revealedByNotch()
+                    
             }
             Text("+8").font(Theme.Typography.badge).foregroundStyle(.secondary)
                 .frame(width: Theme.Notch.peekTile.width, height: Theme.Notch.peekTile.height)
-                .revealedByNotch()
         }
     }
 
     private var previewContent: some View {
         VStack(spacing: Theme.Space.m) {
             DemoTile(hue: Demo.hue(2), radius: Theme.Radius.card).frame(height: Theme.Notch.previewImageHeight)
-                .revealedByNotch()
             HStack {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("PeekView.swift").font(Theme.Typography.title)
@@ -207,7 +205,6 @@ struct NotchDemoStage: View {
                 Label("Copied", systemImage: "checkmark.circle.fill").font(Theme.Typography.label).foregroundStyle(Theme.Palette.copied)
             }
             .frame(height: Theme.Notch.controlHeight)
-            .revealedByNotch()
             HStack(spacing: Theme.Space.s) {
                 ForEach(["Copy", "Markup", "Pin", "Trash"], id: \.self) { title in
                     Text(title).font(Theme.Typography.label)
@@ -215,16 +212,15 @@ struct NotchDemoStage: View {
                         .background(.fill.tertiary, in: .rect(cornerRadius: Theme.Radius.control))
                 }
             }
-            .revealedByNotch()
         }
         .padding([.horizontal, .bottom], Theme.Space.l)
     }
 
     private var shelfContent: some View {
         VStack(alignment: .leading, spacing: Theme.Space.s) {
-            sectionHeader("Pinned", note: "Kept until you unpin").revealedByNotch()
+            sectionHeader("Pinned", note: "Kept until you unpin")
             tileRow(hues: 0..<3)
-            sectionHeader("Today", note: nil).revealedByNotch()
+            sectionHeader("Today", note: nil)
             tileRow(hues: 3..<7)
             tileRow(hues: 7..<11)
         }
@@ -242,7 +238,7 @@ struct NotchDemoStage: View {
 
     private func tileRow(hues: Range<Int>) -> some View {
         HStack(spacing: Theme.Space.s) {
-            ForEach(hues, id: \.self) { DemoTile(hue: Demo.hue($0)).revealedByNotch() }
+            ForEach(hues, id: \.self) { DemoTile(hue: Demo.hue($0)) }
         }
         .frame(height: Theme.Notch.shelfRowHeight)
     }

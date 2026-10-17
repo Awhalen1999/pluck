@@ -56,14 +56,12 @@ enum Theme {
 
         /// Content leaves before the notch closes, so it's never squeezed.
         static let contentOut = Animation.easeOut(duration: 0.08)
-        /// Content starts to show once this much of it is inside the notch, and is
-        /// fully shown once all of it is. High enough that nothing appears cut off.
-        static let revealStart: CGFloat = 0.8
-        /// Content starts this much smaller and settles to full size.
-        static let contentScale: CGFloat = 0.97
-
-        /// How content leaves the notch. Arrival is handled by `revealedByNotch()`.
-        static let contentTransition = AnyTransition.asymmetric(insertion: .identity, removal: .opacity.animation(contentOut))
+        /// How content enters and leaves the notch. It arrives as one piece on the
+        /// shape's own spring, blurring into focus, so it never waits for the shape
+        /// or trails behind it. It leaves quickly, before the shape closes.
+        static let contentTransition = AnyTransition.asymmetric(
+            insertion: AnyTransition(.blurReplace),
+            removal: .opacity.animation(contentOut))
     }
 
     enum Tile {
