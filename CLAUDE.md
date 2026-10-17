@@ -95,9 +95,10 @@ PluckTests/
   and the notch surfaces.
 - Motion uses the two Theme springs, one for opening and one for closing. No
   one-off animations.
-- Notch content never runs ahead of the shape: it is clipped to the notch,
-  arrives through `reveal(order:)` once the shape has mostly opened, and leaves
-  through `Motion.contentTransition` before the shape closes.
+- Notch content never runs ahead of the shape. It is clipped to the notch and
+  shown through `revealedByNotch()`: each element is as visible as it is inside
+  the notch's current bounds, so its timing is geometry, never a delay. It
+  leaves through `Motion.contentTransition` before the shape closes.
 - The notch surface is Liquid Glass (`notchSurface(radius:)`), pure black
   level with the hardware notch.
 - Changes to the system happen in Theme and are reviewed by Alex in the Design

@@ -54,16 +54,15 @@ enum Theme {
         /// Closing: quick, and settles without overshoot.
         static let close = Animation.smooth(duration: 0.32)
 
-        /// Content waits until the notch has mostly opened, then fades in.
-        static let contentIn = Animation.easeOut(duration: 0.2).delay(0.12)
         /// Content leaves before the notch closes, so it's never squeezed.
         static let contentOut = Animation.easeOut(duration: 0.08)
-        /// Gap between siblings appearing one after another, like a row of tiles.
-        static let stagger: TimeInterval = 0.018
+        /// Content starts to show once this much of it is inside the notch, and is
+        /// fully shown once all of it is. High enough that nothing appears cut off.
+        static let revealStart: CGFloat = 0.8
         /// Content starts this much smaller and settles to full size.
         static let contentScale: CGFloat = 0.97
 
-        /// How content leaves the notch. Arrival is handled by `reveal(order:)`.
+        /// How content leaves the notch. Arrival is handled by `revealedByNotch()`.
         static let contentTransition = AnyTransition.asymmetric(insertion: .identity, removal: .opacity.animation(contentOut))
     }
 
