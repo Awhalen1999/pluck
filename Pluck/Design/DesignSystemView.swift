@@ -6,8 +6,9 @@ import SwiftUI
 struct DesignSystemView: View {
     static let windowID = "design-system"
 
-    /// Remembered between openings, and settable at launch: `-designSystem.state Shelf`.
-    @AppStorage("designSystem.state") private var state: DemoState = .idle
+    /// Starts at `-designSystem.state Shelf` when given at launch. Read once, so the
+    /// argument never overrides the picker.
+    @State private var state = UserDefaults.standard.string(forKey: "designSystem.state").flatMap(DemoState.init) ?? .idle
 
     var body: some View {
         ScrollView {
