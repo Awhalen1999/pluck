@@ -20,6 +20,26 @@ Alex is the designer and PM. Claude is the tech lead and owns the code end to en
    screenshot folder. No database.
 5. **One thing perfectly.** A feature that dilutes the core gets cut, not
    half-built.
+6. **Invisible interactions.** Motion should feel so natural nobody notices it,
+   the way Apple's does. Nobody ever waits on an animation.
+
+## Designing an interaction
+
+Before building one, sit in the user's seat:
+
+- **Write the moment down first.** What is the user doing, what do they expect
+  to happen, and what must never happen (flicker at an edge, closing mid-drag,
+  a click that does nothing)?
+- **Respond at once.** Input changes state immediately. The only deliberate
+  delays are intent filters, like the hover delay that stops the notch opening
+  when the pointer merely passes by.
+- **One object, one spring.** Whatever moves together animates together, on a
+  Theme spring. No staggers, no chains of animations.
+- **Always interruptible.** Any animation can be redirected mid-flight (hover
+  out halfway through opening) and settles smoothly from where it is.
+- **Respect Reduce Motion.** Under it, motion becomes a quick fade.
+- **Prove it before showing it.** Check it at real speed and in slow motion,
+  including fast repeats and interruptions, before Alex sees it.
 
 ## Product rules
 
