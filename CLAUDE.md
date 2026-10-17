@@ -130,5 +130,37 @@ Verified on this machine; each one notes how.
   get the pill. (Read from `NSScreen`, 2026-10-17.)
 - **Screenshot settings defaults.** A missing `location` key means Desktop, a
   missing `show-thumbnail` key means the floating thumbnail is on.
-- **No Markup API.** QuickLookUI has no public editing or Markup API. (Searched
-  the macOS SDK headers, 2026-10-17.)
+- **The thumbnail delays the file.** With the macOS floating thumbnail on, the
+  file lands 5 to 7 s after capture; with it off, about 1 s. The Pluck preview
+  only works with the thumbnail off. Writing `show-thumbnail` through
+  `CFPreferences` takes effect on the next capture, with no restart of anything.
+- **How a capture lands.** macOS first writes a hidden, untagged temp file
+  (`.Screenshot …png` or `..Screenshot …png-XXXX`), then renames it to the
+  final, tagged name. Ignore dot-files and act only on the tagged file. A
+  `DispatchSource` on the folder fires for the rename.
+- **File names are not plain ASCII.** The space before AM/PM is U+202F (narrow
+  no-break space), and the format follows the user's locale. Never parse or
+  build screenshot names by hand.
+- **The panel.** A borderless `.nonactivatingPanel` `NSPanel` at `.statusBar`
+  level draws over the menu bar at the notch. When it's clear and non-opaque,
+  clicks on its transparent pixels pass through to the app underneath, so the
+  panel needs no resizing or `ignoresMouseEvents` juggling.
+- **First click.** `NSHostingView` swallows the first click on a non-key
+  panel, so a tap needs two clicks. The notch's hosting view must return true
+  from `acceptsFirstMouse`.
+- **Hover.** SwiftUI `onHover` works in a non-activating panel of a menu-bar
+  app with no permission. It flaps in under 100 ms at the edge of a shape that
+  is animating, so hover needs an enter delay and a leave grace period.
+- **The hardware notch hides the cursor.** The hover zone must reach below
+  the notch, so nobody has to push the pointer into the camera housing.
+- **Drag out is AppKit.** An `NSDraggingSource` started from the panel gets
+  `draggingSession(_:endedAt:operation:)` with `.copy` on a successful drop.
+  SwiftUI's drag APIs have no end callback.
+- **Quick Look has no Markup.** `QLPreviewPanel` works from the menu-bar app
+  after `NSApp.activate()`, but offers only Share and "Open with Preview".
+  QuickLookUI has no public Markup or editing API.
+- **Not yet verified:** switching Spaces, full-screen apps, external displays,
+  and a cancelled drag (documented as operation 0).
+
+The panel, landing, hover, drag and Quick Look facts were checked with the
+throwaway app on `spike/platform`, 2026-10-17.
