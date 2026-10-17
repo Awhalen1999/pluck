@@ -171,6 +171,12 @@ Verified on this machine; each one notes how.
 - **Quick Look has no Markup.** `QLPreviewPanel` works from the menu-bar app
   after `NSApp.activate()`, but offers only Share and "Open with Preview".
   QuickLookUI has no public Markup or editing API.
+- **The folder prompt blocks.** The first read of Desktop, Documents or
+  Downloads shows the macOS access prompt and blocks that thread until it's
+  answered. Onboarding must trigger it on purpose, at its "Allow Access" step.
+- **Simulating a capture.** The `screencapture` command-line tool tags its
+  files the same way ⇧⌘4 does, so `screencapture -x -R 0,0,200,100 <path>`
+  lands a real, tagged screenshot without anyone at the keyboard.
 - **Not yet verified:** switching Spaces, full-screen apps, external displays,
   and a cancelled drag (documented as operation 0).
 

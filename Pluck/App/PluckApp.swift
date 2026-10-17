@@ -6,8 +6,7 @@ struct PluckApp: App {
 
     var body: some Scene {
         MenuBarExtra("Pluck", systemImage: "camera.viewfinder") {
-            Button("Quit Pluck") { NSApp.terminate(nil) }
-                .keyboardShortcut("q")
+            MenuBarMenu(library: appDelegate.library)
         }
     }
 }
