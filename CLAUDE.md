@@ -33,6 +33,7 @@ Alex is the designer and PM. Claude is the tech lead and owns the code end to en
   thumbnail) only through the user's choices, snapshots the originals on first
   launch, and can restore them from About.
 - Nothing leaves the Mac. The only network use is Sparkle's update check.
+- Markup opens the shot in Preview. Pluck never builds its own editor.
 
 ## The notch state contract
 
@@ -112,7 +113,8 @@ without a physical notch), **Idle / Peek / Shelf / Preview** (its states),
 
 ## Workflow
 
-- One branch and one PR per change. `main` is always release-ready.
+- Until the first release, commit straight to `main`. After it, one branch and
+  one PR per change, and `main` stays release-ready.
 - Spikes live on `spike/*` branches and are never merged; what they prove is
   written into Platform facts below.
 
