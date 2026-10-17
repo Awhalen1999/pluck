@@ -195,7 +195,7 @@ struct NotchDemoStage: View {
 
     private var previewContent: some View {
         VStack(spacing: Theme.Space.m) {
-            DemoTile(hue: Demo.hue(2), radius: Theme.Radius.card).frame(height: Theme.Notch.previewImageHeight)
+            DemoTile(hue: Demo.hue(2), radius: Theme.Radius.card).frame(height: Theme.Notch.previewImageHeights.upperBound)
             HStack {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("PeekView.swift").font(Theme.Typography.title)
@@ -294,7 +294,7 @@ enum DemoState: String, CaseIterable, Identifiable {
                           height: notch.headerHeight + notch.peekTile.height + Theme.Space.l)
         case .preview:
             return CGSize(width: notch.previewWidth,
-                          height: notch.headerHeight + notch.previewImageHeight + 2 * notch.controlHeight + 2 * Theme.Space.m + Theme.Space.l)
+                          height: notch.headerHeight + notch.previewImageHeights.upperBound + 2 * notch.controlHeight + 2 * Theme.Space.m + Theme.Space.l)
         case .shelf:
             return CGSize(width: notch.shelfWidth,
                           height: notch.headerHeight + 2 * notch.sectionHeaderHeight + 3 * notch.shelfRowHeight + 4 * Theme.Space.s + Theme.Space.xl)

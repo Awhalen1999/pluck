@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Pluck's design system. Every value the UI uses lives here; views never
@@ -20,6 +21,8 @@ enum Theme {
     }
 
     enum Radius {
+        /// The tiny thumbnails beside the idle notch.
+        static let mini: CGFloat = 3
         /// Thumbnails.
         static let tile: CGFloat = 6
         /// Buttons and chips inside the notch.
@@ -59,9 +62,39 @@ enum Theme {
         /// How content enters and leaves the notch. It arrives as one piece on the
         /// shape's own spring, blurring into focus, so it never waits for the shape
         /// or trails behind it. It leaves quickly, before the shape closes.
-        static let contentTransition = AnyTransition.asymmetric(
-            insertion: AnyTransition(.blurReplace),
-            removal: .opacity.animation(contentOut))
+        static var contentTransition: AnyTransition {
+            reduceMotion ? .opacity : .asymmetric(insertion: AnyTransition(.blurReplace),
+                                                  removal: .opacity.animation(contentOut))
+        }
+
+        /// Small responses to the pointer, like a tile lifting under it.
+        static let hover = Animation.smooth(duration: 0.18)
+
+        /// Under Reduce Motion, everything becomes a quick fade.
+        static let reduced = Animation.easeInOut(duration: 0.15)
+
+        /// The animation for the notch changing shape: opening, or settling closed.
+        static func reshape(opening: Bool) -> Animation {
+            reduceMotion ? reduced : opening ? open : close
+        }
+
+        private static var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    }
+
+    /// How long the notch waits, and for what. Each one exists to read intent;
+    /// nothing here should ever make the user wait on an animation.
+    enum Timing {
+        /// Hovering this long opens Peek, so a pointer passing by on its way to a
+        /// menu doesn't open anything.
+        static let hoverIntent: TimeInterval = 0.13
+        /// Peek stays this long after the pointer leaves, so a small overshoot
+        /// doesn't close it.
+        static let leaveGrace: TimeInterval = 0.2
+        /// A Preview the pointer held open stays at least this long once it leaves.
+        static let previewResumeMinimum: TimeInterval = 1
+        /// How long feedback shows. Long enough to read; longer when it offers Undo.
+        static let feedback: TimeInterval = 1.8
+        static let feedbackWithUndo: TimeInterval = 4.2
     }
 
     enum Tile {
@@ -70,7 +103,12 @@ enum Theme {
         static let hoverRing = Color.white.opacity(0.5)
         static let hoverRingWidth: CGFloat = 1
         static let hoverScale: CGFloat = 1.03
+        /// How far a tile or button presses in under a click.
+        static let pressScale: CGFloat = 0.97
         static let selectedRingWidth: CGFloat = 2
+        /// Thumbnails crop to fill their tile, but a screenshot's shape is kept
+        /// within these limits so very tall or wide ones still read.
+        static let aspectRange: ClosedRange<CGFloat> = 0.6...2.6
     }
 
     enum Notch {
@@ -92,10 +130,30 @@ enum Theme {
         /// A 14″ MacBook Pro's notch, for previews and the Design System window.
         static let referenceSize = CGSize(width: 185, height: 32)
 
+        /// How far the hover zone reaches below the idle notch, so nobody has to
+        /// push the pointer into the camera housing.
+        static let hoverReach: CGFloat = 8
+        /// The idle notch's left ear, where the latest shot sits.
+        static let idleEarWidth: CGFloat = 44
+        static let latestThumb = CGSize(width: 24, height: 15)
+        static let latestStackDepth = 3
+        /// Each card further back in the latest-shot stack is this much fainter.
+        static let latestStackFade = 0.3
+        /// The idle notch's right ear while it shows feedback.
+        static let feedbackEarWidth: CGFloat = 96
+        static let feedbackUndoEarWidth: CGFloat = 136
+        /// The narrowest an expanded notch's ears get, beside the hardware notch.
+        static let minExpandedEar: CGFloat = 88
+
         static let peekTile = CGSize(width: 72, height: 45)
         static let peekTileCount = 6
+        /// The "+N" slot after Peek's tiles, which opens the Shelf.
+        static let peekMoreWidth: CGFloat = 44
         static let previewWidth: CGFloat = 320
-        static let previewImageHeight: CGFloat = 168
+        /// The Preview shows the whole screenshot, letterboxed between these heights.
+        static let previewImageHeights: ClosedRange<CGFloat> = 124...220
+        static let previewRingSize: CGFloat = 14
+        static let previewRingWidth: CGFloat = 2
         static let shelfWidth: CGFloat = 680
         static let shelfRowHeight: CGFloat = 104
         static let shelfMaxHeight: CGFloat = 600

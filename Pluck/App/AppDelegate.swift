@@ -17,6 +17,6 @@ import AppKit
         library.start()
         self.preferences = preferences
         self.library = library
-        notch = NotchController()
+        notch = NotchController(library: library, preferences: preferences)
     }
 }

@@ -12,16 +12,41 @@ import Foundation
         didSet { defaults.set(removeDraggedOut, forKey: Key.removeDraggedOut) }
     }
 
+    /// "Open on hover". When off, a click opens the notch.
+    var opensOnHover: Bool {
+        didSet { defaults.set(opensOnHover, forKey: Key.opensOnHover) }
+    }
+
+    /// "Show latest shot when idle", beside the notch.
+    var showsLatestWhenIdle: Bool {
+        didSet { defaults.set(showsLatestWhenIdle, forKey: Key.showsLatestWhenIdle) }
+    }
+
+    /// "Keep the preview up for".
+    var previewDuration: PreviewDuration {
+        didSet { defaults.set(previewDuration.rawValue, forKey: Key.previewDuration) }
+    }
+
     @ObservationIgnored private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         retention = defaults.string(forKey: Key.retention).flatMap(Retention.init) ?? .sevenDays
         removeDraggedOut = defaults.object(forKey: Key.removeDraggedOut) as? Bool ?? true
+        opensOnHover = defaults.object(forKey: Key.opensOnHover) as? Bool ?? true
+        showsLatestWhenIdle = defaults.object(forKey: Key.showsLatestWhenIdle) as? Bool ?? true
+        previewDuration = PreviewDuration(rawValue: defaults.double(forKey: Key.previewDuration)) ?? .four
     }
 
     private enum Key {
         static let retention = "retention"
         static let removeDraggedOut = "removeDraggedOut"
+        static let opensOnHover = "opensOnHover"
+        static let showsLatestWhenIdle = "showsLatestWhenIdle"
+        static let previewDuration = "previewDuration"
     }
+}
+
+enum PreviewDuration: Double, CaseIterable {
+    case two = 2, four = 4, six = 6
 }

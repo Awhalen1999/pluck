@@ -65,19 +65,30 @@ Before building one, sit in the user's seat:
 
 ## The notch state contract
 
-The notch is always in exactly one state. `NotchController` owns it, and every
-transition goes through it.
+The notch is always in exactly one state. The rules live in `NotchMachine`, a
+plain value with a test for each rule; `NotchController` feeds it events and runs
+its timer.
 
-| State   | Entered by                          | Left by                                          |
-|---------|-------------------------------------|--------------------------------------------------|
-| Idle    | default                             | hover → Peek, click → Shelf, new shot → Preview  |
-| Peek    | hovering the notch                  | pointer leaves → Idle, click → Shelf             |
-| Shelf   | click, shortcut, or "+N" in Peek    | click outside, Esc, or shortcut → Idle           |
-| Preview | a new screenshot                    | its timer ends (hover pauses it) → Idle          |
+| State   | Entered by                               | Left by                                                    |
+|---------|------------------------------------------|------------------------------------------------------------|
+| Idle    | default                                  | hover → Peek, click → Shelf, new shot → Preview            |
+| Peek    | hovering the notch past the intent delay | pointer leaves (after a grace period) → Idle, click → Shelf, new shot → Preview |
+| Shelf   | a click on the notch, or "+N" in Peek    | click outside or Esc → Idle                                |
+| Preview | a new screenshot, from Idle or Peek      | its timer ends, acting on it, or Esc → Idle; click → Shelf |
 
-- Every timer belongs to a state and is cancelled when the state changes.
-- Feedback ("Copied", "Moved to Trash · Undo") is not a state. It is one slot any
-  state can show; a new message replaces the old one.
+- A click on the notch itself opens the Shelf from any state. A click on a shot
+  copies it; buttons do what they say.
+- Acting on the Preview (copy, markup, pin, trash) finishes it: the notch closes
+  with feedback. In Peek and the Shelf, acting leaves them open.
+- Hovering holds the Preview's timer. Leaving resumes it, never with less than
+  `Timing.previewResumeMinimum` left.
+- The machine has at most one timer, and every transition replaces it, so a
+  timer can never outlive its state. Feedback has its own timer.
+- Feedback ("Copied", "Trashed · Undo") is not a state. It is one slot any state
+  can show; a new message replaces the old one.
+- Hover is geometry: the pointer's position against `NotchLayout.hoverZone`,
+  from a global mouse monitor plus the notch's own hover events. No invisible
+  views, so nothing blocks clicks underneath.
 - Esc always goes back exactly one level.
 - A shot taken while the Shelf is open lands in the Shelf; it does not interrupt.
 - During a drag the notch steps aside, and comes back if the drag returns.
@@ -216,8 +227,9 @@ Verified on this machine; each one notes how.
 - **Simulating a capture.** The `screencapture` command-line tool tags its
   files the same way ⇧⌘4 does, so `screencapture -x -R 0,0,200,100 <path>`
   lands a real, tagged screenshot without anyone at the keyboard.
-- **Not yet verified:** Liquid Glass inside the borderless notch panel over
-  other apps (it works in a normal window), switching Spaces, full-screen apps, external displays,
+- **Liquid Glass works in the notch panel** over other apps' windows. (Checked
+  with a live Preview over a terminal, 2026-10-17.)
+- **Not yet verified:** switching Spaces, full-screen apps, external displays,
   and a cancelled drag (documented as operation 0).
 
 The panel, landing, hover, drag and Quick Look facts were checked with the
