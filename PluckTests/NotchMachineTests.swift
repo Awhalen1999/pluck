@@ -200,3 +200,78 @@ private struct Driver {
     d.machine.handle(.timerFired, at: early + 10)
     #expect(d.state == .idle)
 }
+
+// MARK: Dragging
+
+@Test func theNotchStepsAsideWhileADragIsAwayAndReturnsWithIt() {
+    var d = Driver()
+    d.send(.clicked)
+    d.send(.pointerEntered)
+    d.send(.dragStarted)
+    #expect(!d.machine.stepsAside)
+
+    d.send(.pointerExited)
+    #expect(d.machine.stepsAside)
+    #expect(d.state == .shelf)
+
+    d.send(.pointerEntered)
+    #expect(!d.machine.stepsAside)
+}
+
+@Test func nothingChangesUnderADrag() {
+    var d = Driver(previewDuration: 4)
+    d.send(.shotArrived("/a.png"))
+    d.send(.pointerEntered)
+    d.send(.dragStarted)
+    d.send(.pointerExited)
+
+    d.send(.shotArrived("/b.png"))
+    d.send(.clicked)
+    d.send(.clickedOutside)
+    d.wait(60)
+
+    #expect(d.state == .preview("/a.png"))
+}
+
+@Test func droppingAPreviewFinishesItAndCancellingKeepsIt() {
+    var d = Driver(previewDuration: 4)
+    d.send(.shotArrived("/a.png"))
+    d.send(.pointerEntered)
+    d.send(.dragStarted)
+    d.send(.pointerExited)
+    d.send(.dragEnded(dropped: true))
+    #expect(d.state == .idle)
+
+    d.send(.shotArrived("/b.png"))
+    d.send(.pointerEntered)
+    d.send(.dragStarted)
+    d.send(.pointerExited)
+    d.send(.dragEnded(dropped: false))
+    #expect(d.state == .preview("/b.png"))
+    // It resumes with the time it had left when the drag began.
+    d.wait(3.9)
+    #expect(d.state == .preview("/b.png"))
+    d.wait(0.1)
+    #expect(d.state == .idle)
+}
+
+@Test func theShelfComesBackAfterADropForTheNextShot() {
+    var d = Driver()
+    d.send(.clicked)
+    d.send(.pointerEntered)
+    d.send(.dragStarted)
+    d.send(.pointerExited)
+    d.send(.dragEnded(dropped: true))
+    #expect(d.state == .shelf)
+    #expect(!d.machine.stepsAside)
+}
+
+@Test func peekClosesAfterADragEndsAwayFromIt() {
+    var d = Driver()
+    d.openPeek()
+    d.send(.dragStarted)
+    d.send(.pointerExited)
+    d.send(.dragEnded(dropped: true))
+    d.wait(Theme.Timing.leaveGrace)
+    #expect(d.state == .idle)
+}

@@ -1,9 +1,13 @@
 import AppKit
+import OSLog
 import SwiftUI
+
+private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
 /// Owns the notch: where it sits, which state it's in, and what the user does
 /// with it. The rules live in `NotchMachine`; this class feeds it events from the
-/// pointer, clicks and the library, runs its one timer, and carries out actions.
+/// pointer, clicks, drags and the library, runs its one timer, and carries out
+/// actions.
 @Observable final class NotchController {
     let library: ShotLibrary
     let preferences: Preferences
@@ -15,12 +19,18 @@ import SwiftUI
     private(set) var feedback: Feedback?
     /// The shot under the pointer, for the header's detail line.
     private(set) var hoveredShot: Shot.ID?
+    /// The shots in the drag under way, shown faded where they came from.
+    private(set) var draggedShots: Set<Shot.ID> = []
     private var machine = NotchMachine()
 
     @ObservationIgnored private var panel: NotchPanel!
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
     @ObservationIgnored private var monitors: [Any] = []
+    @ObservationIgnored private let dragSource = ShotDragSource()
+    @ObservationIgnored private let quickLookPanel = QuickLook()
+    /// The views drawing each shot right now, so Quick Look can zoom from them.
+    @ObservationIgnored private let shotViews = NSMapTable<NSString, NSView>.strongToWeakObjects()
 
     init(library: ShotLibrary, preferences: Preferences, showsPreview: Bool) {
         self.library = library
@@ -31,6 +41,8 @@ import SwiftUI
         watchScreens()
         watchPointer()
         watchLibrary()
+        watchDrags()
+        watchQuickLook()
         Thumbnails.prefetch(library.shots.prefix(Theme.Notch.peekTileCount))
     }
 
@@ -38,8 +50,15 @@ import SwiftUI
 
     var state: NotchState { machine.state }
 
+    /// What the shape shows: the state, or Idle while a drag has it stepped aside.
+    var shownState: NotchState { machine.shownState }
+
+    /// Whether the state's content is visible. Hidden, but still in place, while
+    /// a drag has the notch stepped aside, so the drag's source stays put.
+    var showsContent: Bool { !machine.stepsAside }
+
     var frame: NotchLayout.Frame {
-        NotchLayout.frame(for: state, content: content, notch: geometry?.frame.size ?? Theme.Notch.referenceSize)
+        NotchLayout.frame(for: shownState, content: content, notch: geometry?.frame.size ?? Theme.Notch.referenceSize)
     }
 
     var content: NotchLayout.Content {
@@ -57,20 +76,29 @@ import SwiftUI
     /// A click on the notch itself opens the Shelf, from any state.
     func clickedNotch() { send(.clicked) }
 
-    func copy(_ id: Shot.ID) {
-        library.copy([id])
-        send(.finished, feedback: Feedback(kind: .copied))
+    func clicked(_ id: Shot.ID, modifiers: NSEvent.ModifierFlags) {
+        copy([id])
     }
 
-    func togglePin(_ id: Shot.ID) {
-        let pinning = !library.isPinned(id)
-        library.togglePin([id])
-        send(.finished, feedback: Feedback(kind: pinning ? .pinned : .unpinned))
+    func copy(_ ids: [Shot.ID]) {
+        library.copy(ids)
+        send(.finished, feedback: Feedback(kind: .copied, count: ids.count))
     }
 
-    func trash(_ id: Shot.ID) {
-        library.trash([id])
-        send(.finished, feedback: Feedback(kind: .trashed))
+    func togglePin(_ ids: [Shot.ID]) {
+        let pinning = !ids.allSatisfy(library.isPinned)
+        library.togglePin(ids)
+        send(.finished, feedback: Feedback(kind: pinning ? .pinned : .unpinned, count: ids.count))
+    }
+
+    func trash(_ ids: [Shot.ID]) {
+        library.trash(ids)
+        send(.finished, feedback: Feedback(kind: .trashed, count: ids.count))
+    }
+
+    func move(_ ids: [Shot.ID], to folder: URL) {
+        library.move(ids, to: folder)
+        send(.finished, feedback: Feedback(kind: .moved, count: ids.count))
     }
 
     func markup(_ id: Shot.ID) {
@@ -83,8 +111,24 @@ import SwiftUI
         send(nil, feedback: Feedback(kind: .restored))
     }
 
+    /// Opens Quick Look on a shot, with every shot a keypress away. From the
+    /// Preview it counts as acting on it, so the Preview finishes.
+    func quickLook(_ id: Shot.ID) {
+        let shots = library.shots
+        guard let index = shots.firstIndex(where: { $0.id == id }) else {
+            log.error("Quick Look: no such shot")
+            return
+        }
+        quickLookPanel.show(shots, startingAt: index)
+        if case .preview = state { send(.finished) }
+    }
+
     func hover(_ id: Shot.ID, _ inside: Bool) {
         if inside { hoveredShot = id } else if hoveredShot == id { hoveredShot = nil }
+    }
+
+    func register(_ view: NSView, for id: Shot.ID) {
+        shotViews.setObject(view, forKey: id as NSString)
     }
 
     /// From the notch view, for pointer moves that land on the notch's own pixels.
@@ -92,6 +136,97 @@ import SwiftUI
     func pointerMovedInPanel(_ point: CGPoint) {
         let panelFrame = panel.frame
         pointerMoved(to: CGPoint(x: panelFrame.minX + point.x, y: panelFrame.maxY - point.y))
+    }
+
+    // MARK: Dragging
+
+    /// Starts dragging a shot out of the notch. The image under the cursor is the
+    /// shot itself, and other apps receive the file.
+    func beginDrag(_ id: Shot.ID, from view: NSView, event: NSEvent) {
+        let shots = library.shots(withIDs: [id])
+        guard !shots.isEmpty else { return }
+        let point = view.convert(event.locationInWindow, from: nil)
+        let items = shots.map { shot in
+            let item = NSDraggingItem(pasteboardWriter: shot.url as NSURL)
+            let image = ShotDragSource.image(for: shot)
+            item.setDraggingFrame(CGRect(x: point.x - image.size.width / 2, y: point.y - image.size.height / 2,
+                                         width: image.size.width, height: image.size.height),
+                                  contents: image)
+            return item
+        }
+        draggedShots = Set(shots.map(\.id))
+        let session = view.beginDraggingSession(with: items, event: event, source: dragSource)
+        session.draggingFormation = items.count > 1 ? .stack : .none
+        send(.dragStarted)
+    }
+
+    private func watchDrags() {
+        dragSource.moved = { [weak self] point in self?.pointerMoved(to: point) }
+        dragSource.ended = { [weak self] dropped in
+            guard let self else { return }
+            if dropped, preferences.removeDraggedOut { library.recordDragOut(Array(draggedShots)) }
+            draggedShots = []
+            send(.dragEnded(dropped: dropped))
+        }
+    }
+
+    // MARK: Menu
+
+    /// The right-click menu for a shot: native, with the shortcuts shown.
+    func menu(for id: Shot.ID) -> NSMenu {
+        let ids = [id]
+        let menu = NSMenu()
+        menu.addItem(menuItem("Copy", key: "c") { [weak self] in self?.copy(ids) })
+        menu.addItem(menuItem("Quick Look") { [weak self] in self?.quickLook(id) })
+        menu.addItem(menuItem("Show in Finder") { [weak self] in self?.library.revealInFinder(ids) })
+        menu.addItem(.separator())
+        menu.addItem(moveMenuItem(for: ids))
+        menu.addItem(menuItem(ids.allSatisfy(library.isPinned) ? "Unpin" : "Pin", key: "p") { [weak self] in self?.togglePin(ids) })
+        menu.addItem(menuItem("Move to Trash", key: "\u{8}") { [weak self] in self?.trash(ids) })
+        return menu
+    }
+
+    /// "Move To": the usual folders, then any folder at all.
+    private func moveMenuItem(for ids: [Shot.ID]) -> NSMenuItem {
+        let submenu = NSMenu()
+        let folders: [URL] = [.desktopDirectory, .documentsDirectory, .downloadsDirectory, .picturesDirectory]
+        for folder in folders where folder.standardizedFileURL != library.folder {
+            submenu.addItem(menuItem(FileManager.default.displayName(atPath: folder.path(percentEncoded: false))) { [weak self] in
+                self?.move(ids, to: folder)
+            })
+        }
+        submenu.addItem(.separator())
+        submenu.addItem(menuItem("Other…") { [weak self] in self?.chooseFolder(for: ids) })
+        let item = NSMenuItem(title: "Move To", action: nil, keyEquivalent: "")
+        item.submenu = submenu
+        return item
+    }
+
+    private func chooseFolder(for ids: [Shot.ID]) {
+        let open = NSOpenPanel()
+        open.canChooseDirectories = true
+        open.canChooseFiles = false
+        open.canCreateDirectories = true
+        open.prompt = "Move"
+        NSApp.activate()
+        if open.runModal() == .OK, let folder = open.url { move(ids, to: folder) }
+        returnFocus()
+    }
+
+    // MARK: Focus
+
+    private func watchQuickLook() {
+        quickLookPanel.sourceFrame = { [weak self] id in
+            guard let view = self?.shotViews.object(forKey: id as NSString), let window = view.window else { return nil }
+            return window.convertToScreen(view.convert(view.bounds, to: nil))
+        }
+        quickLookPanel.onClose = { [weak self] in self?.returnFocus() }
+    }
+
+    /// Gives the keyboard back to the app the user was in, after Pluck had to
+    /// come forward for Quick Look or a folder picker.
+    private func returnFocus() {
+        if NSApp.isActive { NSApp.hide(nil) }
     }
 
     // MARK: Events
@@ -104,19 +239,24 @@ import SwiftUI
         next.settings = NotchMachine.Settings(opensOnHover: preferences.opensOnHover,
                                               previewDuration: preferences.previewDuration.rawValue)
         if let event { next.handle(event, at: .now) }
+        if next.state != machine.state {
+            // Only the event's name is public; shot IDs are file paths.
+            let name = event.map { String(describing: $0).prefix { $0 != "(" } } ?? "feedback"
+            log.debug("\(name, privacy: .public) → \(String(describing: next.state))")
+        }
 
-        let changesState = next.state != machine.state
+        let reshapes = next.shownState != machine.shownState
         // Collapsing into the notch settles closed; anything that grows opens.
-        let opening = changesState ? next.state != .idle : true
+        let opening = reshapes ? next.shownState != .idle : true
         let timerChanged = next.timer != machine.timer
-        withAnimation(changesState || newFeedback != nil ? Theme.Motion.reshape(opening: opening) : nil) {
+        withAnimation(reshapes || newFeedback != nil ? Theme.Motion.reshape(opening: opening) : nil) {
             machine = next
             if let newFeedback { feedback = newFeedback }
         }
         if let newFeedback { endFeedback(after: newFeedback.duration) }
         if timerChanged { schedule(next.timer) }
-        if changesState {
-            if next.state == .idle { hoveredShot = nil }
+        if reshapes {
+            if next.shownState == .idle { hoveredShot = nil }
             syncPointer()
         }
     }
@@ -147,7 +287,7 @@ import SwiftUI
     /// hover zone. No invisible views, so nothing blocks clicks underneath.
     private func pointerMoved(to point: CGPoint) {
         guard let geometry else { return }
-        let inside = NotchLayout.hoverZone(for: frame, state: state, geometry: geometry).contains(point)
+        let inside = NotchLayout.hoverZone(for: frame, state: shownState, geometry: geometry).contains(point)
         if inside != machine.pointerInside { send(inside ? .pointerEntered : .pointerExited) }
     }
 

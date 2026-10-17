@@ -22,41 +22,54 @@ struct ShotImage: View {
     }
 }
 
-/// A shot in Peek or the Shelf. Clicking copies it; it lifts under the pointer.
+/// A shot in Peek or the Shelf. Click copies it, double-click opens Quick Look,
+/// right-click shows its menu, and it drags straight into other apps. It lifts
+/// under the pointer and presses in under a click.
 struct ShotTile: View {
     let shot: Shot
     let size: CGSize
     let controller: NotchController
     @State private var hovered = false
+    @State private var pressed = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
-        Button { controller.copy(shot.id) } label: {
-            ShotImage(shot: shot)
-                .frame(width: size.width, height: size.height)
-                .clipShape(shape)
-                .overlay {
-                    shape.strokeBorder(hovered ? Theme.Tile.hoverRing : Theme.Tile.ring,
-                                       lineWidth: hovered ? Theme.Tile.hoverRingWidth : Theme.Tile.ringWidth)
+        ShotImage(shot: shot)
+            .frame(width: size.width, height: size.height)
+            .clipShape(shape)
+            .overlay {
+                shape.strokeBorder(hovered ? Theme.Tile.hoverRing : Theme.Tile.ring,
+                                   lineWidth: hovered ? Theme.Tile.hoverRingWidth : Theme.Tile.ringWidth)
+            }
+            .overlay(alignment: .topTrailing) {
+                if controller.library.isPinned(shot.id) {
+                    Image(systemName: "pin.fill")
+                        .font(Theme.Typography.badge)
+                        .foregroundStyle(Theme.Palette.pinned)
+                        .padding(Theme.Space.xs)
                 }
-                .overlay(alignment: .topTrailing) {
-                    if controller.library.isPinned(shot.id) {
-                        Image(systemName: "pin.fill")
-                            .font(Theme.Typography.badge)
-                            .foregroundStyle(Theme.Palette.pinned)
-                            .padding(Theme.Space.xs)
-                    }
-                }
-        }
-        .buttonStyle(PressableStyle())
-        .scaleEffect(hovered ? Theme.Tile.hoverScale : 1)
-        .animation(Theme.Motion.hover, value: hovered)
-        .onHover { inside in
-            hovered = inside
-            controller.hover(shot.id, inside)
-        }
-        .accessibilityLabel("Screenshot, \(shot.detail)")
-        .accessibilityHint("Copies it")
+            }
+            .overlay {
+                ShotInteraction(onClick: { controller.clicked(shot.id, modifiers: $0) },
+                                onDoubleClick: { controller.quickLook(shot.id) },
+                                onPress: { pressed = $0 },
+                                onDrag: { controller.beginDrag(shot.id, from: $0, event: $1) },
+                                menu: { controller.menu(for: shot.id) },
+                                register: { controller.register($0, for: shot.id) })
+            }
+            .scaleEffect(pressed ? Theme.Tile.pressScale : hovered ? Theme.Tile.hoverScale : 1)
+            .opacity(controller.draggedShots.contains(shot.id) ? Theme.Tile.draggedOpacity : 1)
+            .animation(Theme.Motion.hover, value: hovered)
+            .animation(Theme.Motion.hover, value: pressed)
+            .onHover { inside in
+                hovered = inside
+                controller.hover(shot.id, inside)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Screenshot, \(shot.detail)")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Copies it")
+            .accessibilityAction { controller.copy([shot.id]) }
     }
 }
 

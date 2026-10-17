@@ -24,6 +24,9 @@ struct NotchMachine: Equatable {
         case shotRemoved(Shot.ID)
         /// The user acted on what the notch was showing: copied it, pinned it, trashed it.
         case finished
+        case dragStarted
+        /// `dropped` is true for a drop into another app; a cancelled drag is false.
+        case dragEnded(dropped: Bool)
         case timerFired
     }
 
@@ -40,8 +43,21 @@ struct NotchMachine: Equatable {
     private(set) var pointerInside = false
     /// Time left on the Preview while the pointer holds it open.
     private(set) var previewRemaining: TimeInterval?
+    /// A shot is being dragged out of the notch. Nothing it shows may change
+    /// until the drag ends.
+    private(set) var isDragging = false
+    /// During a drag, the notch folds back to its idle shape once the drag
+    /// leaves it, so the user can see where they're dropping.
+    private(set) var stepsAside = false
+
+    /// What the notch's shape shows: its state, or Idle while stepped aside.
+    var shownState: NotchState { stepsAside ? .idle : state }
 
     mutating func handle(_ event: Event, at now: Date) {
+        if isDragging {
+            handleDuringDrag(event, at: now)
+            return
+        }
         switch event {
         case .pointerEntered:
             guard !pointerInside else { return }
@@ -87,6 +103,15 @@ struct NotchMachine: Equatable {
         case .finished:
             if case .preview = state { go(.idle) }
 
+        case .dragStarted:
+            isDragging = true
+            stepsAside = !pointerInside
+            if case .preview = state { pausePreview(at: now) }
+            timer = nil
+
+        case .dragEnded:
+            break
+
         case .timerFired:
             guard let timer, now >= timer else { return }
             self.timer = nil
@@ -96,6 +121,32 @@ struct NotchMachine: Equatable {
             case .preview: go(.idle)
             case .shelf: break
             }
+        }
+    }
+
+    /// While a drag is under way, the pointer only moves the notch aside and back.
+    /// Arrivals, clicks and timers wait, so nothing changes under the drag.
+    private mutating func handleDuringDrag(_ event: Event, at now: Date) {
+        switch event {
+        case .pointerEntered:
+            pointerInside = true
+            stepsAside = false
+        case .pointerExited:
+            pointerInside = false
+            stepsAside = true
+        case .dragEnded(let dropped):
+            isDragging = false
+            stepsAside = false
+            switch state {
+            case .preview:
+                if dropped { go(.idle) } else if !pointerInside { resumePreview(at: now) }
+            case .peek:
+                if !pointerInside { timer = now + Theme.Timing.leaveGrace }
+            case .idle, .shelf:
+                break
+            }
+        default:
+            break
         }
     }
 

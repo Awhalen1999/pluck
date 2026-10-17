@@ -81,6 +81,14 @@ enum Theme {
         private static var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
     }
 
+    enum Drag {
+        /// How far a press must move before it becomes a drag, so a click with a
+        /// slight wobble still counts as a click.
+        static let threshold: CGFloat = 4
+        /// The largest the shot under the cursor gets during a drag.
+        static let imageSize = CGSize(width: 160, height: 100)
+    }
+
     /// How long the notch waits, and for what. Each one exists to read intent;
     /// nothing here should ever make the user wait on an animation.
     enum Timing {
@@ -103,6 +111,8 @@ enum Theme {
         static let hoverRing = Color.white.opacity(0.5)
         static let hoverRingWidth: CGFloat = 1
         static let hoverScale: CGFloat = 1.03
+        /// A shot being dragged, where it came from.
+        static let draggedOpacity = 0.35
         /// How far a tile or button presses in under a click.
         static let pressScale: CGFloat = 0.97
         static let selectedRingWidth: CGFloat = 2

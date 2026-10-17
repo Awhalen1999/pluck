@@ -8,7 +8,7 @@ struct NotchView: View {
     var body: some View {
         if let geometry = controller.geometry {
             let frame = controller.frame
-            let expanded = controller.state != .idle
+            let expanded = controller.shownState != .idle
             let radius = expanded ? Theme.Notch.expandedRadius
                 : geometry.hasNotch ? Theme.Notch.idleRadius : frame.size.height / 2
             let topRadius = geometry.hasNotch ? 0 : radius
@@ -17,6 +17,7 @@ struct NotchView: View {
             ZStack(alignment: .top) {
                 content(notchWidth: geometry.frame.width)
                     .transition(Theme.Motion.contentTransition)
+                    .opacity(controller.showsContent ? 1 : 0)
             }
             .frame(width: frame.size.width, height: frame.size.height, alignment: .top)
             .notchSurface(radius: radius, topRadius: topRadius)

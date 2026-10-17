@@ -1,11 +1,13 @@
 import SwiftUI
 
 /// The screenshot you just took, whole, with what you'd do next. Acting on it
-/// finishes it: the notch closes with a confirmation. Hovering holds it open.
+/// finishes it: the notch closes with a confirmation. Hovering holds it open,
+/// and the shot drags straight into other apps.
 struct PreviewView: View {
     let shot: Shot
     let controller: NotchController
     let notchWidth: CGFloat
+    @State private var pressed = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -15,22 +17,34 @@ struct PreviewView: View {
                 CountdownRing(controller: controller)
             }
             VStack(spacing: Theme.Space.m) {
-                Button { controller.copy(shot.id) } label: {
-                    let card = RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    ShotImage(shot: shot, fits: true)
-                        .frame(height: NotchLayout.previewImageHeight(shot))
-                        .clipShape(card)
-                        .overlay { card.strokeBorder(Theme.Tile.ring, lineWidth: Theme.Tile.ringWidth) }
-                }
-                .buttonStyle(PressableStyle())
-                .accessibilityLabel("Screenshot, \(shot.detail)")
-                .accessibilityHint("Copies it")
+                let card = RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                ShotImage(shot: shot, fits: true)
+                    .frame(height: NotchLayout.previewImageHeight(shot))
+                    .clipShape(card)
+                    .overlay { card.strokeBorder(Theme.Tile.ring, lineWidth: Theme.Tile.ringWidth) }
+                    .overlay {
+                        // No double-click here: a click copies and closes at once.
+                        ShotInteraction(onClick: { _ in controller.copy([shot.id]) },
+                                        onDoubleClick: nil,
+                                        onPress: { pressed = $0 },
+                                        onDrag: { controller.beginDrag(shot.id, from: $0, event: $1) },
+                                        menu: { controller.menu(for: shot.id) },
+                                        register: { controller.register($0, for: shot.id) })
+                    }
+                    .scaleEffect(pressed ? Theme.Tile.pressScale : 1)
+                    .opacity(controller.draggedShots.contains(shot.id) ? Theme.Tile.draggedOpacity : 1)
+                    .animation(Theme.Motion.hover, value: pressed)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Screenshot, \(shot.detail)")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("Copies it")
+                    .accessibilityAction { controller.copy([shot.id]) }
 
                 HStack(spacing: Theme.Space.s) {
-                    Button("Copy") { controller.copy(shot.id) }
+                    Button("Copy") { controller.copy([shot.id]) }
                     Button("Markup") { controller.markup(shot.id) }
-                    Button(controller.library.isPinned(shot.id) ? "Unpin" : "Pin") { controller.togglePin(shot.id) }
-                    Button("Trash") { controller.trash(shot.id) }
+                    Button(controller.library.isPinned(shot.id) ? "Unpin" : "Pin") { controller.togglePin([shot.id]) }
+                    Button("Trash") { controller.trash([shot.id]) }
                 }
                 .buttonStyle(NotchButtonStyle())
             }

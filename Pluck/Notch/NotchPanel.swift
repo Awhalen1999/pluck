@@ -14,6 +14,8 @@ final class NotchPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
         isMovable = false
         hidesOnDeactivate = false
+        // Pluck hides itself to hand focus back after Quick Look; the notch stays.
+        canHide = false
         contentView = FirstClickHostingView(rootView: AnyView(rootView))
     }
 }
