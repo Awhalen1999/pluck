@@ -207,6 +207,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = app.pluck.Pluck;
 				PRODUCT_NAME = Pluck;
 				SDKROOT = macosx;
@@ -398,6 +400,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = app.pluck.Pluck;
 				PRODUCT_NAME = Pluck;
 				SDKROOT = macosx;

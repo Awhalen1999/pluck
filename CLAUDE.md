@@ -87,7 +87,12 @@ PluckTests/
   and the notch surfaces.
 - Motion uses the two Theme springs, one for opening and one for closing. No
   one-off animations.
-- Changes to the system happen in Theme and are reviewed by Alex.
+- Changes to the system happen in Theme and are reviewed by Alex in the Design
+  System window (debug builds: menu bar, Design System…). A new token gets a
+  specimen there in the same change.
+- The notch's text and fills use the native dark hierarchy (`.primary`,
+  `.secondary`, `.tertiary`, `.fill.*`). Color carries meaning only: accent,
+  copied, trashed, pinned.
 
 ## Naming
 
