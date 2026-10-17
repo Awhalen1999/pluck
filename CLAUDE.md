@@ -58,8 +58,13 @@ Before building one, sit in the user's seat:
   - Renaming a shot keeps its pin. An unpinned renamed shot is still cleaned
     up on schedule.
 - Pluck changes the macOS screenshot settings (save location, floating
-  thumbnail) only through the user's choices, snapshots the originals on first
-  launch, and can restore them from About.
+  thumbnail) only through the user's choices. It snapshots the originals once,
+  before changing anything, and every restore puts back exactly that snapshot,
+  including "never set".
+- With Preview set to Pluck, the macOS thumbnail is off while Pluck runs (it
+  would hold each file back for seconds) and comes back on quit. If macOS
+  doesn't take the change, its thumbnail stays and Pluck's Preview steps aside,
+  so there are never two previews.
 - Nothing leaves the Mac. The only network use is Sparkle's update check.
 - Markup opens the shot in Preview. Pluck never builds its own editor.
 

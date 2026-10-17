@@ -7,6 +7,9 @@ import SwiftUI
 @Observable final class NotchController {
     let library: ShotLibrary
     let preferences: Preferences
+    /// Whether new shots open Pluck's Preview. Off when the user chose the macOS
+    /// thumbnail, or macOS wouldn't let Pluck turn its own off.
+    let showsPreview: Bool
 
     private(set) var geometry: NotchGeometry?
     private(set) var feedback: Feedback?
@@ -19,9 +22,10 @@ import SwiftUI
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
     @ObservationIgnored private var monitors: [Any] = []
 
-    init(library: ShotLibrary, preferences: Preferences) {
+    init(library: ShotLibrary, preferences: Preferences, showsPreview: Bool) {
         self.library = library
         self.preferences = preferences
+        self.showsPreview = showsPreview
         panel = NotchPanel(rootView: NotchView(controller: self))
         place()
         watchScreens()
@@ -166,7 +170,8 @@ import SwiftUI
     private func watchLibrary() {
         library.onArrival = { [weak self] shot in
             Thumbnails.prefetch([shot])
-            self?.send(.shotArrived(shot.id))
+            guard let self, showsPreview else { return }
+            send(.shotArrived(shot.id))
         }
         // A Preview whose shot disappears (deleted in Finder, say) closes at once.
         Task { [weak self] in

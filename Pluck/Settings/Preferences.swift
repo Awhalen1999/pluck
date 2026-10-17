@@ -22,6 +22,11 @@ import Foundation
         didSet { defaults.set(showsLatestWhenIdle, forKey: Key.showsLatestWhenIdle) }
     }
 
+    /// "Preview": Pluck's own in the notch, or the macOS floating thumbnail.
+    var preview: PreviewStyle {
+        didSet { defaults.set(preview.rawValue, forKey: Key.preview) }
+    }
+
     /// "Keep the preview up for".
     var previewDuration: PreviewDuration {
         didSet { defaults.set(previewDuration.rawValue, forKey: Key.previewDuration) }
@@ -35,6 +40,7 @@ import Foundation
         removeDraggedOut = defaults.object(forKey: Key.removeDraggedOut) as? Bool ?? true
         opensOnHover = defaults.object(forKey: Key.opensOnHover) as? Bool ?? true
         showsLatestWhenIdle = defaults.object(forKey: Key.showsLatestWhenIdle) as? Bool ?? true
+        preview = defaults.string(forKey: Key.preview).flatMap(PreviewStyle.init) ?? .pluck
         previewDuration = PreviewDuration(rawValue: defaults.double(forKey: Key.previewDuration)) ?? .four
     }
 
@@ -43,8 +49,13 @@ import Foundation
         static let removeDraggedOut = "removeDraggedOut"
         static let opensOnHover = "opensOnHover"
         static let showsLatestWhenIdle = "showsLatestWhenIdle"
+        static let preview = "preview"
         static let previewDuration = "previewDuration"
     }
+}
+
+enum PreviewStyle: String, CaseIterable {
+    case pluck, macOS
 }
 
 enum PreviewDuration: Double, CaseIterable {
