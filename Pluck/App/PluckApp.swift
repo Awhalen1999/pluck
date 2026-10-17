@@ -16,7 +16,8 @@ struct PluckApp: App {
             DesignSystemView()
         }
         .windowResizability(.contentSize)
-        .defaultLaunchBehavior(.suppressed)
+        // `-openDesignSystem YES` opens it at launch, for reviewing without clicking around.
+        .defaultLaunchBehavior(UserDefaults.standard.bool(forKey: "openDesignSystem") ? .presented : .suppressed)
         #endif
     }
 }

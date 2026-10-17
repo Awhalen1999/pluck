@@ -15,35 +15,45 @@ nonisolated struct NotchShape: Shape {
     }
 }
 
-/// What the expanded notch is made of. Both stay pure black level with the
-/// hardware notch, so the two always read as one piece.
-enum NotchMaterial: String, CaseIterable {
-    /// Solid black all the way down.
-    case solid
-    /// Black at the top, fading into translucent dark glass below.
-    case glass
+extension View {
+    /// Puts the view on the notch surface: Liquid Glass, kept pure black level
+    /// with the hardware notch so the two read as one piece. Content is clipped
+    /// to the shape, so nothing shows outside it while it grows or shrinks.
+    func notchSurface(radius: CGFloat) -> some View {
+        let shape = NotchShape(radius: radius)
+        return clipShape(shape)
+            .background {
+                Color.clear
+                    .glassEffect(.regular.tint(Theme.Notch.glassTint), in: shape)
+                    .overlay(alignment: .top) {
+                        LinearGradient(stops: [
+                            .init(color: Theme.Notch.fill, location: 0),
+                            .init(color: Theme.Notch.fill, location: Theme.Notch.headerHeight / (Theme.Notch.headerHeight + Theme.Notch.glassFade)),
+                            .init(color: .clear, location: 1),
+                        ], startPoint: .top, endPoint: .bottom)
+                        .frame(height: Theme.Notch.headerHeight + Theme.Notch.glassFade)
+                    }
+                    .clipShape(shape)
+            }
+    }
+
+    /// Fades content in once the notch has mostly opened. `order` staggers
+    /// siblings, so a row of tiles arrives as a quick cascade.
+    func reveal(order: Int = 0) -> some View {
+        modifier(Reveal(order: order))
+    }
 }
 
-extension View {
-    /// Fills the view with the notch surface, clipped to the notch shape.
-    func notchSurface(radius: CGFloat, material: NotchMaterial) -> some View {
-        background {
-            let shape = NotchShape(radius: radius)
-            switch material {
-            case .solid:
-                shape.fill(Theme.Notch.fill)
-            case .glass:
-                GeometryReader { proxy in
-                    let header = min(1, Theme.Notch.headerHeight / max(proxy.size.height, 1))
-                    shape
-                        .fill(LinearGradient(stops: [
-                            .init(color: Theme.Notch.fill, location: 0),
-                            .init(color: Theme.Notch.fill, location: header),
-                            .init(color: Theme.Notch.fill.opacity(0.8), location: 1),
-                        ], startPoint: .top, endPoint: .bottom))
-                        .background(.ultraThinMaterial, in: shape)
-                }
+private struct Reveal: ViewModifier {
+    let order: Int
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .scaleEffect(shown ? 1 : Theme.Motion.contentScale, anchor: .top)
+            .onAppear {
+                withAnimation(Theme.Motion.contentIn.delay(Double(order) * Theme.Motion.stagger)) { shown = true }
             }
-        }
     }
 }

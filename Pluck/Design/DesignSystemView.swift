@@ -6,8 +6,8 @@ import SwiftUI
 struct DesignSystemView: View {
     static let windowID = "design-system"
 
-    @State private var state: DemoState = .idle
-    @State private var material: NotchMaterial = .glass
+    /// Remembered between openings, and settable at launch: `-designSystem.state Shelf`.
+    @AppStorage("designSystem.state") private var state: DemoState = .idle
 
     var body: some View {
         ScrollView {
@@ -29,20 +29,16 @@ struct DesignSystemView: View {
     // MARK: Notch
 
     private var notchSection: some View {
-        section("Notch", "Growing uses Motion.open; going back to Idle uses Motion.close. The dark band is the hardware notch.") {
-            HStack {
-                Picker("State", selection: Binding(get: { state }, set: { next in
-                    withAnimation(next == .idle ? Theme.Motion.close : Theme.Motion.open) { state = next }
-                })) {
-                    ForEach(DemoState.allCases) { Text($0.rawValue).tag($0) }
-                }
-                Picker("Material", selection: $material) {
-                    ForEach(NotchMaterial.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
-                }
+        section("Notch", "The shape opens with Motion.open and closes with Motion.close. Content waits, then fades in; on close it leaves first.") {
+            Picker("State", selection: Binding(get: { state }, set: { next in
+                withAnimation(next == .idle ? Theme.Motion.close : Theme.Motion.open) { state = next }
+            })) {
+                ForEach(DemoState.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
+            .fixedSize()
 
-            NotchDemoStage(state: state, material: material)
+            NotchDemoStage(state: state)
         }
     }
 
@@ -151,11 +147,14 @@ struct DesignSystemView: View {
 /// be rendered off-screen.
 struct NotchDemoStage: View {
     let state: DemoState
-    let material: NotchMaterial
 
     var body: some View {
         ZStack(alignment: .top) {
             LinearGradient(colors: Demo.wallpaper, startPoint: .topTrailing, endPoint: .bottomLeading)
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous).fill(.white)
+                .frame(width: Theme.Notch.canvas.width / 2, height: Theme.Notch.canvas.height / 2)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.top, Theme.Notch.headerHeight * 2)
             NotchShape(radius: Theme.Notch.idleRadius).fill(Theme.Notch.fill)
                 .frame(width: Theme.Notch.referenceSize.width, height: Theme.Notch.referenceSize.height)
             notch
@@ -166,16 +165,19 @@ struct NotchDemoStage: View {
 
     private var notch: some View {
         ZStack(alignment: .top) {
-            switch state {
-            case .idle: EmptyView()
-            case .peek: peekContent
-            case .preview: previewContent
-            case .shelf: shelfContent
+            Group {
+                switch state {
+                case .idle: EmptyView()
+                case .peek: peekContent
+                case .preview: previewContent
+                case .shelf: shelfContent
+                }
             }
+            .transition(Theme.Motion.contentTransition)
         }
         .padding(.top, Theme.Notch.headerHeight)
         .frame(width: state.size.width, height: state.size.height, alignment: .top)
-        .notchSurface(radius: state == .idle ? Theme.Notch.idleRadius : Theme.Notch.expandedRadius, material: material)
+        .notchSurface(radius: state == .idle ? Theme.Notch.idleRadius : Theme.Notch.expandedRadius)
         .shadow(color: state == .idle ? .clear : Theme.Notch.shadow, radius: Theme.Notch.shadowRadius, y: Theme.Notch.shadowY)
     }
 
@@ -183,11 +185,12 @@ struct NotchDemoStage: View {
         HStack(spacing: Theme.Space.s) {
             ForEach(0..<Theme.Notch.peekTileCount, id: \.self) { i in
                 DemoTile(hue: Demo.hue(i)).frame(width: Theme.Notch.peekTile.width, height: Theme.Notch.peekTile.height)
+                    .reveal(order: i)
             }
             Text("+8").font(Theme.Typography.badge).foregroundStyle(.secondary)
                 .frame(width: Theme.Notch.peekTile.width, height: Theme.Notch.peekTile.height)
+                .reveal(order: Theme.Notch.peekTileCount)
         }
-        .transition(.opacity)
     }
 
     private var previewContent: some View {
@@ -211,19 +214,18 @@ struct NotchDemoStage: View {
             }
         }
         .padding([.horizontal, .bottom], Theme.Space.l)
-        .transition(.opacity)
+        .reveal()
     }
 
     private var shelfContent: some View {
         VStack(alignment: .leading, spacing: Theme.Space.s) {
-            sectionHeader("Pinned", note: "Kept until you unpin")
+            sectionHeader("Pinned", note: "Kept until you unpin").reveal()
             tileRow(hues: 0..<3)
-            sectionHeader("Today", note: nil)
+            sectionHeader("Today", note: nil).reveal(order: 3)
             tileRow(hues: 3..<7)
             tileRow(hues: 7..<11)
         }
         .padding([.horizontal, .bottom], Theme.Space.xl)
-        .transition(.opacity)
     }
 
     private func sectionHeader(_ name: String, note: String?) -> some View {
@@ -237,7 +239,7 @@ struct NotchDemoStage: View {
 
     private func tileRow(hues: Range<Int>) -> some View {
         HStack(spacing: Theme.Space.s) {
-            ForEach(hues, id: \.self) { DemoTile(hue: Demo.hue($0)) }
+            ForEach(hues, id: \.self) { DemoTile(hue: Demo.hue($0)).reveal(order: $0) }
         }
         .frame(height: Theme.Notch.shelfRowHeight)
     }

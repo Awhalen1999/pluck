@@ -95,6 +95,11 @@ PluckTests/
   and the notch surfaces.
 - Motion uses the two Theme springs, one for opening and one for closing. No
   one-off animations.
+- Notch content never runs ahead of the shape: it is clipped to the notch,
+  arrives through `reveal(order:)` once the shape has mostly opened, and leaves
+  through `Motion.contentTransition` before the shape closes.
+- The notch surface is Liquid Glass (`notchSurface(radius:)`), pure black
+  level with the hardware notch.
 - Changes to the system happen in Theme and are reviewed by Alex in the Design
   System window (debug builds: menu bar, Design System…). A new token gets a
   specimen there in the same change.
@@ -190,7 +195,8 @@ Verified on this machine; each one notes how.
 - **Simulating a capture.** The `screencapture` command-line tool tags its
   files the same way ⇧⌘4 does, so `screencapture -x -R 0,0,200,100 <path>`
   lands a real, tagged screenshot without anyone at the keyboard.
-- **Not yet verified:** switching Spaces, full-screen apps, external displays,
+- **Not yet verified:** Liquid Glass inside the borderless notch panel over
+  other apps (it works in a normal window), switching Spaces, full-screen apps, external displays,
   and a cancelled drag (documented as operation 0).
 
 The panel, landing, hover, drag and Quick Look facts were checked with the
