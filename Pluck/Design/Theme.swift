@@ -82,9 +82,10 @@ enum Theme {
     }
 
     enum Drag {
-        /// How far a press must move before it becomes a drag, so a click with a
-        /// slight wobble still counts as a click.
-        static let threshold: CGFloat = 4
+        /// How far a press must move before it becomes a drag. A click on a
+        /// trackpad or mouse can wobble several points and must stay a click;
+        /// a real drag toward another app travels hundreds.
+        static let threshold: CGFloat = 10
         /// The largest the shot under the cursor gets during a drag.
         static let imageSize = CGSize(width: 160, height: 100)
     }
