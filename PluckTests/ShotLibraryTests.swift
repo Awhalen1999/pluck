@@ -63,18 +63,78 @@ import Testing
         #expect(library.names.sorted() == ["Screenshot 2.png", "Screenshot.png"])
     }
 
-    @Test func aCaptureDraggedOutIsNeverSavedButTheDropKeepsItsCopy() throws {
-        try sandbox.addShot("dragged.png", waiting: true)
+    // MARK: Drags
+
+    @Test func aDragCarriesTheShotsOwnFileAndNothingChangesUnderIt() throws {
+        try sandbox.addShot("dragged.png")
+        let library = sandbox.library()
+        library.reconcile()
+
+        let carried = try #require(library.handOff([sandbox.path("dragged.png")])[sandbox.path("dragged.png")])
+
+        #expect(!FileManager.default.fileExists(atPath: sandbox.path("dragged.png")))
+        #expect(FileManager.default.fileExists(atPath: carried.path(percentEncoded: false)))
+        // The folder changing mid-drag doesn't drop it from the Shelf.
+        library.reconcile()
+        #expect(library.names == ["dragged.png"])
+    }
+
+    @Test func aCancelledDragPutsTheFileBack() throws {
+        try sandbox.addShot("waiting.png", waiting: true)
+        try sandbox.addShot("saved.png")
+        let library = sandbox.library()
+        library.reconcile()
+        library.reconcilePending()
+        _ = library.handOff([sandbox.waitingPath("waiting.png"), sandbox.path("saved.png")])
+
+        library.finishHandOff(dropped: false, keeping: [])
+
+        #expect(library.pending.map(\.url.lastPathComponent) == ["waiting.png"])
+        #expect(library.names == ["saved.png"])
+        #expect(FileManager.default.fileExists(atPath: sandbox.waitingPath("waiting.png")))
+        #expect(FileManager.default.fileExists(atPath: sandbox.path("saved.png")))
+    }
+
+    @Test func aDropInAnAppHandsTheShotOffAndSavesNothing() throws {
+        try sandbox.addShot("waiting.png", waiting: true)
         let library = sandbox.library()
         library.reconcilePending()
+        let carried = try #require(library.handOff([sandbox.waitingPath("waiting.png")]).values.first)
 
-        let copy = try #require(library.dragCopy(of: sandbox.waitingPath("dragged.png")))
-        library.letGo(sandbox.waitingPath("dragged.png"))
+        library.finishHandOff(dropped: true, keeping: [])
 
         #expect(library.pending.isEmpty)
         #expect(library.shots.isEmpty)
-        #expect(FileManager.default.fileExists(atPath: copy.path(percentEncoded: false)))
-        #expect(!FileManager.default.fileExists(atPath: sandbox.path("dragged.png")))
+        #expect(!FileManager.default.fileExists(atPath: sandbox.path("waiting.png")))
+        // The app's path still works.
+        #expect(FileManager.default.fileExists(atPath: carried.path(percentEncoded: false)))
+    }
+
+    @Test func aCaptureTheUserKeepsIsSavedAsACopyOnceDropped() throws {
+        try sandbox.addShot("kept.png", waiting: true)
+        let library = sandbox.library()
+        library.reconcilePending()
+        let carried = try #require(library.handOff([sandbox.waitingPath("kept.png")]).values.first)
+
+        library.finishHandOff(dropped: true, keeping: [sandbox.waitingPath("kept.png")])
+
+        #expect(library.pending.isEmpty)
+        #expect(library.names == ["kept.png"])
+        #expect(FileManager.default.fileExists(atPath: carried.path(percentEncoded: false)))
+    }
+
+    @Test func aFileDroppedBackIntoTheFolderIsAShotAgain() throws {
+        try sandbox.addShot("filed.png", waiting: true)
+        let library = sandbox.library()
+        library.reconcilePending()
+        let carried = try #require(library.handOff([sandbox.waitingPath("filed.png")]).values.first)
+
+        // Finder moves the carried file onto the Desktop, as the drop lands.
+        try FileManager.default.moveItem(at: carried, to: sandbox.folder.appending(path: "filed.png"))
+        library.finishHandOff(dropped: true, keeping: [])
+
+        #expect(library.pending.isEmpty)
+        #expect(library.names == ["filed.png"])
     }
 
     @Test func aTrashedCaptureNeverReachesTheFolderUntilUndoSavesIt() throws {
@@ -138,11 +198,12 @@ import Testing
         #expect(library.pending.map(\.url.lastPathComponent) == ["landed.png"])
     }
 
-    @Test func dragCopiesGoAnHourAfterTheDrag() throws {
+    @Test func whatADropLeftInTheHandOffFolderGoesAnHourLater() throws {
         try sandbox.addShot("sent.png")
         let library = sandbox.library()
         library.reconcile()
-        let copy = try #require(library.dragCopy(of: sandbox.path("sent.png")))
+        let copy = try #require(library.handOff([sandbox.path("sent.png")]).values.first)
+        library.finishHandOff(dropped: true, keeping: [])
         let made = copy.deletingLastPathComponent()
         try FileManager.default.setAttributes([.creationDate: testNow], ofItemAtPath: made.path(percentEncoded: false))
 

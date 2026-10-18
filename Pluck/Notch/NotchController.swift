@@ -28,8 +28,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     @ObservationIgnored private var screen: NSScreen?
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
-    /// The shots the drag under way carries copies of, rather than their files.
-    @ObservationIgnored private var carried: [Shot.ID] = []
+    /// Waiting captures in the drag under way that the user keeps once dropped.
+    @ObservationIgnored private var keeping: Set<Shot.ID> = []
     /// Where the pointer was when the arrow keys last moved the focus. Until it
     /// moves, shots scrolling under it don't take the focus back.
     @ObservationIgnored private var pointerAtKeyboardFocus: CGPoint?
@@ -202,22 +202,19 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     // MARK: Dragging
 
-    /// A drag hands shots off: the drop gets a copy and they leave Pluck, unless
-    /// they're pinned or the user keeps what they drag out. A waiting capture
-    /// always goes as a copy, since its file still has to be saved or let go.
+    /// A drag hands shots off: their files go to the drop by way of the hand-off
+    /// folder, and they leave Pluck. Pinned shots, and everything when the user keeps
+    /// what they drag out, go as themselves. A waiting capture always goes by way of
+    /// the hand-off folder, since it isn't saved anywhere yet.
     func beginDrag(_ id: Shot.ID, from view: NSView, event: NSEvent) {
         let shots = targets(id).compactMap(library.shot)
         guard !shots.isEmpty else { return }
         let point = view.convert(event.locationInWindow, from: nil)
-        carried = []
-        let items = shots.map { shot in
-            var url = shot.url
-            if library.isPending(shot.id) || handsOff(shot.id), let copy = library.dragCopy(of: shot.id) {
-                url = copy
-                carried.append(shot.id)
-            }
-            let item = NSDraggingItem(pasteboardWriter: url as NSURL)
-            let image = ShotDragSource.image(for: shot)
+        let images = shots.map { ShotDragSource.image(for: $0) }
+        let away = library.handOff(shots.filter { library.isPending($0.id) || handsOff($0.id) }.map(\.id))
+        keeping = Set(shots.filter { library.isPending($0.id) && !handsOff($0.id) }.map(\.id))
+        let items = zip(shots, images).map { shot, image in
+            let item = NSDraggingItem(pasteboardWriter: (away[shot.id] ?? shot.url) as NSURL)
             item.setDraggingFrame(CGRect(x: point.x - image.size.width / 2, y: point.y - image.size.height / 2,
                                          width: image.size.width, height: image.size.height),
                                   contents: image)
@@ -235,20 +232,10 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         let dropped = !operation.isEmpty
         draggedShots = []
         send(.dragEnded(dropped: dropped))
-        if dropped {
-            // A move is Finder filing the copy in a folder. A waiting capture is
-            // then saved there; a shot in the folder keeps its file, since Finder
-            // may still be asking whether to replace it. An app's drop hands the
-            // shot off, unless the user keeps what they drag out.
-            for id in carried {
-                if library.isPending(id) {
-                    if operation == .move || handsOff(id) { library.letGo(id) } else { library.save([id]) }
-                } else if operation != .move {
-                    library.letGo(id)
-                }
-            }
-        }
-        carried = []
+        // A move is Finder putting the file where the user dropped it: that's where
+        // it's kept. Otherwise an app took it, and a capture the user keeps is saved.
+        library.finishHandOff(dropped: dropped, keeping: operation == .move ? [] : keeping)
+        keeping = []
         followPending()
     }
 

@@ -15,8 +15,8 @@ enum Retention: String, CaseIterable {
 }
 
 enum Cleanup {
-    /// How long a drag's copy outlives the drop, so the app that took it can
-    /// finish reading it.
+    /// How long a file a drag carried into an app outlives the drop, so the app
+    /// can finish reading it.
     static let handOffGrace: TimeInterval = 60 * 60
 
     /// How often cleanup runs while Pluck is open.

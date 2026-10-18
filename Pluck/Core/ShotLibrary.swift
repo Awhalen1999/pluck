@@ -10,7 +10,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
 /// A capture lands in `incoming` first and waits there, pending, while its Preview
 /// shows, as macOS holds one behind its thumbnail. Once the Preview is done with it,
 /// it's saved into `folder`, which stays the source of truth. A drag hands a shot
-/// off instead: the drop gets a copy from `handedOff`, and the shot leaves.
+/// off instead: its file goes to the drop by way of `handedOff`, and it leaves.
 @Observable final class ShotLibrary {
     /// Every screenshot in the folder, newest first.
     private(set) var shots: [Shot] = []
@@ -27,9 +27,12 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
 
     @ObservationIgnored let folder: URL
     @ObservationIgnored let incoming: URL
-    /// Copies the drops got, kept an hour so the app that took one can read it (a
-    /// path dropped in a terminal, say).
+    /// Files drags carried into apps, kept an hour so the app that took one can
+    /// read it (a path dropped in a terminal, say).
     @ObservationIgnored let handedOff: URL
+    /// Shots a drag is carrying, and where their files are meanwhile. They stay
+    /// listed until it ends, so nothing changes under the drag.
+    @ObservationIgnored private var inFlight: [Shot.ID: URL] = [:]
     @ObservationIgnored private let indexURL: URL
     @ObservationIgnored private let preferences: Preferences
     @ObservationIgnored private let now: () -> Date
@@ -130,8 +133,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         }
 
         var index = self.index
-        var current = shots.filter { names.contains($0.url.lastPathComponent) }
-        var gone = shots.filter { !names.contains($0.url.lastPathComponent) }
+        var current = shots.filter { names.contains($0.url.lastPathComponent) || inFlight[$0.id] != nil }
+        var gone = shots.filter { !names.contains($0.url.lastPathComponent) && inFlight[$0.id] == nil }
         let known = Set(current.map(\.url.lastPathComponent))
 
         for name in names.subtracting(known).subtracting(ignored).sorted() where !name.hasPrefix(".") {
@@ -160,7 +163,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
     /// there, a screen recording say, goes straight on to the folder.
     func reconcilePending() {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: incoming.path(percentEncoded: false)) else { return }
-        var current: [Shot] = []
+        var current = pending.filter { inFlight[$0.id] != nil }
         for name in names where !name.hasPrefix(".") {
             let url = incoming.appending(path: name)
             if let shot = pending.first(where: { $0.url == url }) ?? Shot(screenshotAt: url) {
@@ -282,36 +285,43 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         self.index = index
     }
 
-    /// A copy of a shot for a drag to carry. APFS clones it, so it's free.
-    func dragCopy(of id: Shot.ID) -> URL? {
-        guard let shot = shot(id) else { return nil }
-        let folder = handedOff.appending(path: UUID().uuidString)
-        let copy = folder.appending(path: shot.url.lastPathComponent)
-        do {
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try FileManager.default.copyItem(at: shot.url, to: copy)
-            return copy
-        } catch {
-            log.error("Couldn't copy \(shot.url.lastPathComponent) for a drag: \(error)")
-            return nil
+    /// Moves shots' files into the hand-off folder for a drag to carry, returning
+    /// where each one is now.
+    // ponytail: a crash mid-drag strands the file there, and cleanup deletes it an hour on; record flights on disk if that ever shows up.
+    func handOff(_ ids: [Shot.ID]) -> [Shot.ID: URL] {
+        var carried: [Shot.ID: URL] = [:]
+        for shot in anywhere(ids) {
+            let url = handedOff.appending(path: UUID().uuidString).appending(path: shot.url.lastPathComponent)
+            do {
+                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try FileManager.default.moveItem(at: shot.url, to: url)
+            } catch {
+                log.error("Couldn't hand off \(shot.url.lastPathComponent): \(error)")
+                continue
+            }
+            carried[shot.id] = url
         }
+        inFlight.merge(carried) { $1 }
+        return carried
     }
 
-    /// Removes a shot whose copy went out with a drag. Not to the Trash: the drop
-    /// has it.
-    func letGo(_ id: Shot.ID) {
-        guard let shot = shot(id) else { return }
-        do {
-            try FileManager.default.removeItem(at: shot.url)
-        } catch {
-            log.error("Couldn't remove \(shot.url.lastPathComponent): \(error)")
-            return
+    /// The drag ended. A cancelled one puts the files back. A drop has them: the
+    /// shots leave, and a file the drop left in the hand-off folder stays its hour.
+    /// `keeping` are waiting captures the user keeps, saved as a copy.
+    func finishHandOff(dropped: Bool, keeping: Set<Shot.ID>) {
+        let flights = inFlight
+        inFlight = [:]
+        for (id, url) in flights {
+            guard let home = shot(id)?.url else { continue }
+            if !dropped {
+                try? FileManager.default.moveItem(at: url, to: availableURL(for: home.lastPathComponent, in: home.deletingLastPathComponent()))
+                try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+            } else if keeping.contains(id) {
+                try? FileManager.default.copyItem(at: url, to: availableURL(for: home.lastPathComponent, in: folder))
+            }
         }
-        var index = self.index
-        index.forget(id)
-        self.index = index
-        pending.removeAll { $0.id == id }
-        shots.removeAll { $0.id == id }
+        reconcile()
+        reconcilePending()
     }
 
     func revealInFinder(_ ids: [Shot.ID]) {
@@ -325,18 +335,18 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         NSWorkspace.shared.open([shot.url], withApplicationAt: preview, configuration: NSWorkspace.OpenConfiguration())
     }
 
-    /// Trashes whatever `Cleanup.expired` says has expired, and drops drag copies
-    /// an hour old. It never replaces the user's own undo.
+    /// Trashes whatever `Cleanup.expired` says has expired, and deletes what drags
+    /// left in the hand-off folder an hour ago. It never replaces the user's own undo.
     func cleanUp() {
         let expired = Cleanup.expired(shots, index: index, retention: preferences.retention, now: now())
         // Check the tag again right before trashing, in case the file was swapped.
         let ids = expired.filter { Shot.isScreenshot($0.url) }.map(\.id)
         if !ids.isEmpty { _ = discard(ids) }
 
-        let copies = (try? FileManager.default.contentsOfDirectory(at: handedOff, includingPropertiesForKeys: [.creationDateKey])) ?? []
-        for copy in copies {
-            let made = (try? copy.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
-            if now().timeIntervalSince(made) >= Cleanup.handOffGrace { try? FileManager.default.removeItem(at: copy) }
+        let left = (try? FileManager.default.contentsOfDirectory(at: handedOff, includingPropertiesForKeys: [.creationDateKey])) ?? []
+        for folder in left {
+            let made = (try? folder.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+            if now().timeIntervalSince(made) >= Cleanup.handOffGrace { try? FileManager.default.removeItem(at: folder) }
         }
     }
 

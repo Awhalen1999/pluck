@@ -48,19 +48,25 @@ Before building one, sit in the user's seat:
 - Pluck only touches files tagged as screenshots (see Platform facts). Every
   other file in the folder is left alone.
 - Removing a shot always means `FileManager.trashItem`, never a delete, so
-  Finder's Put Back works. The exception is a drag, which hands a shot off.
+  Finder's Put Back works. The one exception is the hand-off folder: what a drag
+  left there is deleted after an hour.
 - A capture waits for its Preview, as one waits behind the macOS thumbnail.
   macOS saves it into Pluck's holding folder (Application Support/Pluck/
   Incoming), and it reaches the user's folder only once the Preview is done
   with it: acted on, its time up, the Shelf opened, or Pluck quitting. Trashed
   or moved, it goes straight there and never touches the user's folder.
   Anything left waiting by a crash is saved at the next launch.
-- A drag hands shots off. The drop gets a copy from Pluck's temporary folder,
-  kept an hour so the app can read it (a path dropped in a terminal still
-  works), and the shot leaves Pluck: a waiting capture is never saved, a saved
-  one is removed. Pinned shots, and everything when the user keeps what they
-  drag out, stay. Dropped into a Finder folder, a waiting capture is saved
-  there, and a saved shot keeps its file (Finder may be asking to replace it).
+- A drag hands shots off, by one rule: the shot's own file moves into Pluck's
+  hand-off folder (in the temporary folder) for the drag, and the drop gets it.
+  - Into a Finder folder, Finder moves it there, like any file, and that's
+    where it's kept. One file, no "replace?", even dropped back on the Desktop.
+  - Into an app, it stays in the hand-off folder an hour, so the app can read it
+    (a path dropped in a terminal still works), and the shot leaves Pluck.
+  - A cancelled drag moves it back. Nothing changes under a drag: the shot
+    stays listed while its file is away.
+  - Pinned shots, and saved shots when the user keeps what they drag out, go
+    as themselves. A waiting capture the user keeps is saved as a copy once
+    dropped into an app.
 - Cleanup rules (approved by Alex):
   - Pinned shots are always kept. There is no setting to turn that off.
   - Shots taken before Pluck's first launch are never removed automatically.
@@ -336,9 +342,9 @@ Verified on this machine; each one notes how.
 - **`Optional.take()`.** On an implicitly unwrapped optional, `x.take()` calls
   the standard library's `Optional.take()`, which returns the value and sets
   `x` to nil. Long-lived collaborators are plain `let`s.
-- **A drag's copy.** `FileManager.copyItem` clones on APFS, so the copy in the
-  temp folder is free. Finder moves it (operation 16); TextEdit copies (1).
-  (Checked 2026-10-18.)
+- **Drop operations.** Finder moves a dragged file within a disk (operation 16);
+  TextEdit copies (1). `FileManager.copyItem` clones on APFS, so a kept
+  capture's copy is free. (Checked 2026-10-18.)
 - **The save location takes at once.** Writing `location` through
   `CFPreferences` sends the next capture there, with no restart, ⇧⌘3 included
   (one file per display). (Checked 2026-10-18.)
@@ -354,7 +360,11 @@ Verified on this machine; each one notes how.
   card, 2026-10-18.)
 - **Finder asks before replacing.** A file dropped into a folder that has one
   of the same name gets Finder's Keep Both / Stop / Replace prompt, and the drag
-  has already ended with `.move` by then.
+  has already ended with `.move` by then. Hence drags carry the shot's own
+  file: there's never a second one of the same name.
+- **TextEdit accepts, then asks.** Dropped into a plain-text document, TextEdit
+  ends the drag as a copy, then asks whether to convert the document. Cancel
+  there doesn't undo the drop.
 - **Not yet verified:** switching Spaces, full-screen apps.
 
 The panel, landing, hover, drag and Quick Look facts were checked with the
