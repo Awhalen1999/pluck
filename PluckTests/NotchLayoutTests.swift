@@ -1,4 +1,4 @@
-import CoreGraphics
+import AppKit
 import Foundation
 import SwiftUI
 import Testing
@@ -111,6 +111,15 @@ private let gap = Theme.Space.s
 
     let hidden = NotchLayout.frame(for: .idle, content: NotchLayout.Content(shots: [shot("a")], showsLatest: false), notch: notch)
     #expect(hidden.size == notch)
+}
+
+@Test func peeksHeaderFitsAShotsDetailBesideTheCamera() {
+    let peek = NotchLayout.frame(for: .peek, content: NotchLayout.Content(shots: [shot("only")]), notch: notch)
+    // An ear, less its outer padding and the gap beside the camera housing.
+    let ear = (peek.size.width - notch.width) / 2 - Theme.Space.l - Theme.Space.m
+    let font = NSFont.preferredFont(forTextStyle: .subheadline)
+    let longest = ("12:59 PM · 5120 × 2880" as NSString).size(withAttributes: [.font: font]).width
+    #expect(longest <= ear)
 }
 
 @Test func thePreviewIsTallEnoughToShowTheWholeShot() {

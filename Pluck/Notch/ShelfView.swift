@@ -1,8 +1,7 @@
 import SwiftUI
 
 /// Every shot, pinned first and then by day. Clicking a shot copies it and the
-/// Shelf stays open; it closes on a click anywhere else. It has the keyboard
-/// while it's open; see `NotchController.handleKey`.
+/// Shelf stays open. It has the keyboard while it's open; see `ShelfKey`.
 struct ShelfView: View {
     let controller: NotchController
     let notchWidth: CGFloat
@@ -60,7 +59,7 @@ struct ShelfView: View {
                         guard controller.focusFollowsKeyboard, let id,
                               let row = sections.lazy.flatMap(\.rows).first(where: { $0.tiles.contains { $0.id == id } })
                         else { return }
-                        withAnimation(Theme.Motion.hover) { proxy.scrollTo(row.id) }
+                        proxy.scrollTo(row.id)
                     }
                 }
             }

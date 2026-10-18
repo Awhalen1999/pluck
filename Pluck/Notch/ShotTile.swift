@@ -15,10 +15,9 @@ struct ShotImage: View {
                     Image(decorative: image, scale: 1)
                         .resizable()
                         .aspectRatio(contentMode: fits ? .fit : .fill)
-                        // Filling scales a very wide or tall image past its frame
-                        // before it's clipped, and clipping doesn't trim where it
-                        // can be hit. It never takes the pointer, so the overflow
-                        // can't steal presses from the tiles beside it.
+                        // A filled image overflows its frame, and clipping doesn't
+                        // trim hit-testing: the overflow would take presses meant
+                        // for the tiles beside it.
                         .allowsHitTesting(false)
                 }
             }
@@ -27,15 +26,13 @@ struct ShotImage: View {
     }
 }
 
-/// A shot in Peek or the Shelf. Click copies it, double-click opens Quick Look,
-/// right-click shows its menu, and it drags straight into other apps. It lifts
-/// while it has the focus (under the pointer, or reached with the arrow keys),
-/// presses in under a click, and is ringed in the accent while selected.
+/// A shot in Peek or the Shelf: click copies, ⌘-click selects (in the Shelf),
+/// double-click opens Quick Look, and it drags into other apps. Ringed while it
+/// has the focus, in the accent while selected.
 struct ShotTile: View {
     let shot: Shot
     let size: CGSize
     let controller: NotchController
-    @State private var pressed = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
@@ -63,31 +60,16 @@ struct ShotTile: View {
             .overlay {
                 ShotInteraction(onClick: { controller.clicked(shot.id, modifiers: $0) },
                                 onDoubleClick: { controller.quickLook(shot.id) },
-                                onPress: { pressed = $0 },
                                 onDrag: { controller.beginDrag(shot.id, from: $0, event: $1) },
-                                menu: { controller.menu(for: shot.id) },
-                                register: { controller.register($0, for: shot.id) })
+                                menu: { controller.menu(for: shot.id) })
             }
-            .scaleEffect(pressed ? Theme.Tile.pressScale : focused ? Theme.Tile.hoverScale : 1)
             .opacity(controller.draggedShots.contains(shot.id) ? Theme.Tile.draggedOpacity : 1)
-            .animation(Theme.Motion.hover, value: focused)
-            .animation(Theme.Motion.hover, value: selected)
-            .animation(Theme.Motion.hover, value: pressed)
             .onHover { controller.hover(shot.id, $0) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Screenshot, \(shot.detail)")
             .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
             .accessibilityHint("Copies it")
             .accessibilityAction { controller.copy([shot.id]) }
-    }
-}
-
-/// Presses in slightly, so a click is felt the instant it lands.
-struct PressableStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? Theme.Tile.pressScale : 1)
-            .animation(Theme.Motion.hover, value: configuration.isPressed)
     }
 }
 
@@ -103,15 +85,13 @@ private struct NotchButton: View {
     @State private var hovered = false
 
     var body: some View {
+        let fill: AnyShapeStyle = configuration.isPressed ? AnyShapeStyle(.fill)
+            : hovered ? AnyShapeStyle(.fill.secondary) : AnyShapeStyle(.fill.tertiary)
         configuration.label
             .font(Theme.Typography.label)
             .frame(maxWidth: .infinity, minHeight: Theme.Notch.controlHeight)
-            .background(hovered ? AnyShapeStyle(.fill.secondary) : AnyShapeStyle(.fill.tertiary),
-                        in: .rect(cornerRadius: Theme.Radius.control, style: .continuous))
+            .background(fill, in: .rect(cornerRadius: Theme.Radius.control, style: .continuous))
             .contentShape(.rect)
-            .scaleEffect(configuration.isPressed ? Theme.Tile.pressScale : 1)
-            .animation(Theme.Motion.hover, value: configuration.isPressed)
-            .animation(Theme.Motion.hover, value: hovered)
             .onHover { hovered = $0 }
     }
 }

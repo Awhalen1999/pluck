@@ -48,7 +48,10 @@ Before building one, sit in the user's seat:
 - Pluck only touches files tagged as screenshots (see Platform facts). Every
   other file in the folder is left alone.
 - Removing a shot always means `FileManager.trashItem`, never a delete, so
-  Finder's Put Back works.
+  Finder's Put Back works. The one exception: a shot dragged off the Preview
+  goes with the drop, as one dragged off the macOS thumbnail does. The drag
+  carries a copy outside the folder, so the drop keeps it (a path dropped in a
+  terminal still works), and the original is removed once the drop lands.
 - Cleanup rules (approved by Alex):
   - Pinned shots are always kept. There is no setting to turn that off.
   - Shots taken before Pluck's first launch are never removed automatically.
@@ -67,6 +70,8 @@ Before building one, sit in the user's seat:
   so there are never two previews.
 - Nothing leaves the Mac. The only network use is Sparkle's update check.
 - Markup opens the shot in Preview. Pluck never builds its own editor.
+- The notch stays on the display chosen in "Show on". A Preview appears there,
+  whichever display the screenshot was taken on.
 
 ## The notch state contract
 
@@ -78,8 +83,8 @@ its timer.
 |---------|------------------------------------------|------------------------------------------------------------|
 | Idle    | default                                  | hover → Peek, click → Shelf, new shot → Preview            |
 | Peek    | hovering the notch past the intent delay | pointer leaves (after a grace period) → Idle, click → Shelf, new shot → Preview |
-| Shelf   | a click on the notch, or "+N" in Peek    | click outside or switching apps, Esc or ⌘W, Return (copies) → Idle |
-| Preview | a new screenshot, from Idle or Peek      | its timer ends, or acting on it → Idle; click → Shelf      |
+| Shelf   | a click on the notch, or "+N" in Peek    | click outside or switching apps, Esc or ⌘W, Return (copies) → Idle; new shot → Preview |
+| Preview | a new screenshot, from any state         | its timer ends, or acting on it → Idle; click → Shelf; new shot → its Preview |
 
 - A click on the notch itself opens the Shelf from any state. A click on a shot
   copies it; buttons do what they say.
@@ -116,7 +121,8 @@ its timer.
 - ⌘-click selects in the Shelf. While there's a selection, keys, the menu and
   drags act on all of it. A plain click clears it and copies that one shot. The
   selection belongs to the Shelf and goes when it closes.
-- A shot taken while the Shelf is open lands in the Shelf; it does not interrupt.
+- A new shot always opens its Preview, from any state. Only a drag holds it
+  back: nothing changes under a drag.
 - During a drag the notch steps aside, and comes back if the drag returns.
 
 Adding a state or a transition means updating this table first.
@@ -127,7 +133,7 @@ Adding a state or a transition means updating this table first.
 Pluck/
   App/         entry point, menu bar item, window wiring
   Core/        shots, folder watching, index, cleanup, macOS settings (no SwiftUI)
-  Notch/       the notch panel, NotchController, and its views
+  Notch/       the notch: its panel, state machine, controller, input, views
   Settings/    Preferences and the Settings window
   Onboarding/  first-run flow
   Design/      Theme: every token the UI uses
@@ -150,17 +156,19 @@ PluckTests/
   fine).
 - System fonts and semantic colors first. Custom colors only for the brand accent
   and the notch surfaces.
-- Motion uses the two Theme springs, one for opening and one for closing. No
-  one-off animations.
+- The shape has one animation, keyed to its frame: it springs open when it
+  grows and settles when it shrinks, whatever changed it. Nothing else in the
+  notch animates on its own; hovers, presses and selection change at once.
 - Notch content moves as one piece with the shape: it's clipped to the notch
   and enters through `Motion.contentTransition` on the shape's own spring. No
   delays, no per-element staggers; nothing should make the user wait on an
-  animation. It leaves quickly, before the shape closes.
-- The notch surface is Liquid Glass (`notchSurface(radius:)`), pure black
-  level with the hardware notch.
-- Changes to the system happen in Theme and are reviewed by Alex in the Design
-  System window (debug builds: menu bar, Design System…). A new token gets a
-  specimen there in the same change.
+  animation. It leaves quickly, before the shape shrinks.
+- The notch is plain black (`NotchShape`). Hanging from a notched screen, its
+  top corners flare out into the edge, so it reads as the hardware notch grown;
+  elsewhere it floats, rounded all round. No glass, no shadow.
+- Tokens are reviewed in the Design System window (debug builds: menu bar,
+  Design System…); the notch itself is reviewed live. A new visual token gets
+  a specimen there in the same change.
 - The notch's text and fills use the native dark hierarchy (`.primary`,
   `.secondary`, `.tertiary`, `.fill.*`). Color carries meaning only: accent,
   copied, trashed, pinned.
@@ -303,10 +311,21 @@ Verified on this machine; each one notes how.
 - **Drop destinations choose the operation.** Offer copy, move and generic, as
   Finder does. TextEdit and others refuse a file drop unless generic is
   offered; Finder moves within a disk.
-- **Liquid Glass works in the notch panel** over other apps' windows. (Checked
-  with a live Preview over a terminal, 2026-10-17.)
-- **Not yet verified:** switching Spaces, full-screen apps, external displays,
-  and a cancelled drag (documented as operation 0).
+- **Two changes in one update animate apart.** When the library's shots change
+  (no animation) and the state changes in an animated transaction in the same
+  update, SwiftUI applies the first at once and animates from there: the Shelf
+  jumped to fit a new shot before shrinking into its Preview. So the shape's
+  animation hangs off its frame (`.animation(_:value: frame)`), never off events.
+- **A scale animation on a clipped image smears.** Animating `scaleEffect` on a
+  tile whose filled image is clipped drew the image shifted sideways for a few
+  frames as the hover ended. Tiles don't scale.
+- **`Optional.take()`.** On an implicitly unwrapped optional, `x.take()` calls
+  the standard library's `Optional.take()`, which returns the value and sets
+  `x` to nil. Long-lived collaborators are plain `let`s.
+- **A drag off the Preview.** `FileManager.copyItem` clones on APFS, so the
+  drag's copy in the temp folder is free. Finder moves it (operation 16);
+  TextEdit copies (1). (Checked 2026-10-18.)
+- **Not yet verified:** switching Spaces, full-screen apps.
 
 The panel, landing, hover, drag and Quick Look facts were checked with the
 throwaway app on `spike/platform`, 2026-10-17.

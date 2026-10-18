@@ -1,24 +1,20 @@
 import AppKit
 import SwiftUI
 
-/// The mouse on a shot: click, double-click, right-click and drag. Done in
-/// AppKit because SwiftUI's drag never says how a drag ended, and the drag-out
-/// cleanup depends on knowing a shot really landed in another app.
+/// The mouse on a shot: click, double-click, right-click and drag. AppKit,
+/// because SwiftUI's drag never says how a drag ended, and what happens to the
+/// file depends on it.
 struct ShotInteraction: NSViewRepresentable {
     var onClick: (NSEvent.ModifierFlags) -> Void
     /// Nil where a double-click would make every single click wait.
     var onDoubleClick: (() -> Void)?
-    var onPress: (Bool) -> Void
     var onDrag: (NSView, NSEvent) -> Void
     var menu: () -> NSMenu
-    /// Lets Quick Look zoom from this view.
-    var register: (NSView) -> Void
 
     func makeNSView(context: Context) -> ShotInteractionView { ShotInteractionView() }
 
     func updateNSView(_ view: ShotInteractionView, context: Context) {
         view.handlers = self
-        register(view)
     }
 }
 
@@ -34,7 +30,6 @@ final class ShotInteractionView: NSView {
             return
         }
         press = event
-        handlers?.onPress(true)
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -43,14 +38,12 @@ final class ShotInteractionView: NSView {
         let now = event.locationInWindow
         guard hypot(now.x - start.x, now.y - start.y) >= Theme.Drag.threshold else { return }
         self.press = nil
-        handlers?.onPress(false)
         handlers?.onDrag(self, event)
     }
 
     override func mouseUp(with event: NSEvent) {
         guard press != nil else { return }
         press = nil
-        handlers?.onPress(false)
         if event.clickCount >= 2, let onDoubleClick = handlers?.onDoubleClick {
             onDoubleClick()
         } else if event.clickCount == 1 {
@@ -61,16 +54,13 @@ final class ShotInteractionView: NSView {
     override func menu(for event: NSEvent) -> NSMenu? { handlers?.menu() }
 }
 
-/// Hands shots to other apps by drag, and reports where the drag is and how it
-/// ended.
+/// Reports where a drag of shots is and how it ended.
 final class ShotDragSource: NSObject, NSDraggingSource {
     var moved: (NSPoint) -> Void = { _ in }
     var ended: (NSDragOperation) -> Void = { _ in }
 
-    /// Every operation a file drag from Finder offers, and the destination picks:
-    /// chat apps and editors copy (some say "generic"), Finder moves within a
-    /// disk, so dropping a shot on its own Desktop doesn't duplicate it, and ⌥
-    /// still forces a copy.
+    /// What Finder offers for a file, and the destination picks: editors and chat
+    /// apps copy (TextEdit only takes generic), Finder moves within a disk.
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         [.copy, .move, .generic]
     }
@@ -97,8 +87,8 @@ final class ShotDragSource: NSObject, NSDraggingSource {
     }
 }
 
-/// A menu item that runs a closure, so menus can be built inline. The shortcut
-/// is only shown, as context menus show them.
+/// A menu item that runs a closure. The shortcut is only shown, as context
+/// menus show them.
 func menuItem(_ title: String, key: String = "", _ handler: @escaping () -> Void) -> NSMenuItem {
     let action = MenuAction(handler)
     let item = NSMenuItem(title: title, action: #selector(MenuAction.run), keyEquivalent: key)

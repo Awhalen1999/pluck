@@ -1,13 +1,11 @@
 import SwiftUI
 
 /// The screenshot you just took, whole, with what you'd do next. Acting on it
-/// finishes it: the notch closes with a confirmation. Hovering holds it open,
-/// and the shot drags straight into other apps.
+/// finishes it, hovering holds it open, and dragging it out takes it with you.
 struct PreviewView: View {
     let shot: Shot
     let controller: NotchController
     let notchWidth: CGFloat
-    @State private var pressed = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,14 +24,10 @@ struct PreviewView: View {
                         // No double-click here: a click copies and closes at once.
                         ShotInteraction(onClick: { _ in controller.copy([shot.id]) },
                                         onDoubleClick: nil,
-                                        onPress: { pressed = $0 },
                                         onDrag: { controller.beginDrag(shot.id, from: $0, event: $1) },
-                                        menu: { controller.menu(for: shot.id) },
-                                        register: { controller.register($0, for: shot.id) })
+                                        menu: { controller.menu(for: shot.id) })
                     }
-                    .scaleEffect(pressed ? Theme.Tile.pressScale : 1)
                     .opacity(controller.draggedShots.contains(shot.id) ? Theme.Tile.draggedOpacity : 1)
-                    .animation(Theme.Motion.hover, value: pressed)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("Screenshot, \(shot.detail)")
                     .accessibilityAddTraits(.isButton)

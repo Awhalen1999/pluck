@@ -126,11 +126,22 @@ private struct Driver {
     #expect(d.state == .idle)
 }
 
-@Test func aShotTakenWhileTheShelfIsOpenDoesNotInterrupt() {
-    var d = Driver()
-    d.send(.clicked)
-    d.send(.shotArrived("/new.png"))
-    #expect(d.state == .shelf)
+@Test func aNewShotShowsItsPreviewFromAnyStateButADrag() {
+    var shelf = Driver()
+    shelf.send(.clicked)
+    shelf.send(.shotArrived("/new.png"))
+    #expect(shelf.state == .preview("/new.png"))
+
+    var peek = Driver()
+    peek.openPeek()
+    peek.send(.shotArrived("/new.png"))
+    #expect(peek.state == .preview("/new.png"))
+
+    var dragging = Driver()
+    dragging.send(.clicked)
+    dragging.send(.dragStarted)
+    dragging.send(.shotArrived("/new.png"))
+    #expect(dragging.state == .shelf)
 }
 
 // MARK: Preview

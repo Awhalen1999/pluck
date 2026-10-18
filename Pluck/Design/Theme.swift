@@ -1,13 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Pluck's design system. Every value the UI uses lives here; views never
-/// hard-code a number or a color. Changes are reviewed by Alex, in the Design
-/// System window (debug builds, from the menu bar).
-///
-/// The notch is always dark, whatever the system appearance. Its views run in
-/// the dark color scheme and use SwiftUI's native hierarchy (`.primary`,
-/// `.secondary`, `.tertiary`) for text and fills, so they read as macOS.
+/// Every value the UI uses. The notch is always dark: its views run in the dark
+/// color scheme and use the native hierarchy (`.primary`, `.fill.tertiary`).
 enum Theme {
     /// Spacing. Mostly 4 pt steps, with 2 and 6 for tight spots.
     enum Space {
@@ -57,63 +52,47 @@ enum Theme {
         /// Closing: quick, and settles without overshoot.
         static let close = Animation.smooth(duration: 0.32)
 
-        /// Content leaves before the notch closes, so it's never squeezed.
+        /// Content leaves before the shape shrinks, so it's never squeezed.
         static let contentOut = Animation.easeOut(duration: 0.08)
-        /// How content enters and leaves the notch. It arrives as one piece on the
-        /// shape's own spring, blurring into focus, so it never waits for the shape
-        /// or trails behind it. It leaves quickly, before the shape closes.
+        /// Content arrives as one piece on the shape's own spring, blurring into
+        /// focus, and leaves quickly.
         static var contentTransition: AnyTransition {
             reduceMotion ? .opacity : .asymmetric(insertion: AnyTransition(.blurReplace),
                                                   removal: .opacity.animation(contentOut))
         }
 
-        /// Small responses to the pointer, like a tile lifting under it.
-        static let hover = Animation.smooth(duration: 0.18)
-
-        /// Under Reduce Motion, everything becomes a quick fade.
         static let reduced = Animation.easeInOut(duration: 0.15)
 
-        /// The animation for the notch changing shape: opening, or settling closed.
-        static func reshape(opening: Bool) -> Animation {
-            reduceMotion ? reduced : opening ? open : close
+        /// A shape that grows springs open; one that shrinks settles without overshoot.
+        static func reshape(growing: Bool) -> Animation {
+            reduceMotion ? reduced : growing ? open : close
         }
 
         private static var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
     }
 
     enum Drag {
-        /// How far a press must move before it becomes a drag. A click on a
-        /// trackpad or mouse can wobble several points and must stay a click;
-        /// a real drag toward another app travels hundreds.
+        /// A click can wobble several points on a trackpad and must stay a click.
         static let threshold: CGFloat = 10
         /// The largest the shot under the cursor gets during a drag.
         static let imageSize = CGSize(width: 160, height: 100)
     }
 
-    /// How long the notch waits, and for what. Each one exists to read intent;
-    /// nothing here should ever make the user wait on an animation.
+    /// Intent filters. None of these is ever a wait on an animation.
     enum Timing {
-        /// Hovering this long opens Peek, so a pointer passing by on its way to a
-        /// menu doesn't open anything.
+        /// Resting on the notch this long opens Peek.
         static let hoverIntent: TimeInterval = 0.13
-        /// Over the idle notch, a pointer moving faster than this, in points a
-        /// second, is passing over (along the menu bar, say), not arriving, and
-        /// the hover delay starts again.
+        /// Points a second. Faster than this over the notch is passing over it,
+        /// along the menu bar say, and the hover delay starts again.
         static let passingSpeed: CGFloat = 300
-        /// Peek stays this long after the pointer leaves, so a small overshoot
-        /// doesn't close it.
+        /// Peek survives a small overshoot.
         static let leaveGrace: TimeInterval = 0.2
-        /// A Preview the pointer held open stays at least this long once it leaves.
+        /// A Preview the pointer held never vanishes the moment it leaves.
         static let previewResumeMinimum: TimeInterval = 1
-        /// How long feedback shows. Long enough to read; longer when it offers Undo.
         static let feedback: TimeInterval = 1.8
         static let feedbackWithUndo: TimeInterval = 4.2
-        /// How often the pointer is sampled: while the notch is open, and at rest.
-        /// Fast enough that the notch takes a click the moment the pointer is on it.
         static let pointerOpen: TimeInterval = 1.0 / 30
         static let pointerAtRest: TimeInterval = 1.0 / 10
-        /// Long enough for the closing spring to finish before anything moves.
-        static let settle: TimeInterval = 0.4
     }
 
     enum Tile {
@@ -121,24 +100,23 @@ enum Theme {
         static let ringWidth: CGFloat = 0.5
         static let hoverRing = Color.white.opacity(0.5)
         static let hoverRingWidth: CGFloat = 1
-        static let hoverScale: CGFloat = 1.03
+        static let selectedRingWidth: CGFloat = 2
         /// A shot being dragged, where it came from.
         static let draggedOpacity = 0.35
-        /// How far a tile or button presses in under a click.
-        static let pressScale: CGFloat = 0.97
-        static let selectedRingWidth: CGFloat = 2
-        /// Thumbnails crop to fill their tile, but a screenshot's shape is kept
-        /// within these limits so very tall or wide ones still read.
+        /// Thumbnails crop to fill their tile, within these aspect ratios.
         static let aspectRange: ClosedRange<CGFloat> = 0.6...2.6
     }
 
     enum Notch {
-        /// The panel's fixed size, big enough for the largest state (the Shelf).
+        /// The panel's fixed size, big enough for the Shelf and its flares.
         static let canvas = CGSize(width: 720, height: 640)
-        /// Bottom corner radius of the idle notch, matched to the hardware notch.
+        /// Bottom corners: the idle radius matches the hardware notch.
         static let idleRadius: CGFloat = 10
-        /// Bottom corner radius of every expanded state: Peek, Preview, Shelf.
         static let expandedRadius: CGFloat = 24
+        /// How far the top corners flare out into the screen's top edge, so the
+        /// notch grows out of the hardware one.
+        static let idleFlare: CGFloat = 6
+        static let expandedFlare: CGFloat = 12
         /// The band level with the hardware notch. Expanded content starts below it.
         static let headerHeight: CGFloat = 36
         /// Buttons and info rows inside the notch.
@@ -163,8 +141,9 @@ enum Theme {
         /// The idle notch's right ear while it shows feedback.
         static let feedbackEarWidth: CGFloat = 96
         static let feedbackUndoEarWidth: CGFloat = 136
-        /// The narrowest an expanded notch's ears get, beside the hardware notch.
-        static let minExpandedEar: CGFloat = 88
+        /// Wide enough for the header's longest line, a shot's time and size
+        /// (about 126 pt), clear of the camera housing.
+        static let minExpandedEar: CGFloat = 148
 
         static let peekTile = CGSize(width: 72, height: 45)
         static let peekTileCount = 6
@@ -180,13 +159,5 @@ enum Theme {
         static let shelfMaxHeight: CGFloat = 600
 
         static let fill = Color.black
-        /// Darkens the glass so white text stays readable over bright windows.
-        static let glassTint = Color.black.opacity(0.55)
-        /// How far below the header the black fades into glass.
-        static let glassFade: CGFloat = 40
-        /// The expanded notch's shadow over the desktop.
-        static let shadow = Color.black.opacity(0.5)
-        static let shadowRadius: CGFloat = 30
-        static let shadowY: CGFloat = 16
     }
 }

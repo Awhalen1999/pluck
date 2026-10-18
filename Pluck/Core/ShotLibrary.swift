@@ -227,6 +227,40 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         self.index = index
     }
 
+    /// A copy of the shot outside the folder, for a drag off the Preview. Like
+    /// macOS's own thumbnail, the Preview doesn't keep a shot dragged off it: the
+    /// drop gets the copy, which outlives it (a path dropped in a terminal still
+    /// works), and `letGo` removes the original. APFS clones it, so it's free.
+    func dragCopy(of id: Shot.ID) -> URL? {
+        guard let shot = shots(withIDs: [id]).first else { return nil }
+        let folder = URL.temporaryDirectory.appending(path: "Pluck/\(UUID().uuidString)")
+        let copy = folder.appending(path: shot.url.lastPathComponent)
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: shot.url, to: copy)
+            return copy
+        } catch {
+            log.error("Couldn't copy \(shot.url.lastPathComponent) for a drag: \(error)")
+            return nil
+        }
+    }
+
+    /// Removes a shot whose copy went out with a drag. Not to the Trash: the drop
+    /// has it.
+    func letGo(_ id: Shot.ID) {
+        guard let shot = shots(withIDs: [id]).first else { return }
+        do {
+            try FileManager.default.removeItem(at: shot.url)
+        } catch {
+            log.error("Couldn't remove \(shot.url.lastPathComponent): \(error)")
+            return
+        }
+        var index = self.index
+        index.forget(id)
+        self.index = index
+        shots.removeAll { $0.id == id }
+    }
+
     func revealInFinder(_ ids: [Shot.ID]) {
         NSWorkspace.shared.activateFileViewerSelecting(shots(withIDs: ids).map(\.url))
     }

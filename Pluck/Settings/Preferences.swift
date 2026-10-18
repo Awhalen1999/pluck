@@ -22,8 +22,7 @@ import Foundation
         didSet { defaults.set(showsLatestWhenIdle, forKey: Key.showsLatestWhenIdle) }
     }
 
-    /// "Show on": which display the notch lives on. Previews always appear on the
-    /// display the screenshot was taken on.
+    /// "Show on": which display the notch lives on. Previews appear there too.
     var notchDisplay: NotchDisplay {
         didSet { defaults.set(notchDisplay.rawValue, forKey: Key.notchDisplay) }
     }

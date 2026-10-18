@@ -10,9 +10,7 @@ struct PeekView: View {
         let shots = controller.library.shots
         VStack(spacing: 0) {
             NotchHeader(notchWidth: notchWidth) {
-                if let shot = controller.focusedShot.flatMap({ id in shots.first { $0.id == id } }) {
-                    Text(shot.detail)
-                }
+                if let shot = shots.first(where: { $0.id == controller.focusedShot }) { Text(shot.detail) }
             } trailing: {
                 if let feedback = controller.feedback { FeedbackLabel(feedback: feedback, controller: controller) }
             }
@@ -44,8 +42,9 @@ private struct MoreTile: View {
                 .foregroundStyle(.secondary)
                 .frame(width: Theme.Notch.peekMoreWidth, height: Theme.Notch.peekTile.height)
                 .background(.fill.quaternary, in: .rect(cornerRadius: Theme.Radius.tile, style: .continuous))
+                .contentShape(.rect)
         }
-        .buttonStyle(PressableStyle())
+        .buttonStyle(.plain)
         .accessibilityLabel("\(count) more screenshots")
         .accessibilityHint("Opens the Shelf")
     }

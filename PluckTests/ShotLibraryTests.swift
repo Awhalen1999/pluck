@@ -174,6 +174,25 @@ import Testing
         #expect(FileManager.default.fileExists(atPath: destination.appending(path: "a 2.png").path(percentEncoded: false)))
     }
 
+    @Test func aShotDraggedOffThePreviewGoesWithTheDrop() throws {
+        try sandbox.addShot("dragged.png")
+        let library = sandbox.library()
+        library.reconcile()
+        library.togglePin([sandbox.path("dragged.png")])
+
+        let copy = try #require(library.dragCopy(of: sandbox.path("dragged.png")))
+        defer { try? FileManager.default.removeItem(at: copy.deletingLastPathComponent()) }
+        #expect(copy.lastPathComponent == "dragged.png")
+        #expect(!copy.path(percentEncoded: false).hasPrefix(sandbox.folder.path(percentEncoded: false)))
+
+        library.letGo(sandbox.path("dragged.png"))
+
+        #expect(library.shots.isEmpty)
+        #expect(library.index.pinned.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: sandbox.path("dragged.png")))
+        #expect(FileManager.default.fileExists(atPath: copy.path(percentEncoded: false)))
+    }
+
     @Test func copyPutsEachShotOnThePasteboardAsFileAndImage() throws {
         let a = try sandbox.addShot("a.png", takenAt: testNow - 1)
         try sandbox.addShot("b.png")

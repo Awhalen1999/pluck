@@ -1,24 +1,22 @@
 import SwiftUI
 
-/// The notch: one glass shape that takes the size of its current state, with
-/// that state's content inside. Content and shape move together on one spring.
+/// The notch: one black shape that takes the size of its current state, with
+/// that state's content inside, moving together on one spring.
 struct NotchView: View {
     let controller: NotchController
+    @State private var lastSize = CGSize.zero
 
     var body: some View {
         if let geometry = controller.geometry {
             let frame = controller.frame
             let expanded = controller.shownState != .idle
-            let radius = expanded ? Theme.Notch.expandedRadius
-                : geometry.hasNotch ? Theme.Notch.idleRadius : frame.size.height / 2
-            let topRadius = geometry.hasNotch ? 0 : radius
-            let shape = NotchShape(radius: radius, topRadius: topRadius)
-
+            let shape = NotchShape(radius: expanded ? Theme.Notch.expandedRadius
+                                       : geometry.hasNotch ? Theme.Notch.idleRadius : frame.size.height / 2,
+                                   flare: expanded ? Theme.Notch.expandedFlare : Theme.Notch.idleFlare,
+                                   floats: !geometry.hasNotch)
             ZStack(alignment: .top) {
-                // A click on the notch itself opens the Shelf. This sits behind the
-                // content, so it only fires where nothing in front takes the click:
-                // a shot, a button. Labels don't take the pointer, so a click on
-                // one is a click on the notch.
+                // Behind the content, so it only gets clicks nothing in front claims.
+                // Labels don't take the pointer, so a click on one is a click here.
                 Color.clear
                     .contentShape(shape)
                     .onTapGesture { controller.clickedNotch() }
@@ -27,16 +25,21 @@ struct NotchView: View {
                     .opacity(controller.showsContent ? 1 : 0)
             }
             .frame(width: frame.size.width, height: frame.size.height, alignment: .top)
-            .notchSurface(radius: radius, topRadius: topRadius)
+            .clipShape(shape)
+            .background(Theme.Notch.fill, in: shape)
             .onContinuousHover(coordinateSpace: .global) { phase in
                 switch phase {
                 case .active(let point): controller.pointerMovedInPanel(point)
                 case .ended: controller.pointerLeftShape()
                 }
             }
-            .shadow(color: expanded ? Theme.Notch.shadow : .clear, radius: Theme.Notch.shadowRadius, y: Theme.Notch.shadowY)
             .offset(x: frame.offsetX)
             .padding(.top, geometry.topInset)
+            // Whatever changes the frame, a new state or a new shot, animates it, so
+            // two changes in one update move as one.
+            .animation(Theme.Motion.reshape(growing: frame.size.width * frame.size.height > lastSize.width * lastSize.height),
+                       value: frame)
+            .onChange(of: frame, initial: true) { _, new in lastSize = new.size }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .environment(\.colorScheme, .dark)
         }
@@ -60,7 +63,8 @@ struct NotchView: View {
     }
 }
 
-/// The band level with the hardware notch, split into the ears either side of it.
+/// The band level with the hardware notch, split into the ears either side of
+/// it. Nothing in an ear may run under the camera housing or widen the notch.
 struct NotchHeader<Leading: View, Trailing: View>: View {
     let notchWidth: CGFloat
     @ViewBuilder var leading: Leading
@@ -68,9 +72,9 @@ struct NotchHeader<Leading: View, Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            leading.frame(maxWidth: .infinity, alignment: .leading).allowsHitTesting(false)
-            Color.clear.frame(width: notchWidth)
-            trailing.frame(maxWidth: .infinity, alignment: .trailing)
+            leading.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading).allowsHitTesting(false)
+            Color.clear.frame(width: notchWidth + 2 * Theme.Space.m)
+            trailing.frame(minWidth: 0, maxWidth: .infinity, alignment: .trailing)
         }
         .font(Theme.Typography.detail)
         .foregroundStyle(.secondary)

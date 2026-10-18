@@ -10,8 +10,7 @@ enum NotchState: Equatable {
 }
 
 /// The notch's rules as a plain value: events go in, the state and its one timer
-/// come out. `NotchController` feeds it events and runs the timer; everything
-/// else is decided here, which is why every rule can be tested without a screen.
+/// come out, so every rule can be tested without a screen.
 struct NotchMachine: Equatable {
     enum Event: Equatable {
         case pointerEntered
@@ -26,7 +25,7 @@ struct NotchMachine: Equatable {
         case dismissed
         case shotArrived(Shot.ID)
         case shotRemoved(Shot.ID)
-        /// The user acted on what the notch was showing: copied it, pinned it, trashed it.
+        /// The user acted on what the notch was showing: copied, pinned, trashed it.
         case finished
         case dragStarted
         /// `dropped` is true for a drop into another app; a cancelled drag is false.
@@ -43,17 +42,16 @@ struct NotchMachine: Equatable {
 
     var settings = Settings()
     private(set) var state: NotchState = .idle
-    /// When the current state's one timer fires, if it has one. Every transition
-    /// replaces it, so a timer can never outlive its state.
+    /// The current state's one timer. Every transition replaces it, so a timer
+    /// can never outlive its state.
     private(set) var timer: Date?
     private(set) var pointerInside = false
     /// Time left on the Preview while the pointer holds it open.
     private(set) var previewRemaining: TimeInterval?
-    /// A shot is being dragged out of the notch. Nothing it shows may change
-    /// until the drag ends.
+    /// Nothing the notch shows may change under a drag.
     private(set) var isDragging = false
-    /// During a drag, the notch folds back to its idle shape once the drag
-    /// leaves it, so the user can see where they're dropping.
+    /// A drag that leaves the notch folds it back to its idle shape, so the user
+    /// can see where they're dropping.
     private(set) var stepsAside = false
 
     /// What the notch's shape shows: its state, or Idle while stepped aside.
@@ -99,7 +97,6 @@ struct NotchMachine: Equatable {
             go(.idle)
 
         case .shotArrived(let id):
-            guard state != .shelf else { return }
             go(.preview(id))
             if pointerInside {
                 previewRemaining = settings.previewDuration
@@ -140,8 +137,8 @@ struct NotchMachine: Equatable {
         }
     }
 
-    /// While a drag is under way, the pointer only moves the notch aside and back.
-    /// Arrivals, clicks and timers wait, so nothing changes under the drag.
+    /// During a drag the pointer only moves the notch aside and back. Arrivals,
+    /// clicks and timers are dropped, so nothing changes under it.
     private mutating func handleDuringDrag(_ event: Event, at now: Date) {
         switch event {
         case .pointerEntered:
@@ -153,8 +150,7 @@ struct NotchMachine: Equatable {
         case .dragEnded(let dropped):
             isDragging = false
             stepsAside = false
-            // A shot delivered is the job done, from any state. A cancelled drag
-            // puts everything back the way it was.
+            // A shot delivered is the job done. A cancelled drag puts everything back.
             if dropped {
                 go(.idle)
                 return

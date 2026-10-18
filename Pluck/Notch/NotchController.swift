@@ -4,68 +4,63 @@ import SwiftUI
 
 private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
-/// Owns the notch: where it sits, which state it's in, and what the user does
-/// with it. The rules live in `NotchMachine`; this class feeds it events from the
-/// pointer, clicks, drags and the library, runs its one timer, and carries out
-/// actions.
+/// Owns the notch: its state, what the user does with it, and where it sits. The
+/// rules are `NotchMachine`'s; this feeds it events and carries out actions.
 @Observable final class NotchController {
     let library: ShotLibrary
     let preferences: Preferences
-    /// Whether new shots open Pluck's Preview. Off when the user chose the macOS
-    /// thumbnail, or macOS wouldn't let Pluck turn its own off.
+    /// Off when the user chose the macOS thumbnail, or macOS kept its own on.
     let showsPreview: Bool
 
     private(set) var geometry: NotchGeometry?
     private(set) var feedback: Feedback?
-    /// The shot the user is on: under the pointer, or reached with the arrow
-    /// keys. The header describes it, and the Shelf's keys act on it.
+    /// The shot under the pointer, or the one the arrow keys reached.
     private(set) var focusedShot: Shot.ID?
-    /// Shots ⌘-clicked in the Shelf. While there are any, actions take them all.
+    /// ⌘-clicked in the Shelf. While there are any, actions take them all.
     private(set) var selection: Set<Shot.ID> = []
-    /// The shots in the drag under way, shown faded where they came from.
+    /// Faded where they came from while they're dragged.
     private(set) var draggedShots: Set<Shot.ID> = []
     private var machine = NotchMachine()
 
-    @ObservationIgnored private var panel: NotchPanel!
-    /// The display the notch is on right now: its home, or the display a
-    /// Preview's shot was taken on.
+    @ObservationIgnored private let panel: NotchPanel
+    @ObservationIgnored private let keyboard: KeyboardHandoff
+    @ObservationIgnored private let input = NotchInput()
+    @ObservationIgnored private let quickLookPanel = QuickLook()
+    @ObservationIgnored private let dragSource = ShotDragSource()
     @ObservationIgnored private var screen: NSScreen?
-    @ObservationIgnored private var homeTask: Task<Void, Never>?
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
-    @ObservationIgnored private var monitors: [Any] = []
-    @ObservationIgnored private var pointerTask: Task<Void, Never>?
-    @ObservationIgnored private let dragSource = ShotDragSource()
-    @ObservationIgnored private let quickLookPanel = QuickLook()
-    /// The views drawing each shot right now, so Quick Look can zoom from them.
-    @ObservationIgnored private let shotViews = NSMapTable<NSString, NSView>.strongToWeakObjects()
+    /// The Preview's shot while it's dragged off it: it goes with the drop.
+    @ObservationIgnored private var dragTakesShot: Shot.ID?
     /// Where the pointer was when the arrow keys last moved the focus. Until it
     /// moves, shots scrolling under it don't take the focus back.
     @ObservationIgnored private var pointerAtKeyboardFocus: CGPoint?
-    /// Menus open now, a submenu counting as one more. The pointer is on the
-    /// menu, not the notch, and the notch stays as it is until they close.
-    @ObservationIgnored private var openMenus = 0
-    /// The last pointer position and when, to tell a pointer passing over the
-    /// notch from one arriving on it.
-    @ObservationIgnored private var lastPointer: (point: CGPoint, time: TimeInterval)?
-    /// Where the keyboard was before Pluck took it: one of Pluck's own windows,
-    /// like Settings, or the app the user was in. It goes back there, and it's
-    /// nil while Pluck doesn't have the keyboard.
-    @ObservationIgnored private var keyboardBefore: (window: NSWindow?, app: NSRunningApplication?)?
 
     init(library: ShotLibrary, preferences: Preferences, showsPreview: Bool) {
         self.library = library
         self.preferences = preferences
         self.showsPreview = showsPreview
-        panel = NotchPanel(rootView: NotchView(controller: self))
+        let panel = NotchPanel()
+        self.panel = panel
+        keyboard = KeyboardHandoff(panel: panel)
+        panel.host(NotchView(controller: self))
+        keyboard.onTakenAway = { [weak self] in self?.send(.wentToAnotherApp) }
+        input.pointerMoved = { [weak self] point, fast in self?.pointerMoved(to: point, fast: fast) }
+        input.clickedInAnotherApp = { [weak self] in self?.send(.wentToAnotherApp) }
+        input.keyDown = { [weak self] event in self?.handleKey(event) ?? false }
+        input.sampleInterval = { [weak self] in
+            self?.isResting ?? true ? Theme.Timing.pointerAtRest : Theme.Timing.pointerOpen
+        }
+        quickLookPanel.onClose = { [weak self] id in
+            guard let self else { return }
+            if state == .shelf, let id { focusFromKeyboard(id) }
+            updateKeyboard()
+        }
+        dragSource.moved = { [weak self] point in self?.input.report(point) }
+        dragSource.ended = { [weak self] operation in self?.dragEnded(operation) }
         goHome()
         watchScreens()
-        watchPointer()
         watchLibrary()
-        watchDrags()
-        watchQuickLook()
-        watchActivation()
-        watchMenus()
         Thumbnails.prefetch(library.shots.prefix(Theme.Notch.peekTileCount))
     }
 
@@ -73,17 +68,16 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     var state: NotchState { machine.state }
 
-    /// What the shape shows: the state, or Idle while a drag has it stepped aside.
+    /// The state, or Idle while a drag has the notch stepped aside.
     var shownState: NotchState { machine.shownState }
 
-    /// Whether the state's content is visible. Hidden, but still in place, while
-    /// a drag has the notch stepped aside, so the drag's source stays put.
+    /// Hidden, but still in place so the drag's source stays put, while stepped aside.
     var showsContent: Bool { !machine.stepsAside }
 
     var frame: NotchLayout.Frame {
-        // Stepped aside for a drag, the notch is bare: no ears, nothing to look at.
-        let content = machine.stepsAside ? NotchLayout.Content() : self.content
-        return NotchLayout.frame(for: shownState, content: content, notch: geometry?.frame.size ?? Theme.Notch.referenceSize)
+        // Stepped aside for a drag, the notch is bare: no ears.
+        NotchLayout.frame(for: shownState, content: machine.stepsAside ? NotchLayout.Content() : content,
+                          notch: geometry?.frame.size ?? Theme.Notch.referenceSize)
     }
 
     var content: NotchLayout.Content {
@@ -93,7 +87,6 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     func previewProgress(at date: Date) -> Double { machine.previewProgress(at: date) }
 
-    /// The Preview's timer is held while the pointer is on it.
     var previewIsHeld: Bool { machine.timer == nil }
 
     /// The arrow keys moved the focus, so the Shelf keeps it in view.
@@ -101,34 +94,23 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     // MARK: Intents
 
-    /// A click on the notch itself opens the Shelf, from any state. In the Shelf
-    /// it clears the selection, as a click on empty space does in Finder.
+    /// Opens the Shelf from any state. In the Shelf it clears the selection, as a
+    /// click on empty space does in Finder.
     func clickedNotch() {
         selection = []
         send(.clicked)
     }
 
-    /// A click copies the shot. In the Shelf, ⌘-click adds it to the selection
-    /// or takes it out.
     func clicked(_ id: Shot.ID, modifiers: NSEvent.ModifierFlags) {
         if state == .shelf, modifiers.contains(.command) {
             select(selection.symmetricDifference([id]))
-            return
+        } else {
+            selection = []
+            copy([id])
         }
-        selection = []
-        copy([id])
     }
 
     func clearSelection() { selection = [] }
-
-    /// Selecting is newer than whatever the header last said, so it takes the
-    /// feedback slot ("3 selected") at once.
-    private func select(_ ids: Set<Shot.ID>) {
-        withAnimation(Theme.Motion.hover) {
-            selection = ids
-            if !ids.isEmpty { feedback = nil }
-        }
-    }
 
     func copy(_ ids: [Shot.ID]) {
         log.debug("Copy \(ids.count, privacy: .public)")
@@ -166,16 +148,15 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         send(nil, feedback: Feedback(kind: .restored))
     }
 
-    /// Opens Quick Look on a shot, with every shot a keypress away in the
-    /// Shelf's order, or just the selection when the shot is part of one. From
-    /// the Preview it counts as acting on it, so the Preview finishes.
+    /// Every shot in the Shelf's order, or just the selection when the shot is in
+    /// one. From the Preview it counts as acting on it.
     func quickLook(_ id: Shot.ID) {
         let ids = targets(id)
         let order = NotchLayout.shelfSections(content).flatMap(\.rows).flatMap(\.tiles).map(\.shot)
         let shots = ids.count > 1 ? order.filter { ids.contains($0.id) } : order
         guard let index = shots.firstIndex(where: { $0.id == id }) else { return }
         log.debug("Quick Look")
-        comeForward()
+        keyboard.comeForward()
         quickLookPanel.show(shots, startingAt: index)
         if case .preview = state { send(.finished) }
     }
@@ -188,31 +169,36 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         if inside { focusedShot = id } else if focusedShot == id { focusedShot = nil }
     }
 
-    func register(_ view: NSView, for id: Shot.ID) {
-        shotViews.setObject(view, forKey: id as NSString)
-    }
-
-    /// The pointer left the notch's own pixels. Where it went, the global monitor
-    /// may never say (macOS only sends moves to the active app), so check now.
+    /// The pointer left the notch's own pixels, maybe for another app's window,
+    /// whose moves the global monitor may not see.
     func pointerLeftShape() { syncPointer() }
 
-    /// From the notch view, for pointer moves that land on the notch's own pixels.
-    /// Every other move arrives through the global monitor.
     func pointerMovedInPanel(_ point: CGPoint) {
-        let panelFrame = panel.frame
-        pointerMoved(to: CGPoint(x: panelFrame.minX + point.x, y: panelFrame.maxY - point.y))
+        input.report(CGPoint(x: panel.frame.minX + point.x, y: panel.frame.maxY - point.y))
+    }
+
+    /// Selecting is newer than whatever the header last said, so it takes the
+    /// feedback slot ("3 selected") at once.
+    private func select(_ ids: Set<Shot.ID>) {
+        selection = ids
+        if !ids.isEmpty { feedback = nil }
+    }
+
+    /// What an action on `id` applies to: the selection when it's part of one.
+    private func targets(_ id: Shot.ID) -> [Shot.ID] {
+        selection.contains(id) ? library.shots(withIDs: Array(selection)).map(\.id) : [id]
     }
 
     // MARK: Dragging
 
-    /// Starts dragging a shot out of the notch. The image under the cursor is the
-    /// shot itself, and other apps receive the file.
     func beginDrag(_ id: Shot.ID, from view: NSView, event: NSEvent) {
         let shots = library.shots(withIDs: targets(id))
         guard !shots.isEmpty else { return }
+        let copy = state == .preview(id) ? library.dragCopy(of: id) : nil
+        dragTakesShot = copy == nil ? nil : id
         let point = view.convert(event.locationInWindow, from: nil)
         let items = shots.map { shot in
-            let item = NSDraggingItem(pasteboardWriter: shot.url as NSURL)
+            let item = NSDraggingItem(pasteboardWriter: ((shot.id == id ? copy : nil) ?? shot.url) as NSURL)
             let image = ShotDragSource.image(for: shot)
             item.setDraggingFrame(CGRect(x: point.x - image.size.width / 2, y: point.y - image.size.height / 2,
                                          width: image.size.width, height: image.size.height),
@@ -226,25 +212,24 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         send(.dragStarted)
     }
 
-    private func watchDrags() {
-        dragSource.moved = { [weak self] point in self?.pointerMoved(to: point) }
-        dragSource.ended = { [weak self] operation in
-            guard let self else { return }
-            log.debug("Drag ended with operation \(operation.rawValue, privacy: .public)")
-            // Anything but a move leaves the file behind for the one-hour cleanup.
-            // A move took it somewhere else, and the library lets it go on its own.
-            if !operation.isEmpty, operation != .move, preferences.removeDraggedOut {
-                library.recordDragOut(Array(draggedShots))
-            }
-            draggedShots = []
-            send(.dragEnded(dropped: !operation.isEmpty))
+    private func dragEnded(_ operation: NSDragOperation) {
+        log.debug("Drag ended with operation \(operation.rawValue, privacy: .public)")
+        let dropped = !operation.isEmpty
+        if dropped, let id = dragTakesShot {
+            library.letGo(id)
+        } else if dropped, operation != .move, preferences.removeDraggedOut {
+            // A move took the file elsewhere. Anything else leaves it here, for
+            // the one-hour cleanup.
+            library.recordDragOut(Array(draggedShots))
         }
+        dragTakesShot = nil
+        draggedShots = []
+        send(.dragEnded(dropped: dropped))
     }
 
     // MARK: Menu
 
-    /// The right-click menu for a shot, or for the selection it's part of:
-    /// native, with the Shelf's shortcuts shown.
+    /// For a shot, or the selection it's part of, with the Shelf's shortcuts shown.
     func menu(for id: Shot.ID) -> NSMenu {
         let ids = targets(id)
         let menu = NSMenu()
@@ -258,20 +243,6 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         return menu
     }
 
-    private func watchMenus() {
-        // Handled as they're posted, so an end is never handled before its begin.
-        for (name, change) in [(NSMenu.didBeginTrackingNotification, 1), (NSMenu.didEndTrackingNotification, -1)] {
-            _ = NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    guard let self else { return }
-                    self.openMenus = max(0, self.openMenus + change)
-                    if self.openMenus == 0 { self.syncPointer() }
-                }
-            }
-        }
-    }
-
-    /// "Move To": the usual folders, then any folder at all.
     private func moveMenuItem(for ids: [Shot.ID]) -> NSMenuItem {
         let submenu = NSMenu()
         let folders: [URL] = [.desktopDirectory, .documentsDirectory, .downloadsDirectory, .picturesDirectory]
@@ -293,148 +264,60 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         open.canChooseFiles = false
         open.canCreateDirectories = true
         open.prompt = "Move"
-        comeForward()
+        keyboard.comeForward()
+        // Not `runModal`, which would block the notch while it's up.
         open.begin { [weak self] response in
             if response == .OK, let folder = open.url { self?.move(ids, to: folder) }
             self?.updateKeyboard()
         }
-        // Above the notch, set once it shows, since showing resets it.
+        // Showing resets the level.
         open.level = .aboveNotch
-    }
-
-    /// What an action on `id` applies to: the whole selection when it's part of
-    /// one, in the library's order, or just that shot.
-    private func targets(_ id: Shot.ID) -> [Shot.ID] {
-        selection.contains(id) ? library.shots(withIDs: Array(selection)).map(\.id) : [id]
     }
 
     // MARK: Keyboard
 
-    /// Who has the keyboard. The Shelf takes it while it's open, and Quick Look
-    /// while it shows; otherwise it goes straight back to the app the user was
-    /// in, so typing there never lands in Pluck.
+    /// The Shelf has the keyboard while it's open, and Quick Look while it shows.
+    /// Otherwise it's back where it was, so typing never lands in Pluck.
     private func updateKeyboard() {
-        let shelf = state == .shelf
-        // Quick Look has it; this runs again when it closes.
-        guard !quickLookPanel.isShown else {
-            panel.acceptsKeyboard = shelf
-            return
-        }
-        if shelf {
-            takeKeyboard()
-        } else {
-            panel.acceptsKeyboard = false
-            giveBackKeyboard()
-        }
+        guard !quickLookPanel.isShown else { return }
+        if state == .shelf { keyboard.take() } else { keyboard.giveBack() }
     }
 
-    private func takeKeyboard() {
-        if keyboardBefore == nil {
-            // AppKit can still call the notch key after it let go.
-            let window = NSApp.keyWindow === panel ? nil : NSApp.keyWindow
-            let front = NSWorkspace.shared.frontmostApplication
-            keyboardBefore = (window, front == .current ? nil : front)
-        }
-        panel.acceptsKeyboard = true
-        panel.makeKey()
-    }
-
-    private func giveBackKeyboard() {
-        // Not while the user is in one of Pluck's own windows, like the folder
-        // picker.
-        guard let before = keyboardBefore, NSApp.keyWindow == nil || NSApp.keyWindow === panel else { return }
-        keyboardBefore = nil
-        if let window = before.window, window.isVisible {
-            window.makeKey()
-        } else {
-            // A key notch lets go by deactivating. After Quick Look, Pluck is
-            // truly active, and hands activation back to the user's app.
-            NSApp.deactivate()
-            before.app?.activate()
-        }
-    }
-
-    /// Makes Pluck the active app, for Quick Look and the folder picker: neither
-    /// takes keys otherwise. The notch takes the keyboard first, or macOS
-    /// refuses the activation; see Platform facts.
-    private func comeForward() {
-        takeKeyboard()
-        NSApp.activate()
-    }
-
-    /// Switching apps (⌘-Tab, the Dock) takes the keyboard from the Shelf
-    /// without a click, and closes it as a click outside does. Quick Look and the
-    /// folder picker take it too, but Pluck stays active for them.
-    private func watchActivation() {
-        Task { [weak self, panel] in
-            for await _ in NotificationCenter.default.notifications(named: NSWindow.didResignKeyNotification, object: panel) {
-                if !NSApp.isActive { self?.send(.wentToAnotherApp) }
-            }
-        }
-    }
-
-    private func watchQuickLook() {
-        quickLookPanel.sourceFrame = { [weak self] id in
-            guard let view = self?.shotViews.object(forKey: id as NSString), let window = view.window else { return nil }
-            return window.convertToScreen(view.convert(view.bounds, to: nil))
-        }
-        quickLookPanel.onClose = { [weak self] id in
-            guard let self else { return }
-            // Back in the Shelf, the focus is on the shot Quick Look ended on.
-            if state == .shelf, let id { focusFromKeyboard(id) }
-            updateKeyboard()
-        }
-    }
-
-    /// The Shelf's keys, as Finder and Photos have them. Only the Shelf takes the
-    /// keyboard, so none of these can fire while the user types in another app.
-    /// Returns false for any other key, which AppKit then handles as usual.
     private func handleKey(_ event: NSEvent) -> Bool {
-        guard event.window === panel else { return false }
-        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
-        let plain = flags.isEmpty
-        let command = flags == .command
-        let key = event.charactersIgnoringModifiers?.lowercased()
-        let special = event.specialKey
+        guard event.window === panel, let key = ShelfKey(event) else { return false }
+        guard key.repeats || !event.isARepeat else { return true }
         let ids = selection.isEmpty ? focusedShot.map { [$0] } ?? [] : library.shots(withIDs: Array(selection)).map(\.id)
-
-        if plain, let direction = special.flatMap({ Self.arrows[$0] }) {
+        switch key {
+        case .move(let direction):
             focusFromKeyboard(NotchLayout.shot(from: focusedShot, moving: direction, in: NotchLayout.shelfSections(content)))
-            return true
-        }
-        // Holding a key repeats only the arrows.
-        if event.isARepeat { return true }
-
-        if plain, key == "\u{1b}" {
-            // Esc goes back one level: the selection first, then the Shelf.
+        case .escape:
             if selection.isEmpty { send(.dismissed) } else { selection = [] }
-        } else if command, key == "w" {
+        case .close:
             send(.dismissed)
-        } else if plain, special == .carriageReturn || special == .enter, !ids.isEmpty {
-            // Return copies and closes, so the next ⌘V lands in the user's app.
+        case .copyAndClose:
+            guard !ids.isEmpty else { return false }
             copy(ids)
             send(.dismissed)
-        } else if command, key == "c", !ids.isEmpty {
+        case .copy:
+            guard !ids.isEmpty else { return false }
             copy(ids)
-        } else if plain, key == " ", let id = ids.first {
+        case .quickLook:
+            guard let id = ids.first else { return false }
             quickLook(id)
-        } else if plain || command, special == .delete || special == .deleteForward, !ids.isEmpty {
+        case .trash:
+            guard !ids.isEmpty else { return false }
             trashFromKeyboard(ids)
-        } else if command, key == "z", !library.lastTrashed.isEmpty {
+        case .undo:
+            guard !library.lastTrashed.isEmpty else { return false }
             undoTrash()
-        } else if plain || command, key == "p", !ids.isEmpty {
+        case .pin:
+            guard !ids.isEmpty else { return false }
             togglePin(ids)
-        } else if command, key == "a" {
+        case .selectAll:
             select(Set(library.shots.map(\.id)))
-        } else {
-            return false
         }
         return true
     }
-
-    private static let arrows: [NSEvent.SpecialKey: MoveCommandDirection] = [
-        .leftArrow: .left, .rightArrow: .right, .upArrow: .up, .downArrow: .down,
-    ]
 
     private func focusFromKeyboard(_ id: Shot.ID?) {
         pointerAtKeyboardFocus = NSEvent.mouseLocation
@@ -453,45 +336,36 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     // MARK: Events
 
-    /// Runs an event through the machine. A change of shape animates on the
-    /// opening or closing spring; the machine's one timer is rescheduled whenever
-    /// it changes, so a stale timer can never fire.
+    /// Runs an event through the machine. Its one timer is rescheduled whenever it
+    /// changes, so a stale timer can never fire.
     private func send(_ event: NotchMachine.Event?, feedback newFeedback: Feedback? = nil) {
         var next = machine
         // Hovering an Undo doesn't turn the notch into Peek under the pointer.
         next.settings = NotchMachine.Settings(opensOnHover: preferences.opensOnHover && feedback?.canUndo != true,
                                               previewDuration: preferences.previewDuration.rawValue)
         if let event { next.handle(event, at: .now) }
-        if next.state != machine.state {
+        let stateChanged = next.state != machine.state
+        if stateChanged {
             // Only the event's name is public; shot IDs are file paths.
             let name = event.map { String(describing: $0).prefix { $0 != "(" } } ?? "feedback"
             log.debug("\(name, privacy: .public) → \(next.state.name, privacy: .public)")
         }
-
-        let stateChanges = next.state != machine.state
-        let reshapes = next.shownState != machine.shownState
-        // Collapsing into the notch settles closed; anything that grows opens.
-        let opening = reshapes ? next.shownState != .idle : true
+        let old = frame
         let timerChanged = next.timer != machine.timer
-        withAnimation(reshapes || newFeedback != nil ? Theme.Motion.reshape(opening: opening) : nil) {
-            machine = next
-            if let newFeedback { feedback = newFeedback }
+        machine = next
+        if let newFeedback {
+            feedback = newFeedback
+            endFeedback(after: newFeedback.duration)
         }
-        if let newFeedback { endFeedback(after: newFeedback.duration) }
         if timerChanged { schedule(next.timer) }
-        if stateChanges {
-            // The selection belongs to the Shelf, and leaves with it.
-            if next.state != .shelf { selection = [] }
+        if stateChanged {
+            // Focus and selection belong to the state that had them.
+            focusedShot = nil
+            selection = []
+            pointerAtKeyboardFocus = nil
             updateKeyboard()
         }
-        if reshapes {
-            if next.shownState == .idle {
-                focusedShot = nil
-                pointerAtKeyboardFocus = nil
-                goHomeWhenSettled()
-            }
-            syncPointer()
-        }
+        if frame != old { syncPointer() }
     }
 
     private func schedule(_ fireAt: Date?) {
@@ -509,104 +383,38 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         feedbackTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(duration))
             guard !Task.isCancelled, let self else { return }
-            withAnimation(Theme.Motion.reshape(opening: false)) { feedback = nil }
+            feedback = nil
             syncPointer()
             send(.feedbackEnded)
-            goHomeWhenSettled()
         }
     }
 
     // MARK: Pointer
 
-    /// The pointer is tracked as geometry, against the notch's current shape.
-    /// Hover uses the hover zone. The panel takes the mouse exactly while the
-    /// pointer is on the shape and lets it pass through everywhere else, so a
-    /// click always lands where the user sees it. macOS's own pass-through of
-    /// transparent pixels goes stale when content appears without the pointer
-    /// on it, as a Preview does; see Platform facts.
-    private func pointerMoved(to point: CGPoint) {
-        guard let geometry, openMenus == 0 else { return }
+    /// The panel takes the mouse exactly while the pointer is on the shape, so a
+    /// click always lands where the user sees it; hover uses the hover zone.
+    private func pointerMoved(to point: CGPoint, fast: Bool) {
+        followPointer(to: point)
+        guard let geometry else { return }
         let onShape = NotchLayout.shapeRect(for: frame, geometry: geometry).contains(point)
         if panel.ignoresMouseEvents == onShape { panel.ignoresMouseEvents = !onShape }
         let inside = NotchLayout.hoverZone(for: frame, state: shownState, geometry: geometry).contains(point)
         if inside != machine.pointerInside { send(inside ? .pointerEntered : .pointerExited) }
-        if inside, shownState == .idle, isPassing(point) { send(.pointerPassing) }
+        if inside, fast, shownState == .idle { send(.pointerPassing) }
     }
 
-    /// Whether the pointer is moving faster than `Timing.passingSpeed`. Moves
-    /// arrive from several sources, so ones too close together to measure are
-    /// skipped.
-    private func isPassing(_ point: CGPoint) -> Bool {
-        let now = ProcessInfo.processInfo.systemUptime
-        guard let last = lastPointer, now - last.time >= 1.0 / 120 else {
-            if lastPointer == nil { lastPointer = (point, now) }
-            return false
-        }
-        lastPointer = (point, now)
-        return hypot(point.x - last.point.x, point.y - last.point.y) / (now - last.time) > Theme.Timing.passingSpeed
-    }
-
-    /// Re-checks the pointer without it moving, for when the notch changes shape
-    /// under it.
-    private func syncPointer() { pointerMoved(to: NSEvent.mouseLocation) }
-
-    /// With "Show on: With mouse", a resting notch follows the pointer to its display.
-    private func followPointer(to point: CGPoint) {
-        guard preferences.notchDisplay == .withMouse, isResting,
-              let target = Self.screen(containing: point), target.displayID != screen?.displayID else { return }
-        place(on: target)
-    }
-
-    private func watchPointer() {
-        // The event's own location, not NSEvent.mouseLocation: when the pointer
-        // jumps, the monitor can run before the current location catches up.
-        let moved = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
-            let point = Self.screenLocation(of: event)
-            MainActor.assumeIsolated {
-                self?.followPointer(to: point)
-                self?.pointerMoved(to: point)
-            }
-        }
-        let clicked = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            MainActor.assumeIsolated { self?.send(.wentToAnotherApp) }
-        }
-        // Ahead of the app's menus, which would otherwise take ⌘C and ⌘Z.
-        let keys = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let handled = MainActor.assumeIsolated { self?.handleKey(event) ?? false }
-            return handled ? nil : event
-        }
-        monitors = [moved, clicked, keys].compactMap { $0 }
-
-        // macOS only sends pointer moves to the active app, so the monitor misses
-        // moves over other apps' windows. Sampling the position guarantees none
-        // is missed: often while the notch is open, rarely at rest.
-        // ponytail: sampling; an event tap would be event-driven, but needs Input Monitoring.
-        pointerTask = Task { [weak self] in
-            var last: CGPoint?
-            while !Task.isCancelled {
-                guard let self else { return }
-                let point = NSEvent.mouseLocation
-                if point != last {
-                    last = point
-                    pointerMoved(to: point)
-                }
-                let interval = isResting ? Theme.Timing.pointerAtRest : Theme.Timing.pointerOpen
-                try? await Task.sleep(for: .seconds(interval), tolerance: .seconds(interval / 4))
-            }
-        }
-    }
+    /// For when the notch changes shape under a pointer that hasn't moved.
+    private func syncPointer() { input.report(NSEvent.mouseLocation) }
 
     // MARK: Library
 
     private func watchLibrary() {
         library.onArrival = { [weak self] shot in
             Thumbnails.prefetch([shot])
-            guard let self, showsPreview, !machine.isDragging, state != .shelf else { return }
-            if let target = Self.screen(for: shot), target.displayID != screen?.displayID { place(on: target) }
+            guard let self, showsPreview else { return }
             send(.shotArrived(shot.id))
         }
-        // A shot that disappears (trashed, or deleted in Finder) leaves the focus
-        // and the selection, and a Preview of it closes at once.
+        // A shot that's gone leaves the focus and the selection, and its Preview closes.
         Task { [weak self] in
             for await ids in Observations({ [weak self] in Set(self?.library.shots.map(\.id) ?? []) }) {
                 guard let self else { return }
@@ -633,64 +441,26 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         shownState == .idle && feedback == nil && !machine.isDragging
     }
 
-    /// The display the notch lives on, from "Show on".
-    private var home: NSScreen? {
-        switch preferences.notchDisplay {
-        case .builtIn: NSScreen.screens.first(where: \.isBuiltIn) ?? NSScreen.screens.first
-        case .main: NSScreen.screens.first
-        case .withMouse: Self.screen(containing: NSEvent.mouseLocation) ?? NSScreen.screens.first
-        }
-    }
-
     private func goHome() {
-        if let home { place(on: home) }
-    }
-
-    /// Back home once a Preview elsewhere has closed and its feedback is gone.
-    private func goHomeWhenSettled() {
-        homeTask?.cancel()
-        homeTask = Task { [weak self] in
-            // Let the closing spring finish where the user saw it.
-            try? await Task.sleep(for: .seconds(Theme.Timing.settle))
-            guard let self, !Task.isCancelled, isResting, let home, home.displayID != screen?.displayID else { return }
-            place(on: home)
+        let screens = NSScreen.screens
+        let home = switch preferences.notchDisplay {
+        case .builtIn: screens.first(where: \.isBuiltIn)
+        case .main: screens.first
+        case .withMouse: Self.screen(containing: NSEvent.mouseLocation)
         }
+        if let home = home ?? screens.first { place(on: home) }
     }
 
-    /// Puts the panel on a display, centered on its notch, or on the pill where
-    /// it has none.
+    /// With "Show on: With mouse", a resting notch follows the pointer to its display.
+    private func followPointer(to point: CGPoint) {
+        guard preferences.notchDisplay == .withMouse, isResting,
+              let target = Self.screen(containing: point), target.displayID != screen?.displayID else { return }
+        place(on: target)
+    }
+
     private func place(on screen: NSScreen) {
-        let geometry = NotchGeometry(screen: screen)
-        let canvas = Theme.Notch.canvas
-        panel.setFrame(CGRect(x: geometry.frame.midX - canvas.width / 2,
-                              y: screen.frame.maxY - canvas.height,
-                              width: canvas.width,
-                              height: canvas.height),
-                       display: true)
+        geometry = panel.place(on: screen)
         self.screen = screen
-        self.geometry = geometry
-        panel.orderFrontRegardless()
-    }
-
-    /// The display a shot was taken on: where its selection was, or, for a
-    /// whole-display capture, where the pointer is.
-    private static func screen(for shot: Shot) -> NSScreen? {
-        guard let rect = shot.captureRect, let primary = NSScreen.screens.first else {
-            return screen(containing: NSEvent.mouseLocation)
-        }
-        // The rect is in global display coordinates, which run top-down from the
-        // primary display's top-left; screens are laid out bottom-up.
-        let center = CGPoint(x: rect.midX, y: primary.frame.maxY - rect.midY)
-        return screen(containing: center) ?? screen(containing: NSEvent.mouseLocation)
-    }
-
-    /// Where a monitored event happened, in screen coordinates. Not its
-    /// `locationInWindow`: a global event can still name one of Pluck's windows,
-    /// and then that is in the window's coordinates. The Quartz event's location
-    /// is always global, measured down from the top of the primary display.
-    private static func screenLocation(of event: NSEvent) -> CGPoint {
-        guard let point = event.cgEvent?.location, let primary = NSScreen.screens.first else { return NSEvent.mouseLocation }
-        return CGPoint(x: point.x, y: primary.frame.maxY - point.y)
     }
 
     private static func screen(containing point: CGPoint) -> NSScreen? {
@@ -699,7 +469,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 }
 
 private extension NotchState {
-    /// The state without its shot, safe to log.
+    /// Without its shot, safe to log.
     var name: String {
         switch self {
         case .idle: "idle"
