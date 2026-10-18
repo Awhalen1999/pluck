@@ -13,6 +13,8 @@ struct PreviewView: View {
     var body: some View {
         let shot = stack[0]
         let card = RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+        // The strip at the card's foot where feedback floats.
+        let feedbackBand = controller.feedback == nil ? 0 : Theme.Notch.controlHeight + 2 * Theme.Space.m
         VStack(spacing: 0) {
             NotchHeader(notchWidth: notchWidth) {
                 if stack.count > 1 { Text("\(stack.count) shots") }
@@ -28,10 +30,13 @@ struct PreviewView: View {
                     .overlay { card.strokeBorder(Theme.Tile.ring, lineWidth: Theme.Tile.ringWidth) }
                     .overlay {
                         // No double-click here: a click copies at once.
+                        // Clear of the feedback: an AppKit view takes every click in its
+                        // frame, even under SwiftUI drawn above it, Undo's included.
                         ShotInteraction(onClick: { _ in controller.copy([shot.id]) },
                                         onDoubleClick: nil,
                                         onDrag: { controller.beginDrag(shot.id, from: $0, event: $1) },
                                         menu: { controller.menu(for: shot.id) })
+                            .padding(.bottom, feedbackBand)
                     }
                     .background(alignment: .top) {
                         ForEach(1..<min(stack.count, Theme.Notch.previewStackDepth), id: \.self) { depth in
@@ -51,14 +56,16 @@ struct PreviewView: View {
                     .id(shot.id)
                     .transition(Theme.Motion.contentTransition)
                     // The header is too narrow for feedback, so it floats on the card,
-                    // over the next shot once the last one was dealt with.
+                    // over the next shot once the last one was dealt with. A click
+                    // beside it does nothing, rather than reaching the notch.
                     .overlay(alignment: .bottom) {
                         if let feedback = controller.feedback {
                             FeedbackLabel(feedback: feedback, controller: controller)
                                 .padding(.horizontal, Theme.Space.m)
                                 .frame(height: Theme.Notch.controlHeight)
                                 .background(Theme.Notch.fill, in: .capsule)
-                                .padding(.bottom, Theme.Space.m)
+                                .frame(maxWidth: .infinity, maxHeight: feedbackBand)
+                                .contentShape(.rect)
                         }
                     }
 

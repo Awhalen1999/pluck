@@ -127,11 +127,11 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     }
 
     func trash(_ ids: [Shot.ID]) {
-        act("Trash", on: ids, Feedback(kind: .trashed, count: ids.count)) { library.trash($0) }
+        act("Trash", on: ids, Feedback(kind: .trashed, count: ids.count), saving: false) { library.trash($0) }
     }
 
     func move(_ ids: [Shot.ID], to folder: URL) {
-        act("Move", on: ids, Feedback(kind: .moved, count: ids.count)) { library.move($0, to: folder) }
+        act("Move", on: ids, Feedback(kind: .moved, count: ids.count), saving: false) { library.move($0, to: folder) }
     }
 
     func markup(_ id: Shot.ID) {
@@ -161,11 +161,13 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         }
     }
 
-    /// Every action on shots goes through here. A waiting capture is saved first:
-    /// only a drag takes one without saving it.
-    private func act(_ name: String, on ids: [Shot.ID], _ feedback: Feedback? = nil, _ action: ([Shot.ID]) -> Void) {
+    /// Every action on shots goes through here. A waiting capture is saved first,
+    /// unless the action takes it somewhere else anyway (the Trash, another
+    /// folder), so it never flashes onto the Desktop on its way.
+    private func act(_ name: String, on ids: [Shot.ID], _ feedback: Feedback? = nil, saving: Bool = true,
+                     _ action: ([Shot.ID]) -> Void) {
         log.debug("\(name, privacy: .public) \(ids.count, privacy: .public)")
-        action(library.save(ids))
+        action(saving ? library.save(ids) : ids)
         followPending()
         if let feedback { send(nil, feedback: feedback) }
     }

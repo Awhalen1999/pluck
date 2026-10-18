@@ -49,11 +49,12 @@ Before building one, sit in the user's seat:
   other file in the folder is left alone.
 - Removing a shot always means `FileManager.trashItem`, never a delete, so
   Finder's Put Back works. The exception is a drag, which hands a shot off.
-- A capture waits for its Preview, as one waits behind the macOS thumbnail:
+- A capture waits for its Preview, as one waits behind the macOS thumbnail.
   macOS saves it into Pluck's holding folder (Application Support/Pluck/
   Incoming), and it reaches the user's folder only once the Preview is done
-  with it: acted on, its time up, the Shelf opened, or Pluck quitting. Anything
-  left waiting by a crash is saved at the next launch.
+  with it: acted on, its time up, the Shelf opened, or Pluck quitting. Trashed
+  or moved, it goes straight there and never touches the user's folder.
+  Anything left waiting by a crash is saved at the next launch.
 - A drag hands shots off. The drop gets a copy from Pluck's temporary folder,
   kept an hour so the app can read it (a path dropped in a terminal still
   works), and the shot leaves Pluck: a waiting capture is never saved, a saved
@@ -346,6 +347,11 @@ Verified on this machine; each one notes how.
   button itself, which jumps to its new place. The notch's buttons are a
   `PrimitiveButtonStyle` that triggers on a tap gesture. (Checked frame by
   frame, 2026-10-18.)
+- **An AppKit view takes clicks under SwiftUI drawn over it.** A SwiftUI
+  `Button` overlaid on an `NSViewRepresentable` never gets its click; the
+  AppKit view does. Anything clickable over a shot's interaction view needs that
+  view kept clear of it. (Caught as the Preview's floating Undo copying the
+  card, 2026-10-18.)
 - **Finder asks before replacing.** A file dropped into a folder that has one
   of the same name gets Finder's Keep Both / Stop / Replace prompt, and the drag
   has already ended with `.move` by then.

@@ -188,7 +188,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
                 log.error("Couldn't save \(shot.url.lastPathComponent): \(error)")
                 return id
             }
-            let saved = Shot(url: destination, capturedAt: shot.capturedAt, pixelSize: shot.pixelSize, fileID: shot.fileID)
+            let saved = shot.at(destination)
             pending.removeAll { $0.id == id }
             shots = (shots + [saved]).sorted(by: Shot.newestFirst)
             return saved.id
@@ -230,8 +230,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         self.index = index
     }
 
-    /// Moves shots to the Trash. The batch can be put back with `undoTrash()`
-    /// until the next trash.
+    /// Moves shots to the Trash, waiting captures straight from the holding folder.
+    /// The batch can be put back with `undoTrash()` until the next trash.
     func trash(_ ids: [Shot.ID]) {
         lastTrashed = discard(ids)
     }
@@ -242,27 +242,32 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         var restored: [Shot] = []
         // Restore pins in their original order so each lands at its old position.
         for item in lastTrashed.sorted(by: { ($0.entry.pinPosition ?? .max) < ($1.entry.pinPosition ?? .max) }) {
+            let shot = item.shot.at(availableURL(for: item.shot.url.lastPathComponent, in: item.shot.url.deletingLastPathComponent()))
             do {
-                try FileManager.default.moveItem(at: item.trashURL, to: item.shot.url)
+                try FileManager.default.moveItem(at: item.trashURL, to: shot.url)
             } catch {
-                log.error("Couldn't put back \(item.shot.url.lastPathComponent): \(error)")
+                log.error("Couldn't put back \(shot.url.lastPathComponent): \(error)")
                 continue
             }
-            restored.append(item.shot)
-            index.restore(item.entry, for: item.shot.id)
+            restored.append(shot)
+            index.restore(item.entry, for: shot.id)
         }
         lastTrashed = []
         shots = (shots + restored).sorted(by: Shot.newestFirst)
         self.index = index
     }
 
-    /// Moves shots into `destination` and lets go of them. A shot the user filed
-    /// away is theirs now, so cleanup must never touch it.
+    /// Moves shots into `destination` and lets go of them, waiting captures
+    /// straight from the holding folder. A shot the user filed away is theirs now,
+    /// so cleanup must never touch it.
     func move(_ ids: [Shot.ID], to destination: URL) {
-        guard destination.standardizedFileURL != folder else { return }
+        guard destination.standardizedFileURL != folder else {
+            save(ids)
+            return
+        }
         var index = self.index
         var moved: Set<Shot.ID> = []
-        for shot in shots(withIDs: ids) {
+        for shot in anywhere(ids) {
             do {
                 try FileManager.default.moveItem(at: shot.url, to: availableURL(for: shot.url.lastPathComponent, in: destination))
             } catch {
@@ -273,6 +278,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
             index.forget(shot.id)
         }
         shots.removeAll { moved.contains($0.id) }
+        pending.removeAll { moved.contains($0.id) }
         self.index = index
     }
 
@@ -341,22 +347,40 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
     private func discard(_ ids: [Shot.ID]) -> [Trashed] {
         var index = self.index
         var trashed: [Trashed] = []
-        for shot in shots(withIDs: ids) {
+        var gone: Set<Shot.ID> = []
+        for shot in anywhere(ids) {
             do {
-                trashed.append(Trashed(shot: shot, trashURL: try moveToTrash(shot.url), entry: index.entry(for: shot.id)))
+                let trashURL = try moveToTrash(shot.url)
+                // Undo puts a capture that was still waiting into the folder, saved.
+                let home = isPending(shot.id) ? shot.at(folder.appending(path: shot.url.lastPathComponent)) : shot
+                trashed.append(Trashed(shot: home, trashURL: trashURL, entry: index.entry(for: shot.id)))
+                gone.insert(shot.id)
             } catch {
                 log.error("Couldn't trash \(shot.url.lastPathComponent): \(error)")
             }
         }
-        let gone = Set(trashed.map(\.shot.id))
         for id in gone { index.forget(id) }
         shots.removeAll { gone.contains($0.id) }
+        pending.removeAll { gone.contains($0.id) }
         self.index = index
         return trashed
     }
 
+    /// Saved shots and waiting captures with these IDs.
+    private func anywhere(_ ids: [Shot.ID]) -> [Shot] {
+        let wanted = Set(ids)
+        return (pending + shots).filter { wanted.contains($0.id) }
+    }
+
     private func saveIndex() {
         do { try index.save(to: indexURL) } catch { log.error("Couldn't save the index: \(error)") }
+    }
+}
+
+private extension Shot {
+    /// The same shot, its file now at `url`.
+    func at(_ url: URL) -> Shot {
+        Shot(url: url, capturedAt: capturedAt, pixelSize: pixelSize, fileID: fileID)
     }
 }
 

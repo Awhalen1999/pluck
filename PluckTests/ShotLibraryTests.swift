@@ -77,6 +77,36 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: sandbox.path("dragged.png")))
     }
 
+    @Test func aTrashedCaptureNeverReachesTheFolderUntilUndoSavesIt() throws {
+        try sandbox.addShot("trashed.png", waiting: true)
+        let library = sandbox.library()
+        library.reconcilePending()
+
+        library.trash([sandbox.waitingPath("trashed.png")])
+        #expect(library.pending.isEmpty)
+        #expect(library.shots.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: sandbox.path("trashed.png")))
+        #expect(FileManager.default.fileExists(atPath: sandbox.trash.appending(path: "trashed.png").path(percentEncoded: false)))
+
+        library.undoTrash()
+        #expect(library.names == ["trashed.png"])
+        #expect(FileManager.default.fileExists(atPath: sandbox.path("trashed.png")))
+    }
+
+    @Test func aCaptureMovedElsewhereGoesStraightThere() throws {
+        try sandbox.addShot("filed.png", waiting: true)
+        let elsewhere = sandbox.root.appending(path: "Elsewhere")
+        try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
+        let library = sandbox.library()
+        library.reconcilePending()
+
+        library.move([sandbox.waitingPath("filed.png")], to: elsewhere)
+
+        #expect(library.pending.isEmpty)
+        #expect(library.shots.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: elsewhere.appending(path: "filed.png").path(percentEncoded: false)))
+    }
+
     @Test func capturesLeftWaitingByAnEarlierRunAreSavedAtLaunch() throws {
         try sandbox.addShot("from a crash.png", waiting: true)
         let library = sandbox.library()
