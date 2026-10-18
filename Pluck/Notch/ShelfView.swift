@@ -28,9 +28,9 @@ struct ShelfView: View {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(sections) { section in
                             SectionHeader(section: section)
-                            ForEach(Array(section.rows.enumerated()), id: \.offset) { _, row in
+                            ForEach(section.rows) { row in
                                 HStack(spacing: Theme.Space.s) {
-                                    ForEach(row) { tile in
+                                    ForEach(row.tiles) { tile in
                                         ShotTile(shot: tile.shot, size: tile.size, controller: controller)
                                     }
                                 }

@@ -25,8 +25,16 @@ enum NotchLayout {
     struct ShelfSection: Identifiable, Equatable {
         let title: String
         let note: String?
-        let rows: [[ShelfTile]]
+        let rows: [ShelfRow]
         var id: String { title }
+    }
+
+    /// Identified by its first shot, which appears nowhere else in the Shelf. (By
+    /// position, the first row of two sections would share an ID, and a lazy
+    /// stack draws only one of them.)
+    struct ShelfRow: Identifiable, Equatable {
+        let tiles: [ShelfTile]
+        var id: Shot.ID { tiles[0].id }
     }
 
     struct ShelfTile: Identifiable, Equatable {
@@ -147,15 +155,15 @@ enum NotchLayout {
 
     /// Justified rows: each full row fills the width exactly, every tile keeps
     /// its screenshot's shape, and a short last row isn't stretched.
-    static func rows(for shots: [Shot], width: CGFloat = shelfContentWidth) -> [[ShelfTile]] {
+    static func rows(for shots: [Shot], width: CGFloat = shelfContentWidth) -> [ShelfRow] {
         let gap = Theme.Space.s
         let target = Theme.Notch.shelfRowHeight
-        var rows: [[ShelfTile]] = []
+        var rows: [ShelfRow] = []
         var row: [(shot: Shot, aspect: CGFloat)] = []
         var aspects: CGFloat = 0
 
         func flush(height: CGFloat) {
-            rows.append(row.map { ShelfTile(shot: $0.shot, size: CGSize(width: $0.aspect * height, height: height)) })
+            rows.append(ShelfRow(tiles: row.map { ShelfTile(shot: $0.shot, size: CGSize(width: $0.aspect * height, height: height)) }))
             row = []
             aspects = 0
         }
@@ -176,7 +184,7 @@ enum NotchLayout {
     /// Everything below the Shelf's header: section names, rows and the bottom padding.
     static func shelfHeight(_ sections: [ShelfSection]) -> CGFloat {
         sections.reduce(shelfBottomPadding) { total, section in
-            total + Theme.Notch.sectionHeaderHeight + section.rows.reduce(0) { $0 + ($1.first?.size.height ?? 0) + Theme.Space.s }
+            total + Theme.Notch.sectionHeaderHeight + section.rows.reduce(0) { $0 + ($1.tiles.first?.size.height ?? 0) + Theme.Space.s }
         }
     }
 

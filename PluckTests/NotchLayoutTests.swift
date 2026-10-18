@@ -16,12 +16,12 @@ private let gap = Theme.Space.s
     let shots = (0..<9).map { shot("\($0)", $0.isMultiple(of: 2) ? 1600 : 1000, 1000) }
     let rows = NotchLayout.rows(for: shots)
 
-    for row in rows.dropLast() {
+    for row in rows.dropLast().map(\.tiles) {
         let width = row.reduce(0) { $0 + $1.size.width } + gap * CGFloat(row.count - 1)
         #expect(abs(width - NotchLayout.shelfContentWidth) < 0.5)
         #expect(Set(row.map(\.size.height)).count == 1)
     }
-    for tile in rows.flatMap({ $0 }) {
+    for tile in rows.flatMap(\.tiles) {
         let aspect = tile.shot.pixelSize.width / tile.shot.pixelSize.height
         #expect(abs(tile.size.width / tile.size.height - aspect) < 0.001)
     }
@@ -30,13 +30,13 @@ private let gap = Theme.Space.s
 @Test func aShortLastRowIsNotStretched() {
     let rows = NotchLayout.rows(for: [shot("only")])
     #expect(rows.count == 1)
-    #expect(rows[0][0].size.height == Theme.Notch.shelfRowHeight)
+    #expect(rows[0].tiles[0].size.height == Theme.Notch.shelfRowHeight)
 }
 
 @Test func veryTallAndVeryWideShotsAreKeptWithinLimits() {
     let rows = NotchLayout.rows(for: [shot("strip", 3000, 80), shot("long page", 1400, 9000)])
     let range = Theme.Tile.aspectRange
-    let aspects = rows.flatMap { $0 }.map { $0.size.width / $0.size.height }
+    let aspects = rows.flatMap(\.tiles).map { $0.size.width / $0.size.height }
     #expect(aspects.allSatisfy { $0 >= range.lowerBound - 0.001 && $0 <= range.upperBound + 0.001 })
 }
 
@@ -53,7 +53,10 @@ private let gap = Theme.Space.s
     let sections = NotchLayout.shelfSections(content)
 
     #expect(sections.map(\.title) == ["Pinned", "Today", "Yesterday", "Earlier"])
-    #expect(sections.map { $0.rows.flatMap { $0 }.map(\.shot.url.lastPathComponent) } == [["pinned"], ["today"], ["yesterday"], ["old"]])
+    #expect(sections.map { $0.rows.flatMap(\.tiles).map(\.shot.url.lastPathComponent) } == [["pinned"], ["today"], ["yesterday"], ["old"]])
+    // Every row in the Shelf has its own identity, across sections too.
+    let rowIDs = sections.flatMap { $0.rows.map(\.id) }
+    #expect(Set(rowIDs).count == rowIDs.count)
 }
 
 @Test func theShelfGrowsWithItsShotsUpToItsLimit() {
