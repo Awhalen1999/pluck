@@ -54,6 +54,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         watchLibrary()
         watchDrags()
         watchQuickLook()
+        watchActivation()
         Thumbnails.prefetch(library.shots.prefix(Theme.Notch.peekTileCount))
     }
 
@@ -313,6 +314,17 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         NSApp.activate()
     }
 
+    /// Switching apps (⌘-Tab, the Dock) takes the keyboard from the Shelf
+    /// without a click, and closes it as a click outside does. Quick Look and the
+    /// folder picker take it too, but Pluck stays active for them.
+    private func watchActivation() {
+        Task { [weak self, panel] in
+            for await _ in NotificationCenter.default.notifications(named: NSWindow.didResignKeyNotification, object: panel) {
+                if !NSApp.isActive { self?.send(.wentToAnotherApp) }
+            }
+        }
+    }
+
     private func watchQuickLook() {
         quickLookPanel.sourceFrame = { [weak self] id in
             guard let view = self?.shotViews.object(forKey: id as NSString), let window = view.window else { return nil }
@@ -348,6 +360,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         if plain, key == "\u{1b}" {
             // Esc goes back one level: the selection first, then the Shelf.
             if selection.isEmpty { send(.dismissed) } else { selection = [] }
+        } else if command, key == "w" {
+            send(.dismissed)
         } else if plain, special == .carriageReturn || special == .enter, !ids.isEmpty {
             // Return copies and closes, so the next ⌘V lands in the user's app.
             copy(ids)
@@ -492,7 +506,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
             }
         }
         let clicked = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            MainActor.assumeIsolated { self?.send(.clickedOutside) }
+            MainActor.assumeIsolated { self?.send(.wentToAnotherApp) }
         }
         // Ahead of the app's menus, which would otherwise take ⌘C and ⌘Z.
         let keys = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in

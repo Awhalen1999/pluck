@@ -71,14 +71,6 @@ private struct Driver {
     #expect(d.state == .idle)
 }
 
-@Test func leavingPeekWithEscapeDoesNotReopenIt() {
-    var d = Driver()
-    d.openPeek()
-    d.send(.dismissed)
-    d.wait(10)
-    #expect(d.state == .idle)
-}
-
 // MARK: Shelf
 
 @Test func aClickOpensTheShelfFromAnyState() {
@@ -94,14 +86,14 @@ private struct Driver {
     #expect(d.state == .shelf)
 }
 
-@Test func theShelfStaysOpenUntilAClickOutsideOrEscape() {
+@Test func theShelfStaysOpenUntilTheUserLeavesOrDismissesIt() {
     var d = Driver()
     d.send(.clicked)
     d.send(.pointerEntered)
     d.send(.pointerExited)
     d.wait(60)
     #expect(d.state == .shelf)
-    d.send(.clickedOutside)
+    d.send(.wentToAnotherApp)
     #expect(d.state == .idle)
 
     d.send(.clicked)
@@ -227,7 +219,7 @@ private struct Driver {
 
     d.send(.shotArrived("/b.png"))
     d.send(.clicked)
-    d.send(.clickedOutside)
+    d.send(.wentToAnotherApp)
     d.wait(60)
 
     #expect(d.state == .preview("/a.png"))

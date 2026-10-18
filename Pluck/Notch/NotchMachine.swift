@@ -18,7 +18,8 @@ struct NotchMachine: Equatable {
         case pointerExited
         /// A click on the notch itself, not on a shot or a button.
         case clicked
-        case clickedOutside
+        /// A click outside the notch, or ⌘-Tab: the user is in another app now.
+        case wentToAnotherApp
         /// The user is done with the notch: Esc, or Return in the Shelf once it has copied.
         case dismissed
         case shotArrived(Shot.ID)
@@ -83,7 +84,7 @@ struct NotchMachine: Equatable {
         case .clicked:
             go(.shelf)
 
-        case .clickedOutside:
+        case .wentToAnotherApp:
             if state == .shelf { go(.idle) }
 
         case .dismissed:

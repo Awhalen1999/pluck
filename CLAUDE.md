@@ -78,8 +78,8 @@ its timer.
 |---------|------------------------------------------|------------------------------------------------------------|
 | Idle    | default                                  | hover → Peek, click → Shelf, new shot → Preview            |
 | Peek    | hovering the notch past the intent delay | pointer leaves (after a grace period) → Idle, click → Shelf, new shot → Preview |
-| Shelf   | a click on the notch, or "+N" in Peek    | click outside, Esc, or Return (copies) → Idle              |
-| Preview | a new screenshot, from Idle or Peek      | its timer ends, acting on it, or Esc → Idle; click → Shelf |
+| Shelf   | a click on the notch, or "+N" in Peek    | click outside or switching apps, Esc or ⌘W, Return (copies) → Idle |
+| Preview | a new screenshot, from Idle or Peek      | its timer ends, or acting on it → Idle; click → Shelf      |
 
 - A click on the notch itself opens the Shelf from any state. A click on a shot
   copies it; buttons do what they say.
@@ -103,10 +103,10 @@ its timer.
 - Only the Shelf takes the keyboard. Peek and the Preview never take it from
   the app the user is typing in, and the moment the Shelf closes the keyboard
   goes straight back. Quick Look and the folder picker take it while they show.
-- The Shelf's keys: arrows move the focus, Return copies and closes (so ⌘V
-  pastes into the user's app), ⌘C copies, Space opens Quick Look, ⌫ or ⌘⌫
-  trashes (the focus moves on to the next shot), ⌘Z puts the last trash back,
-  P or ⌘P pins, ⌘A selects all.
+- The Shelf's keys: arrows move the focus, Esc or ⌘W closes, Return copies
+  and closes (so ⌘V pastes into the user's app), ⌘C copies, Space opens Quick
+  Look, ⌫ or ⌘⌫ trashes (the focus moves on to the next shot), ⌘Z puts the
+  last trash back, P or ⌘P pins, ⌘A selects all.
 - The focus is one shot: the one under the pointer, or the one the arrow keys
   reached. Shots scrolling under a resting pointer don't take it back.
 - ⌘-click selects in the Shelf. While there's a selection, keys, the menu and
@@ -248,8 +248,10 @@ Verified on this machine; each one notes how.
   app keeps the menu bar, and AppKit reports `NSApp.isActive`. To give the
   keyboard back, `NSApp.deactivate()`; `NSApp.hide` leaves it with the notch.
   A local key monitor sees keys before the app's menus, which would otherwise
-  take ⌘C and ⌘Z. (Checked by typing into TextEdit after the Shelf closed,
-  2026-10-17.)
+  take ⌘C and ⌘Z. Switching to another app posts no resign-active
+  notification in this state; the panel resigning key while `NSApp.isActive`
+  is false is the signal. (Checked by typing into TextEdit after the Shelf
+  closed, and by activating Finder, 2026-10-17.)
 - **Quick Look and the folder picker need Pluck truly active.** With only the
   notch key, their keys go to the user's app. `NSApp.activate()` works once the
   notch has the keyboard, and is refused before. Afterwards `NSApp.hide` gives
