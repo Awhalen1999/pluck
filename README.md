@@ -15,12 +15,12 @@ In development. Not released yet.
 
 ## Roadmap
 
-- [ ] Preview in the notch after every screenshot: copy, markup, pin, trash
-- [ ] Peek at recent shots by hovering the notch
-- [ ] The Shelf: every recent shot, grouped by day, with pins on top
-- [ ] Drag a shot straight into any app
-- [ ] Automatic cleanup to the Trash, pinned shots always kept
-- [ ] Keyboard shortcuts and Quick Look
-- [ ] Works on displays without a notch
+- [x] Preview in the notch after every screenshot: copy, markup, pin, trash
+- [x] Peek at recent shots by hovering the notch
+- [x] The Shelf: every recent shot, grouped by day, with pins on top
+- [x] Drag a shot straight into any app
+- [x] Automatic cleanup to the Trash, pinned shots always kept
+- [x] Keyboard shortcuts and Quick Look
+- [x] Works on displays without a notch
 - [ ] Settings and first-run onboarding
 - [ ] Signed, notarized releases with automatic updates
