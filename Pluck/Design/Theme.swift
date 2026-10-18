@@ -104,6 +104,10 @@ enum Theme {
         /// How long feedback shows. Long enough to read; longer when it offers Undo.
         static let feedback: TimeInterval = 1.8
         static let feedbackWithUndo: TimeInterval = 4.2
+        /// How often the pointer is sampled: while the notch is open, and at rest.
+        /// Fast enough that the notch takes a click the moment the pointer is on it.
+        static let pointerOpen: TimeInterval = 1.0 / 30
+        static let pointerAtRest: TimeInterval = 1.0 / 10
         /// Long enough for the closing spring to finish before anything moves.
         static let settle: TimeInterval = 0.4
     }

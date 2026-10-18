@@ -1,9 +1,10 @@
 import AppKit
 import SwiftUI
 
-/// The borderless window that holds the notch. It is a fixed, transparent canvas:
-/// clicks on its empty pixels fall through to the app underneath, so it never has
-/// to resize as the notch changes shape. See Platform facts in CLAUDE.md.
+/// The borderless window that holds the notch. It is a fixed, transparent canvas
+/// that ignores the mouse except while the pointer is on the notch's shape, so
+/// it never has to resize as the notch changes shape. See Platform facts in
+/// CLAUDE.md.
 final class NotchPanel: NSPanel {
     init(rootView: some View) {
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -16,6 +17,8 @@ final class NotchPanel: NSPanel {
         hidesOnDeactivate = false
         // Pluck hides itself to hand focus back after Quick Look; the notch stays.
         canHide = false
+        // The controller turns the mouse on while the pointer is on the notch.
+        ignoresMouseEvents = true
         contentView = FirstClickHostingView(rootView: AnyView(rootView))
     }
 }

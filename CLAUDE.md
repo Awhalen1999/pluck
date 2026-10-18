@@ -87,6 +87,10 @@ its timer.
   with feedback. In Peek and the Shelf, acting leaves them open.
 - Hovering holds the Preview's timer. Leaving resumes it, never with less than
   `Timing.previewResumeMinimum` left.
+- While feedback shows, hovering doesn't open Peek: the pointer is aiming at the
+  feedback, maybe its Undo.
+- A successful drop finishes the notch from any state. A cancelled drag puts
+  everything back.
 - The machine has at most one timer, and every transition replaces it, so a
   timer can never outlive its state. Feedback has its own timer.
 - Feedback ("Copied", "Trashed · Undo") is not a state. It is one slot any state
@@ -209,9 +213,22 @@ Verified on this machine; each one notes how.
   no-break space), and the format follows the user's locale. Never parse or
   build screenshot names by hand.
 - **The panel.** A borderless `.nonactivatingPanel` `NSPanel` at `.statusBar`
-  level draws over the menu bar at the notch. When it's clear and non-opaque,
-  clicks on its transparent pixels pass through to the app underneath, so the
-  panel needs no resizing or `ignoresMouseEvents` juggling.
+  level draws over the menu bar at the notch. Pluck doesn't rely on macOS
+  passing clicks through its transparent pixels: the panel ignores the mouse,
+  and the controller turns the mouse on exactly while the pointer is on the
+  notch's shape (`NotchLayout.shapeRect`).
+- **Pointer moves don't reach every app.** A global mouse-moved monitor misses
+  moves over some apps' windows (macOS only sends them to apps tracking the
+  mouse). Pluck samples `NSEvent.mouseLocation` as a backstop, 30 times a second
+  while the notch is open and 10 at rest. A listen-only event tap would be
+  event-driven, but receives nothing without Input Monitoring. (Checked
+  2026-10-17.)
+- **Use the event's own location.** In a monitor callback, `NSEvent.mouseLocation`
+  can still be the previous position when the pointer jumps. A global event has
+  no window, so `locationInWindow` is in screen coordinates.
+- **SwiftUI gestures fire through AppKit views.** A tap gesture on a container
+  also fires for a click an embedded `NSView` already handled. Notch-level
+  clicks live on a layer behind the content, never on a container of it.
 - **First click.** `NSHostingView` swallows the first click on a non-key
   panel, so a tap needs two clicks. The notch's hosting view must return true
   from `acceptsFirstMouse`.

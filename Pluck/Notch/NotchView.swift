@@ -15,16 +15,24 @@ struct NotchView: View {
             let shape = NotchShape(radius: radius, topRadius: topRadius)
 
             ZStack(alignment: .top) {
+                // A click on the notch itself opens the Shelf. This sits behind the
+                // content, so it only fires where nothing in front takes the click:
+                // a shot, a button. Labels don't take the pointer, so a click on
+                // one is a click on the notch.
+                Color.clear
+                    .contentShape(shape)
+                    .onTapGesture { controller.clickedNotch() }
                 content(notchWidth: geometry.frame.width)
                     .transition(Theme.Motion.contentTransition)
                     .opacity(controller.showsContent ? 1 : 0)
             }
             .frame(width: frame.size.width, height: frame.size.height, alignment: .top)
             .notchSurface(radius: radius, topRadius: topRadius)
-            .contentShape(shape)
-            .onTapGesture { controller.clickedNotch() }
             .onContinuousHover(coordinateSpace: .global) { phase in
-                if case .active(let point) = phase { controller.pointerMovedInPanel(point) }
+                switch phase {
+                case .active(let point): controller.pointerMovedInPanel(point)
+                case .ended: controller.pointerLeftShape()
+                }
             }
             .shadow(color: expanded ? Theme.Notch.shadow : .clear, radius: Theme.Notch.shadowRadius, y: Theme.Notch.shadowY)
             .offset(x: frame.offsetX)
@@ -60,7 +68,7 @@ struct NotchHeader<Leading: View, Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            leading.frame(maxWidth: .infinity, alignment: .leading)
+            leading.frame(maxWidth: .infinity, alignment: .leading).allowsHitTesting(false)
             Color.clear.frame(width: notchWidth)
             trailing.frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -79,8 +87,11 @@ struct FeedbackLabel: View {
 
     var body: some View {
         HStack(spacing: Theme.Space.xs) {
-            Image(systemName: feedback.symbol).foregroundStyle(feedback.tint)
-            Text(feedback.text).foregroundStyle(.primary)
+            Group {
+                Image(systemName: feedback.symbol).foregroundStyle(feedback.tint)
+                Text(feedback.text).foregroundStyle(.primary)
+            }
+            .allowsHitTesting(false)
             if feedback.canUndo {
                 Button("Undo") { controller.undoTrash() }
                     .buttonStyle(.plain)
@@ -132,6 +143,7 @@ private struct LatestStack: View {
                     .opacity(1 - Double(depth) * Theme.Notch.latestStackFade)
             }
         }
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }

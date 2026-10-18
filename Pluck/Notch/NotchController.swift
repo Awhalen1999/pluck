@@ -31,6 +31,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
     @ObservationIgnored private var monitors: [Any] = []
+    @ObservationIgnored private var pointerTask: Task<Void, Never>?
     @ObservationIgnored private let dragSource = ShotDragSource()
     @ObservationIgnored private let quickLookPanel = QuickLook()
     /// The views drawing each shot right now, so Quick Look can zoom from them.
@@ -139,6 +140,10 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     func register(_ view: NSView, for id: Shot.ID) {
         shotViews.setObject(view, forKey: id as NSString)
     }
+
+    /// The pointer left the notch's own pixels. Where it went, the global monitor
+    /// may never say (macOS only sends moves to the active app), so check now.
+    func pointerLeftShape() { syncPointer() }
 
     /// From the notch view, for pointer moves that land on the notch's own pixels.
     /// Every other move arrives through the global monitor.
@@ -251,7 +256,9 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// it changes, so a stale timer can never fire.
     private func send(_ event: NotchMachine.Event?, feedback newFeedback: Feedback? = nil) {
         var next = machine
-        next.settings = NotchMachine.Settings(opensOnHover: preferences.opensOnHover,
+        // Feedback is something to read or press (Undo), so hovering it doesn't
+        // turn the notch into Peek under the pointer.
+        next.settings = NotchMachine.Settings(opensOnHover: preferences.opensOnHover && feedback == nil,
                                               previewDuration: preferences.previewDuration.rawValue)
         if let event { next.handle(event, at: .now) }
         if next.state != machine.state {
@@ -302,10 +309,16 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     // MARK: Pointer
 
-    /// Hover is geometry: the pointer's position against the notch's current
-    /// hover zone. No invisible views, so nothing blocks clicks underneath.
+    /// The pointer is tracked as geometry, against the notch's current shape.
+    /// Hover uses the hover zone. The panel takes the mouse exactly while the
+    /// pointer is on the shape and lets it pass through everywhere else, so a
+    /// click always lands where the user sees it. macOS's own pass-through of
+    /// transparent pixels goes stale when content appears without the pointer
+    /// on it, as a Preview does; see Platform facts.
     private func pointerMoved(to point: CGPoint) {
         guard let geometry else { return }
+        let onShape = NotchLayout.shapeRect(for: frame, geometry: geometry).contains(point)
+        if panel.ignoresMouseEvents == onShape { panel.ignoresMouseEvents = !onShape }
         let inside = NotchLayout.hoverZone(for: frame, state: shownState, geometry: geometry).contains(point)
         if inside != machine.pointerInside { send(inside ? .pointerEntered : .pointerExited) }
     }
@@ -315,23 +328,45 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     private func syncPointer() { pointerMoved(to: NSEvent.mouseLocation) }
 
     /// With "Show on: With mouse", a resting notch follows the pointer to its display.
-    private func followPointer() {
+    private func followPointer(to point: CGPoint) {
         guard preferences.notchDisplay == .withMouse, isResting,
-              let target = Self.screen(containing: NSEvent.mouseLocation), target != screen else { return }
+              let target = Self.screen(containing: point), target.displayID != screen?.displayID else { return }
         place(on: target)
     }
 
     private func watchPointer() {
-        let moved = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in
+        // The event's own location, not NSEvent.mouseLocation: when the pointer
+        // jumps, the monitor can run before the current location catches up.
+        // A global event has no window, so its location is in screen coordinates.
+        let moved = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+            let point = event.locationInWindow
             MainActor.assumeIsolated {
-                self?.followPointer()
-                self?.syncPointer()
+                self?.followPointer(to: point)
+                self?.pointerMoved(to: point)
             }
         }
         let clicked = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated { self?.send(.clickedOutside) }
         }
         monitors = [moved, clicked].compactMap { $0 }
+
+        // macOS only sends pointer moves to the active app, so the monitor misses
+        // moves over other apps' windows. Sampling the position guarantees none
+        // is missed: often while the notch is open, rarely at rest.
+        // ponytail: sampling; an event tap would be event-driven, but needs Input Monitoring.
+        pointerTask = Task { [weak self] in
+            var last: CGPoint?
+            while !Task.isCancelled {
+                guard let self else { return }
+                let point = NSEvent.mouseLocation
+                if point != last {
+                    last = point
+                    pointerMoved(to: point)
+                }
+                let interval = isResting ? Theme.Timing.pointerAtRest : Theme.Timing.pointerOpen
+                try? await Task.sleep(for: .seconds(interval), tolerance: .seconds(interval / 4))
+            }
+        }
     }
 
     // MARK: Library
@@ -340,7 +375,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         library.onArrival = { [weak self] shot in
             Thumbnails.prefetch([shot])
             guard let self, showsPreview, !machine.isDragging, state != .shelf else { return }
-            if let target = Self.screen(for: shot), target != screen { place(on: target) }
+            if let target = Self.screen(for: shot), target.displayID != screen?.displayID { place(on: target) }
             send(.shotArrived(shot.id))
         }
         // A Preview whose shot disappears (deleted in Finder, say) closes at once.
@@ -387,7 +422,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         homeTask = Task { [weak self] in
             // Let the closing spring finish where the user saw it.
             try? await Task.sleep(for: .seconds(Theme.Timing.settle))
-            guard let self, !Task.isCancelled, isResting, let home, home != screen else { return }
+            guard let self, !Task.isCancelled, isResting, let home, home.displayID != screen?.displayID else { return }
             place(on: home)
         }
     }
@@ -437,8 +472,12 @@ private extension NotchState {
 }
 
 private extension NSScreen {
+    /// Stable across `NSScreen` objects, which macOS recreates as displays change.
+    var displayID: CGDirectDisplayID? {
+        deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+    }
+
     var isBuiltIn: Bool {
-        guard let id = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return false }
-        return CGDisplayIsBuiltin(id) != 0
+        displayID.map { CGDisplayIsBuiltin($0) != 0 } ?? false
     }
 }

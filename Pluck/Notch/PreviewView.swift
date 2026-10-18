@@ -69,6 +69,7 @@ private struct CountdownRing: View {
             }
             .frame(width: Theme.Notch.previewRingSize, height: Theme.Notch.previewRingSize)
         }
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }

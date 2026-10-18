@@ -64,6 +64,7 @@ private struct SectionHeader: View {
             }
         }
         .frame(height: Theme.Notch.sectionHeaderHeight)
+        .allowsHitTesting(false)
         .accessibilityAddTraits(.isHeader)
     }
 }

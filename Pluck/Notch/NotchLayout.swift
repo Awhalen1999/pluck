@@ -67,15 +67,25 @@ enum NotchLayout {
         }
     }
 
+    /// The notch's shape on screen, in screen coordinates: the only place the
+    /// notch takes the mouse.
+    static func shapeRect(for frame: Frame, geometry: NotchGeometry) -> CGRect {
+        CGRect(x: geometry.frame.midX + frame.offsetX - frame.size.width / 2,
+               y: geometry.frame.maxY - frame.size.height,
+               width: frame.size.width, height: frame.size.height)
+    }
+
     /// Where the pointer counts as "on the notch", in screen coordinates. It
     /// always reaches the top edge of the screen, and when idle a little below
     /// the notch too, since the camera housing hides the cursor.
     static func hoverZone(for frame: Frame, state: NotchState, geometry: NotchGeometry) -> CGRect {
-        let top = geometry.frame.maxY + geometry.topInset
-        let reach = state == .idle ? Theme.Notch.hoverReach : 0
-        let bottom = geometry.frame.maxY - frame.size.height - reach
-        return CGRect(x: geometry.frame.midX + frame.offsetX - frame.size.width / 2, y: bottom,
-                      width: frame.size.width, height: top - bottom)
+        var zone = shapeRect(for: frame, geometry: geometry)
+        zone.size.height += geometry.topInset
+        if state == .idle {
+            zone.origin.y -= Theme.Notch.hoverReach
+            zone.size.height += Theme.Notch.hoverReach
+        }
+        return zone
     }
 
     /// The idle notch grows a left ear for the latest shot, and a right ear while

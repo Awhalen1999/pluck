@@ -57,5 +57,6 @@ struct NoShotsYet: View {
         Text("No screenshots yet. Press ⇧⌘4 to take one.")
             .font(Theme.Typography.label)
             .foregroundStyle(.secondary)
+            .allowsHitTesting(false)
     }
 }
