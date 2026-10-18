@@ -100,6 +100,8 @@ its timer.
 - Hover is geometry: the pointer's position against `NotchLayout.hoverZone`,
   from a global mouse monitor plus the notch's own hover events. No invisible
   views, so nothing blocks clicks underneath.
+- The intent delay counts from when the pointer slows down on the notch. One
+  sweeping across it along the menu bar is passing over, and never opens Peek.
 - Esc always goes back exactly one level: a menu, then the selection, then the
   Shelf.
 - Only the Shelf takes the keyboard. Peek and the Preview never take it from

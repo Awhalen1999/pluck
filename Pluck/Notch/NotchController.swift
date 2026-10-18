@@ -45,6 +45,9 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// Menus open now, a submenu counting as one more. The pointer is on the
     /// menu, not the notch, and the notch stays as it is until they close.
     @ObservationIgnored private var openMenus = 0
+    /// The last pointer position and when, to tell a pointer passing over the
+    /// notch from one arriving on it.
+    @ObservationIgnored private var lastPointer: (point: CGPoint, time: TimeInterval)?
 
     init(library: ShotLibrary, preferences: Preferences, showsPreview: Bool) {
         self.library = library
@@ -499,6 +502,20 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         if panel.ignoresMouseEvents == onShape { panel.ignoresMouseEvents = !onShape }
         let inside = NotchLayout.hoverZone(for: frame, state: shownState, geometry: geometry).contains(point)
         if inside != machine.pointerInside { send(inside ? .pointerEntered : .pointerExited) }
+        if inside, shownState == .idle, isPassing(point) { send(.pointerPassing) }
+    }
+
+    /// Whether the pointer is moving faster than `Timing.passingSpeed`. Moves
+    /// arrive from several sources, so ones too close together to measure are
+    /// skipped.
+    private func isPassing(_ point: CGPoint) -> Bool {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard let last = lastPointer, now - last.time >= 1.0 / 120 else {
+            if lastPointer == nil { lastPointer = (point, now) }
+            return false
+        }
+        lastPointer = (point, now)
+        return hypot(point.x - last.point.x, point.y - last.point.y) / (now - last.time) > Theme.Timing.passingSpeed
     }
 
     /// Re-checks the pointer without it moving, for when the notch changes shape

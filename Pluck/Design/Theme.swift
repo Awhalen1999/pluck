@@ -96,6 +96,10 @@ enum Theme {
         /// Hovering this long opens Peek, so a pointer passing by on its way to a
         /// menu doesn't open anything.
         static let hoverIntent: TimeInterval = 0.13
+        /// Over the idle notch, a pointer moving faster than this, in points a
+        /// second, is passing over (along the menu bar, say), not arriving, and
+        /// the hover delay starts again.
+        static let passingSpeed: CGFloat = 300
         /// Peek stays this long after the pointer leaves, so a small overshoot
         /// doesn't close it.
         static let leaveGrace: TimeInterval = 0.2

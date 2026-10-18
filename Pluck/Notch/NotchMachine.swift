@@ -16,6 +16,8 @@ struct NotchMachine: Equatable {
     enum Event: Equatable {
         case pointerEntered
         case pointerExited
+        /// The pointer is on the idle notch but still moving fast.
+        case pointerPassing
         /// A click on the notch itself, not on a shot or a button.
         case clicked
         /// A click outside the notch, or ⌘-Tab: the user is in another app now.
@@ -72,6 +74,10 @@ struct NotchMachine: Equatable {
             case .preview: pausePreview(at: now)
             case .shelf: break
             }
+
+        case .pointerPassing:
+            // Not arriving yet: the hover delay counts from when it slows down.
+            if state == .idle, pointerInside, timer != nil { timer = now + Theme.Timing.hoverIntent }
 
         case .pointerExited:
             guard pointerInside else { return }

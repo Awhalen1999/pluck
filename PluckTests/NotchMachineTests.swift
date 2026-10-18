@@ -60,6 +60,19 @@ private struct Driver {
     #expect(d.state == .peek)
 }
 
+@Test func aPointerSweepingAcrossTheNotchNeverOpensPeek() {
+    var d = Driver()
+    d.send(.pointerEntered)
+    for _ in 0..<10 {
+        d.wait(Theme.Timing.hoverIntent / 2)
+        d.send(.pointerPassing)
+    }
+    #expect(d.state == .idle)
+    // It slows down on the notch: now it has arrived.
+    d.wait(Theme.Timing.hoverIntent)
+    #expect(d.state == .peek)
+}
+
 @Test func withOpenOnHoverOffOnlyAClickOpens() {
     var d = Driver(opensOnHover: false)
     d.send(.pointerEntered)
