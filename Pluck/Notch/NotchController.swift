@@ -42,6 +42,9 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// Where the pointer was when the arrow keys last moved the focus. Until it
     /// moves, shots scrolling under it don't take the focus back.
     @ObservationIgnored private var pointerAtKeyboardFocus: CGPoint?
+    /// Menus open now, a submenu counting as one more. The pointer is on the
+    /// menu, not the notch, and the notch stays as it is until they close.
+    @ObservationIgnored private var openMenus = 0
 
     init(library: ShotLibrary, preferences: Preferences, showsPreview: Bool) {
         self.library = library
@@ -55,6 +58,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         watchDrags()
         watchQuickLook()
         watchActivation()
+        watchMenus()
         Thumbnails.prefetch(library.shots.prefix(Theme.Notch.peekTileCount))
     }
 
@@ -247,6 +251,19 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         return menu
     }
 
+    private func watchMenus() {
+        // Handled as they're posted, so an end is never handled before its begin.
+        for (name, change) in [(NSMenu.didBeginTrackingNotification, 1), (NSMenu.didEndTrackingNotification, -1)] {
+            _ = NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.openMenus = max(0, self.openMenus + change)
+                    if self.openMenus == 0 { self.syncPointer() }
+                }
+            }
+        }
+    }
+
     /// "Move To": the usual folders, then any folder at all.
     private func moveMenuItem(for ids: [Shot.ID]) -> NSMenuItem {
         let submenu = NSMenu()
@@ -410,9 +427,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// it changes, so a stale timer can never fire.
     private func send(_ event: NotchMachine.Event?, feedback newFeedback: Feedback? = nil) {
         var next = machine
-        // Feedback is something to read or press (Undo), so hovering it doesn't
-        // turn the notch into Peek under the pointer.
-        next.settings = NotchMachine.Settings(opensOnHover: preferences.opensOnHover && feedback == nil,
+        // Hovering an Undo doesn't turn the notch into Peek under the pointer.
+        next.settings = NotchMachine.Settings(opensOnHover: preferences.opensOnHover && feedback?.canUndo != true,
                                               previewDuration: preferences.previewDuration.rawValue)
         if let event { next.handle(event, at: .now) }
         if next.state != machine.state {
@@ -464,6 +480,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
             guard !Task.isCancelled, let self else { return }
             withAnimation(Theme.Motion.reshape(opening: false)) { feedback = nil }
             syncPointer()
+            send(.feedbackEnded)
             goHomeWhenSettled()
         }
     }
@@ -477,7 +494,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// transparent pixels goes stale when content appears without the pointer
     /// on it, as a Preview does; see Platform facts.
     private func pointerMoved(to point: CGPoint) {
-        guard let geometry else { return }
+        guard let geometry, openMenus == 0 else { return }
         let onShape = NotchLayout.shapeRect(for: frame, geometry: geometry).contains(point)
         if panel.ignoresMouseEvents == onShape { panel.ignoresMouseEvents = !onShape }
         let inside = NotchLayout.hoverZone(for: frame, state: shownState, geometry: geometry).contains(point)

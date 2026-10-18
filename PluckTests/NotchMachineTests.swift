@@ -48,6 +48,18 @@ private struct Driver {
     #expect(d.machine.timer == nil)
 }
 
+@Test func aPointerRestingOnTheUndoOpensPeekOnceTheFeedbackGoes() {
+    // While Undo shows, the controller turns hover-open off.
+    var d = Driver(opensOnHover: false)
+    d.send(.pointerEntered)
+    d.wait(10)
+    #expect(d.state == .idle)
+    d.machine.settings.opensOnHover = true
+    d.send(.feedbackEnded)
+    d.wait(Theme.Timing.hoverIntent)
+    #expect(d.state == .peek)
+}
+
 @Test func withOpenOnHoverOffOnlyAClickOpens() {
     var d = Driver(opensOnHover: false)
     d.send(.pointerEntered)

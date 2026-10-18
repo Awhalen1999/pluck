@@ -29,6 +29,8 @@ struct NotchMachine: Equatable {
         case dragStarted
         /// `dropped` is true for a drop into another app; a cancelled drag is false.
         case dragEnded(dropped: Bool)
+        /// The feedback slot emptied, so hovering may open Peek again.
+        case feedbackEnded
         case timerFired
     }
 
@@ -113,6 +115,12 @@ struct NotchMachine: Equatable {
 
         case .dragEnded:
             break
+
+        case .feedbackEnded:
+            // A pointer resting on the Undo is now simply resting on the notch.
+            if state == .idle, pointerInside, timer == nil, settings.opensOnHover {
+                timer = now + Theme.Timing.hoverIntent
+            }
 
         case .timerFired:
             guard let timer, now >= timer else { return }

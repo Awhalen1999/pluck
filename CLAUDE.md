@@ -87,8 +87,10 @@ its timer.
   with feedback. In Peek and the Shelf, acting leaves them open.
 - Hovering holds the Preview's timer. Leaving resumes it, never with less than
   `Timing.previewResumeMinimum` left.
-- While feedback shows, hovering doesn't open Peek: the pointer is aiming at the
-  feedback, maybe its Undo.
+- While feedback offers Undo, hovering doesn't open Peek: the pointer is aiming
+  at the Undo. Once it goes, a pointer still resting there opens Peek.
+- While one of its menus is open, the notch stays as it is: the pointer is on
+  the menu, not gone.
 - A successful drop finishes the notch from any state. A cancelled drag puts
   everything back.
 - The machine has at most one timer, and every transition replaces it, so a
