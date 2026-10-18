@@ -33,20 +33,25 @@ struct ShelfView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(sections) { section in
-                                SectionHeader(section: section)
                                 ForEach(section.rows) { row in
-                                    HStack(spacing: Theme.Space.s) {
-                                        ForEach(row.tiles) { tile in
-                                            ShotTile(shot: tile.shot, size: tile.size, controller: controller)
+                                    // A section's title is part of its first row, so a
+                                    // row scrolled into view brings its title along.
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        if row.id == section.rows.first?.id { SectionHeader(section: section) }
+                                        HStack(spacing: Theme.Space.s) {
+                                            ForEach(row.tiles) { tile in
+                                                ShotTile(shot: tile.shot, size: tile.size, controller: controller)
+                                            }
                                         }
+                                        .padding(.bottom, Theme.Space.s)
                                     }
-                                    .padding(.bottom, Theme.Space.s)
                                 }
                             }
                         }
                         .padding(.horizontal, Theme.Space.xl)
-                        .padding(.bottom, NotchLayout.shelfBottomPadding)
                     }
+                    // A margin, not padding, so a row scrolled to stays clear of the edge.
+                    .contentMargins(.bottom, NotchLayout.shelfBottomPadding, for: .scrollContent)
                     .scrollIndicators(fits ? .never : .automatic)
                     .scrollBounceBehavior(.basedOnSize)
                     .onChange(of: controller.focusedShot) { _, id in
