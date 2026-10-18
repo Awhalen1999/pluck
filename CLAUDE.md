@@ -207,6 +207,10 @@ One name per concept, in code and in UI copy:
 without a physical notch), **Idle / Peek / Shelf / Preview** (its states),
 **pin** / **pinned**, **feedback** (the one-slot status message).
 
+In copy, "screenshot" in sentences and in Settings; "shot" only where the notch
+is short of room ("3 shots"). Settings copy names the choice in the label and
+says what happens in one plain line below it.
+
 ## Code style
 
 - Comments explain why, not what. Most code needs none.

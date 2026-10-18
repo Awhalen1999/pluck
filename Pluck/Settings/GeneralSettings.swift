@@ -18,23 +18,23 @@ struct GeneralSettings: View {
                 } label: {
                     Text("Preview")
                     Text(preferences.preview == .pluck
-                         ? "A live preview in the notch, with Copy, Markup, Pin and Trash."
-                         : "Apple’s corner thumbnail, with Markup.")
+                         ? "Appears in the notch, ready to copy, mark up, pin or drag anywhere."
+                         : "The standard macOS thumbnail, in the corner of the screen.")
                 }
                 .pickerStyle(.segmented)
                 if preferences.preview == .pluck {
                     Picker(selection: $preferences.previewDuration) {
-                        ForEach(PreviewDuration.allCases, id: \.self) { Text("\(Int($0.rawValue))s").tag($0) }
+                        ForEach(PreviewDuration.allCases, id: \.self) { Text("\(Int($0.rawValue)) sec").tag($0) }
                     } label: {
-                        Text("Keep the preview up for")
-                        Text("Hover it to keep it longer.")
+                        Text("Show preview for")
+                        Text("Hover over the preview to keep it open.")
                     }
                     .pickerStyle(.segmented)
                 }
             } header: {
-                Text("Capture")
+                Text("Screenshots")
             } footer: {
-                Text("Save location and preview are macOS settings. Pluck changes them for you, and can put them back any time in About.")
+                Text("Pluck manages these macOS screenshot settings for you. You can restore your originals any time in About.")
             }
 
             Section {
@@ -42,38 +42,37 @@ struct GeneralSettings: View {
                     Text("Keep").tag(false)
                     Text("Remove").tag(true)
                 } label: {
-                    Text("Shots you drag out")
+                    Text("When dragged into an app")
                     Text(preferences.removeDraggedOut
-                         ? "Drop one into an app and it leaves \(folderName): the app has it. Pin a shot to keep it."
-                         : "They stay in \(folderName) like any other screenshot.")
+                         ? "Screenshots leave \(folderName) once you drop them into another app. Pinned ones stay."
+                         : "Screenshots stay in \(folderName) after you drop them into another app.")
                 }
                 .pickerStyle(.segmented)
-                Picker("Remove screenshots after", selection: $preferences.retention) {
+                Picker("Move to Trash after", selection: $preferences.retention) {
                     ForEach(Retention.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
             } header: {
-                Text("Files")
+                Text("Cleanup")
             } footer: {
-                Text("Removed screenshots go to the Trash, so Finder’s Put Back still works. Pinned ones are always kept.")
+                Text("Pinned screenshots are never removed, and anything moved to the Trash can be put back from there.")
             }
 
             Section("Notch") {
                 Toggle(isOn: $preferences.opensOnHover) {
                     Text("Open on hover")
-                    Text("When off, click the notch to open it.")
+                    Text("Rest the pointer on the notch to see recent screenshots. When off, click the notch instead.")
                 }
                 Toggle(isOn: $preferences.showsLatestWhenIdle) {
-                    Text("Show latest shot when idle")
-                    Text("Your newest screenshot, beside the notch.")
+                    Text("Show latest screenshot")
+                    Text("A small thumbnail beside the notch.")
                 }
                 Picker(selection: $preferences.notchDisplay) {
                     ForEach(NotchDisplay.allCases, id: \.self) { Text($0.title).tag($0) }
                 } label: {
                     Text("Show on")
-                    Text("The display the notch lives on. Previews appear there too.")
+                    Text("Where the notch and previews appear.")
                 }
-                .pickerStyle(.segmented)
             }
 
             Section("System") {
@@ -82,30 +81,30 @@ struct GeneralSettings: View {
                     opensAtLogin = LaunchAtLogin.isEnabled
                 }))
                 if LaunchAtLogin.needsApproval {
-                    LabeledContent("Allow Pluck in Login Items to finish") {
-                        Button("Open System Settings") { LaunchAtLogin.openSystemSettings() }
+                    LabeledContent("Allow Pluck in Login Items to finish setting this up") {
+                        Button("Open Login Items") { LaunchAtLogin.openSystemSettings() }
                     }
                 }
                 Toggle(isOn: $preferences.showsMenuBarIcon) {
                     Text("Show in menu bar")
-                    Text("Your way in when a full-screen app hides the notch. Hidden, open Pluck again for Settings.")
+                    Text("A way in when a full-screen app hides the notch. If it’s hidden, open Pluck again to get back here.")
                 }
             }
 
             Section {
-                LabeledContent("\(folderName) folder") {
+                LabeledContent("Access to \(folderName)") {
                     if library.canReadFolder {
                         Text("Allowed").foregroundStyle(.secondary)
                     } else {
-                        Button("Open System Settings") { NSWorkspace.shared.open(.filesAndFoldersSettings) }
+                        Button("Allow in System Settings…") { NSWorkspace.shared.open(.filesAndFoldersSettings) }
                     }
                 }
             } header: {
-                Text("Access")
+                Text("Permissions")
             } footer: {
                 Text(library.canReadFolder
-                     ? "Screenshots never leave your Mac."
-                     : "Pluck can’t see new screenshots until it’s allowed to read \(folderName).")
+                     ? "Your screenshots stay on this Mac."
+                     : "Pluck needs access to \(folderName) to show your new screenshots.")
             }
         }
         .formStyle(.grouped)
@@ -116,7 +115,7 @@ struct GeneralSettings: View {
     }
 }
 
-/// "Save screenshots to": the usual places, the current folder if it's elsewhere,
+/// "Save to": the usual places, the current folder if it's elsewhere,
 /// and any folder at all.
 private struct SaveFolderPicker: View {
     let setup: ScreenshotSetup
@@ -130,7 +129,7 @@ private struct SaveFolderPicker: View {
     var body: some View {
         let current = Self.path(setup.saveFolder)
         let usual = [URL.desktopDirectory, .downloadsDirectory, URL.picturesDirectory.appending(path: "Screenshots")].map(Self.path)
-        Picker("Save screenshots to", selection: Binding(get: { Choice.folder(current) }, set: { choice in
+        Picker("Save to", selection: Binding(get: { Choice.folder(current) }, set: { choice in
             switch choice {
             case .folder(let path): setup.setSaveFolder(URL(filePath: path, directoryHint: .isDirectory))
             case .choose: choosingFolder = true
@@ -164,9 +163,9 @@ private extension Retention {
 private extension NotchDisplay {
     var title: String {
         switch self {
-        case .builtIn: "Built-in"
-        case .main: "Main"
-        case .withMouse: "With mouse"
+        case .builtIn: "Built-in Display"
+        case .main: "Main Display"
+        case .withMouse: "Follow Pointer"
         }
     }
 }

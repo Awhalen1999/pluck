@@ -28,8 +28,8 @@ struct AboutSettings: View {
                 } label: {
                     Text("Restore macOS screenshot settings")
                     Text(restored
-                         ? "The save location and thumbnail are back to how they were before Pluck."
-                         : "Puts the save location and thumbnail back to how they were before Pluck.")
+                         ? "Your original screenshot settings are back."
+                         : "Returns the save location and thumbnail to how they were before Pluck.")
                 }
                 LabeledContent("Quit Pluck") {
                     Button("Quit") { NSApp.terminate(nil) }
@@ -37,7 +37,7 @@ struct AboutSettings: View {
             } header: {
                 Text("Reset")
             } footer: {
-                Text("Uninstalling? Restore first, then drag Pluck to the Trash.")
+                Text("To uninstall, restore your settings first, then move Pluck to the Trash.")
             }
         }
         .formStyle(.grouped)
