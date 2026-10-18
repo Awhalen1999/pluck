@@ -65,19 +65,20 @@ final class ShotInteractionView: NSView {
 /// ended.
 final class ShotDragSource: NSObject, NSDraggingSource {
     var moved: (NSPoint) -> Void = { _ in }
-    var ended: (_ dropped: Bool) -> Void = { _ in }
+    var ended: (NSDragOperation) -> Void = { _ in }
 
-    /// Other apps get a copy, so the file is still there for Pluck to clean up.
+    /// Every operation a file drag from Finder offers, and the destination picks:
+    /// chat apps and editors copy (some say "generic"), Finder moves within a
+    /// disk, so dropping a shot on its own Desktop doesn't duplicate it, and ⌥
+    /// still forces a copy.
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-        context == .outsideApplication ? .copy : .move
+        [.copy, .move, .generic]
     }
-
-    func ignoreModifierKeys(for session: NSDraggingSession) -> Bool { true }
 
     func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) { moved(screenPoint) }
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
-        ended(!operation.isEmpty)
+        ended(operation)
     }
 
     /// The shot under the cursor during a drag: its thumbnail, rounded like a tile.

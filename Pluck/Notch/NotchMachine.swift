@@ -137,9 +137,15 @@ struct NotchMachine: Equatable {
         case .dragEnded(let dropped):
             isDragging = false
             stepsAside = false
+            // A shot delivered is the job done, from any state. A cancelled drag
+            // puts everything back the way it was.
+            if dropped {
+                go(.idle)
+                return
+            }
             switch state {
             case .preview:
-                if dropped { go(.idle) } else if !pointerInside { resumePreview(at: now) }
+                if !pointerInside { resumePreview(at: now) }
             case .peek:
                 if !pointerInside { timer = now + Theme.Timing.leaveGrace }
             case .idle, .shelf:

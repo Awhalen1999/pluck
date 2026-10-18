@@ -232,6 +232,17 @@ Verified on this machine; each one notes how.
 - **Simulating a capture.** The `screencapture` command-line tool tags its
   files the same way ⇧⌘4 does, so `screencapture -x -R 0,0,200,100 <path>`
   lands a real, tagged screenshot without anyone at the keyboard.
+- **Clicks fall through where nothing claims them.** Whether a click reaches
+  the notch or the app underneath is decided by hit-testing, not by what's
+  drawn. Anything inside the notch must be hit-testable, or a click on it lands
+  in the app below and closes the notch.
+- **Clipping doesn't trim hit-testing.** An image scaled to fill and then
+  clipped still catches presses across its whole unclipped size. A filling
+  thumbnail must not take the pointer (`allowsHitTesting(false)` on the image),
+  or a wide screenshot steals presses from the tiles beside it.
+- **Drop destinations choose the operation.** Offer copy, move and generic, as
+  Finder does. TextEdit and others refuse a file drop unless generic is
+  offered; Finder moves within a disk.
 - **Liquid Glass works in the notch panel** over other apps' windows. (Checked
   with a live Preview over a terminal, 2026-10-17.)
 - **Not yet verified:** switching Spaces, full-screen apps, external displays,

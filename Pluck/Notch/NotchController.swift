@@ -24,6 +24,10 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     private var machine = NotchMachine()
 
     @ObservationIgnored private var panel: NotchPanel!
+    /// The display the notch is on right now: its home, or the display a
+    /// Preview's shot was taken on.
+    @ObservationIgnored private var screen: NSScreen?
+    @ObservationIgnored private var homeTask: Task<Void, Never>?
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
     @ObservationIgnored private var monitors: [Any] = []
@@ -37,7 +41,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         self.preferences = preferences
         self.showsPreview = showsPreview
         panel = NotchPanel(rootView: NotchView(controller: self))
-        place()
+        goHome()
         watchScreens()
         watchPointer()
         watchLibrary()
@@ -58,7 +62,9 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     var showsContent: Bool { !machine.stepsAside }
 
     var frame: NotchLayout.Frame {
-        NotchLayout.frame(for: shownState, content: content, notch: geometry?.frame.size ?? Theme.Notch.referenceSize)
+        // Stepped aside for a drag, the notch is bare: no ears, nothing to look at.
+        let content = machine.stepsAside ? NotchLayout.Content() : self.content
+        return NotchLayout.frame(for: shownState, content: content, notch: geometry?.frame.size ?? Theme.Notch.referenceSize)
     }
 
     var content: NotchLayout.Content {
@@ -81,22 +87,26 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     }
 
     func copy(_ ids: [Shot.ID]) {
+        log.debug("Copy \(ids.count, privacy: .public)")
         library.copy(ids)
         send(.finished, feedback: Feedback(kind: .copied, count: ids.count))
     }
 
     func togglePin(_ ids: [Shot.ID]) {
         let pinning = !ids.allSatisfy(library.isPinned)
+        log.debug("\(pinning ? "Pin" : "Unpin", privacy: .public) \(ids.count, privacy: .public)")
         library.togglePin(ids)
         send(.finished, feedback: Feedback(kind: pinning ? .pinned : .unpinned, count: ids.count))
     }
 
     func trash(_ ids: [Shot.ID]) {
+        log.debug("Trash \(ids.count, privacy: .public)")
         library.trash(ids)
         send(.finished, feedback: Feedback(kind: .trashed, count: ids.count))
     }
 
     func move(_ ids: [Shot.ID], to folder: URL) {
+        log.debug("Move \(ids.count, privacy: .public)")
         library.move(ids, to: folder)
         send(.finished, feedback: Feedback(kind: .moved, count: ids.count))
     }
@@ -107,6 +117,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     }
 
     func undoTrash() {
+        log.debug("Undo trash")
         library.undoTrash()
         send(nil, feedback: Feedback(kind: .restored))
     }
@@ -115,10 +126,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// Preview it counts as acting on it, so the Preview finishes.
     func quickLook(_ id: Shot.ID) {
         let shots = library.shots
-        guard let index = shots.firstIndex(where: { $0.id == id }) else {
-            log.error("Quick Look: no such shot")
-            return
-        }
+        guard let index = shots.firstIndex(where: { $0.id == id }) else { return }
+        log.debug("Quick Look")
         quickLookPanel.show(shots, startingAt: index)
         if case .preview = state { send(.finished) }
     }
@@ -154,6 +163,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
                                   contents: image)
             return item
         }
+        log.debug("Drag began with \(shots.count, privacy: .public)")
         draggedShots = Set(shots.map(\.id))
         let session = view.beginDraggingSession(with: items, event: event, source: dragSource)
         session.draggingFormation = items.count > 1 ? .stack : .none
@@ -162,11 +172,16 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     private func watchDrags() {
         dragSource.moved = { [weak self] point in self?.pointerMoved(to: point) }
-        dragSource.ended = { [weak self] dropped in
+        dragSource.ended = { [weak self] operation in
             guard let self else { return }
-            if dropped, preferences.removeDraggedOut { library.recordDragOut(Array(draggedShots)) }
+            log.debug("Drag ended with operation \(operation.rawValue, privacy: .public)")
+            // Anything but a move leaves the file behind for the one-hour cleanup.
+            // A move took it somewhere else, and the library lets it go on its own.
+            if !operation.isEmpty, operation != .move, preferences.removeDraggedOut {
+                library.recordDragOut(Array(draggedShots))
+            }
             draggedShots = []
-            send(.dragEnded(dropped: dropped))
+            send(.dragEnded(dropped: !operation.isEmpty))
         }
     }
 
@@ -242,7 +257,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         if next.state != machine.state {
             // Only the event's name is public; shot IDs are file paths.
             let name = event.map { String(describing: $0).prefix { $0 != "(" } } ?? "feedback"
-            log.debug("\(name, privacy: .public) → \(String(describing: next.state))")
+            log.debug("\(name, privacy: .public) → \(next.state.name, privacy: .public)")
         }
 
         let reshapes = next.shownState != machine.shownState
@@ -256,7 +271,10 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         if let newFeedback { endFeedback(after: newFeedback.duration) }
         if timerChanged { schedule(next.timer) }
         if reshapes {
-            if next.shownState == .idle { hoveredShot = nil }
+            if next.shownState == .idle {
+                hoveredShot = nil
+                goHomeWhenSettled()
+            }
             syncPointer()
         }
     }
@@ -278,6 +296,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
             guard !Task.isCancelled, let self else { return }
             withAnimation(Theme.Motion.reshape(opening: false)) { feedback = nil }
             syncPointer()
+            goHomeWhenSettled()
         }
     }
 
@@ -295,9 +314,19 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// under it.
     private func syncPointer() { pointerMoved(to: NSEvent.mouseLocation) }
 
+    /// With "Show on: With mouse", a resting notch follows the pointer to its display.
+    private func followPointer() {
+        guard preferences.notchDisplay == .withMouse, isResting,
+              let target = Self.screen(containing: NSEvent.mouseLocation), target != screen else { return }
+        place(on: target)
+    }
+
     private func watchPointer() {
         let moved = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in
-            MainActor.assumeIsolated { self?.syncPointer() }
+            MainActor.assumeIsolated {
+                self?.followPointer()
+                self?.syncPointer()
+            }
         }
         let clicked = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated { self?.send(.clickedOutside) }
@@ -310,7 +339,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     private func watchLibrary() {
         library.onArrival = { [weak self] shot in
             Thumbnails.prefetch([shot])
-            guard let self, showsPreview else { return }
+            guard let self, showsPreview, !machine.isDragging, state != .shelf else { return }
+            if let target = Self.screen(for: shot), target != screen { place(on: target) }
             send(.shotArrived(shot.id))
         }
         // A Preview whose shot disappears (deleted in Finder, say) closes at once.
@@ -322,21 +352,49 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         }
     }
 
-    // MARK: Screens
+    // MARK: Displays
 
     private func watchScreens() {
         Task { [weak self] in
             for await _ in NotificationCenter.default.notifications(named: NSApplication.didChangeScreenParametersNotification) {
-                self?.place()
+                self?.goHome()
             }
         }
     }
 
-    /// Puts the panel on the built-in display, centered on its notch. Falls back
-    /// to the main display when the lid is closed.
-    // ponytail: built-in only; "Show on: Main / With mouse" arrives with Settings.
-    private func place() {
-        guard let screen = NSScreen.screens.first(where: \.isBuiltIn) ?? NSScreen.main else { return }
+    /// Idle with nothing to show: the only time the notch may change display, so
+    /// it never jumps while the user is looking at it.
+    private var isResting: Bool {
+        shownState == .idle && feedback == nil && !machine.isDragging
+    }
+
+    /// The display the notch lives on, from "Show on".
+    private var home: NSScreen? {
+        switch preferences.notchDisplay {
+        case .builtIn: NSScreen.screens.first(where: \.isBuiltIn) ?? NSScreen.screens.first
+        case .main: NSScreen.screens.first
+        case .withMouse: Self.screen(containing: NSEvent.mouseLocation) ?? NSScreen.screens.first
+        }
+    }
+
+    private func goHome() {
+        if let home { place(on: home) }
+    }
+
+    /// Back home once a Preview elsewhere has closed and its feedback is gone.
+    private func goHomeWhenSettled() {
+        homeTask?.cancel()
+        homeTask = Task { [weak self] in
+            // Let the closing spring finish where the user saw it.
+            try? await Task.sleep(for: .seconds(Theme.Timing.settle))
+            guard let self, !Task.isCancelled, isResting, let home, home != screen else { return }
+            place(on: home)
+        }
+    }
+
+    /// Puts the panel on a display, centered on its notch, or on the pill where
+    /// it has none.
+    private func place(on screen: NSScreen) {
         let geometry = NotchGeometry(screen: screen)
         let canvas = Theme.Notch.canvas
         panel.setFrame(CGRect(x: geometry.frame.midX - canvas.width / 2,
@@ -344,8 +402,37 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
                               width: canvas.width,
                               height: canvas.height),
                        display: true)
+        self.screen = screen
         self.geometry = geometry
         panel.orderFrontRegardless()
+    }
+
+    /// The display a shot was taken on: where its selection was, or, for a
+    /// whole-display capture, where the pointer is.
+    private static func screen(for shot: Shot) -> NSScreen? {
+        guard let rect = shot.captureRect, let primary = NSScreen.screens.first else {
+            return screen(containing: NSEvent.mouseLocation)
+        }
+        // The rect is in global display coordinates, which run top-down from the
+        // primary display's top-left; screens are laid out bottom-up.
+        let center = CGPoint(x: rect.midX, y: primary.frame.maxY - rect.midY)
+        return screen(containing: center) ?? screen(containing: NSEvent.mouseLocation)
+    }
+
+    private static func screen(containing point: CGPoint) -> NSScreen? {
+        NSScreen.screens.first { NSMouseInRect(point, $0.frame, false) }
+    }
+}
+
+private extension NotchState {
+    /// The state without its shot, safe to log.
+    var name: String {
+        switch self {
+        case .idle: "idle"
+        case .peek: "peek"
+        case .shelf: "shelf"
+        case .preview: "preview"
+        }
     }
 }
 

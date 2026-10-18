@@ -15,6 +15,11 @@ struct ShotImage: View {
                     Image(decorative: image, scale: 1)
                         .resizable()
                         .aspectRatio(contentMode: fits ? .fit : .fill)
+                        // Filling scales a very wide or tall image past its frame
+                        // before it's clipped, and clipping doesn't trim where it
+                        // can be hit. It never takes the pointer, so the overflow
+                        // can't steal presses from the tiles beside it.
+                        .allowsHitTesting(false)
                 }
             }
             .clipped()

@@ -9,6 +9,8 @@ struct ShelfView: View {
     var body: some View {
         let content = controller.content
         let sections = NotchLayout.shelfSections(content)
+        // Only a Shelf with more than fits scrolls, shows a scroller, or bounces.
+        let fits = NotchLayout.shelfHeight(sections) <= Theme.Notch.shelfMaxHeight - Theme.Notch.headerHeight
         VStack(spacing: 0) {
             NotchHeader(notchWidth: notchWidth) {
                 if let shot = controller.hoveredShot.flatMap({ id in content.shots.first { $0.id == id } }) {
@@ -39,6 +41,8 @@ struct ShelfView: View {
                     .padding(.horizontal, Theme.Space.xl)
                     .padding(.bottom, NotchLayout.shelfBottomPadding)
                 }
+                .scrollIndicators(fits ? .never : .automatic)
+                .scrollBounceBehavior(.basedOnSize)
             }
         }
     }

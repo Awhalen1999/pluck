@@ -11,6 +11,9 @@ struct Shot: Identifiable, Equatable {
     /// The file system's ID for the file. It survives renames, which is how a shot
     /// keeps its pin when the user renames it in Finder.
     let fileID: UInt64?
+    /// Where on screen a selection was captured, in global display coordinates
+    /// (top-left origin). Nil for whole-display captures, which macOS doesn't tag.
+    var captureRect: CGRect? = nil
 
     /// The file's path: unique within the folder, and readable in the index file.
     var id: String { url.path(percentEncoded: false) }
@@ -32,21 +35,31 @@ extension Shot {
               let width = properties[kCGImagePropertyPixelWidth] as? Int,
               let height = properties[kCGImagePropertyPixelHeight] as? Int
         else { return nil }
-        self.init(url: url, capturedAt: capturedAt, pixelSize: CGSize(width: width, height: height), fileID: values.fileIdentifier)
+        let rect = (Shot.attribute(Shot.captureRectTag, of: url) as? [Double]).flatMap { r in
+            r.count == 4 ? CGRect(x: r[0], y: r[1], width: r[2], height: r[3]) : nil
+        }
+        self.init(url: url, capturedAt: capturedAt, pixelSize: CGSize(width: width, height: height),
+                  fileID: values.fileIdentifier, captureRect: rect)
     }
 
     /// True only for images macOS tagged as screen captures. The tag is an extended
     /// attribute, so it survives renames and doesn't depend on Spotlight.
     static func isScreenshot(_ url: URL) -> Bool {
         guard UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true else { return false }
-        let path = url.path(percentEncoded: false)
-        let size = getxattr(path, screenCaptureTag, nil, 0, 0, 0)
-        guard size > 0 else { return false }
-        var data = Data(count: size)
-        let read = data.withUnsafeMutableBytes { getxattr(path, screenCaptureTag, $0.baseAddress, size, 0, 0) }
-        guard read == size else { return false }
-        return (try? PropertyListSerialization.propertyList(from: data, format: nil)) as? Bool == true
+        return attribute(screenCaptureTag, of: url) as? Bool == true
     }
 
     static let screenCaptureTag = "com.apple.metadata:kMDItemIsScreenCapture"
+    static let captureRectTag = "com.apple.metadata:kMDItemScreenCaptureGlobalRect"
+
+    /// A metadata attribute macOS stores on the file, as a property list value.
+    private static func attribute(_ name: String, of url: URL) -> Any? {
+        let path = url.path(percentEncoded: false)
+        let size = getxattr(path, name, nil, 0, 0, 0)
+        guard size > 0 else { return nil }
+        var data = Data(count: size)
+        let read = data.withUnsafeMutableBytes { getxattr(path, name, $0.baseAddress, size, 0, 0) }
+        guard read == size else { return nil }
+        return try? PropertyListSerialization.propertyList(from: data, format: nil)
+    }
 }

@@ -22,6 +22,12 @@ import Foundation
         didSet { defaults.set(showsLatestWhenIdle, forKey: Key.showsLatestWhenIdle) }
     }
 
+    /// "Show on": which display the notch lives on. Previews always appear on the
+    /// display the screenshot was taken on.
+    var notchDisplay: NotchDisplay {
+        didSet { defaults.set(notchDisplay.rawValue, forKey: Key.notchDisplay) }
+    }
+
     /// "Preview": Pluck's own in the notch, or the macOS floating thumbnail.
     var preview: PreviewStyle {
         didSet { defaults.set(preview.rawValue, forKey: Key.preview) }
@@ -40,6 +46,7 @@ import Foundation
         removeDraggedOut = defaults.object(forKey: Key.removeDraggedOut) as? Bool ?? true
         opensOnHover = defaults.object(forKey: Key.opensOnHover) as? Bool ?? true
         showsLatestWhenIdle = defaults.object(forKey: Key.showsLatestWhenIdle) as? Bool ?? true
+        notchDisplay = defaults.string(forKey: Key.notchDisplay).flatMap(NotchDisplay.init) ?? .builtIn
         preview = defaults.string(forKey: Key.preview).flatMap(PreviewStyle.init) ?? .pluck
         previewDuration = PreviewDuration(rawValue: defaults.double(forKey: Key.previewDuration)) ?? .four
     }
@@ -49,9 +56,20 @@ import Foundation
         static let removeDraggedOut = "removeDraggedOut"
         static let opensOnHover = "opensOnHover"
         static let showsLatestWhenIdle = "showsLatestWhenIdle"
+        static let notchDisplay = "notchDisplay"
         static let preview = "preview"
         static let previewDuration = "previewDuration"
     }
+}
+
+enum NotchDisplay: String, CaseIterable {
+    /// The laptop's own screen, where the notch is. Falls back to the main
+    /// display when the lid is closed.
+    case builtIn
+    /// The display with the menu bar in System Settings' arrangement.
+    case main
+    /// Whichever display the pointer is on.
+    case withMouse
 }
 
 enum PreviewStyle: String, CaseIterable {

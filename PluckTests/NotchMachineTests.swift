@@ -255,23 +255,42 @@ private struct Driver {
     #expect(d.state == .idle)
 }
 
-@Test func theShelfComesBackAfterADropForTheNextShot() {
+@Test func aDropFinishesTheNotchFromAnyState() {
+    var shelf = Driver()
+    shelf.send(.clicked)
+    shelf.send(.pointerEntered)
+    shelf.send(.dragStarted)
+    shelf.send(.pointerExited)
+    shelf.send(.dragEnded(dropped: true))
+    #expect(shelf.state == .idle)
+    #expect(!shelf.machine.stepsAside)
+
+    var peek = Driver()
+    peek.openPeek()
+    peek.send(.dragStarted)
+    peek.send(.pointerExited)
+    peek.send(.dragEnded(dropped: true))
+    #expect(peek.state == .idle)
+}
+
+@Test func aCancelledDragFromTheShelfLeavesItOpen() {
     var d = Driver()
     d.send(.clicked)
     d.send(.pointerEntered)
     d.send(.dragStarted)
     d.send(.pointerExited)
-    d.send(.dragEnded(dropped: true))
+    d.send(.dragEnded(dropped: false))
     #expect(d.state == .shelf)
     #expect(!d.machine.stepsAside)
 }
 
-@Test func peekClosesAfterADragEndsAwayFromIt() {
+@Test func peekClosesAfterACancelledDragEndsAwayFromIt() {
     var d = Driver()
     d.openPeek()
     d.send(.dragStarted)
     d.send(.pointerExited)
-    d.send(.dragEnded(dropped: true))
+    d.send(.dragEnded(dropped: false))
+    #expect(d.state == .peek)
     d.wait(Theme.Timing.leaveGrace)
     #expect(d.state == .idle)
 }

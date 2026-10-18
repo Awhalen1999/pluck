@@ -104,6 +104,8 @@ enum Theme {
         /// How long feedback shows. Long enough to read; longer when it offers Undo.
         static let feedback: TimeInterval = 1.8
         static let feedbackWithUndo: TimeInterval = 4.2
+        /// Long enough for the closing spring to finish before anything moves.
+        static let settle: TimeInterval = 0.4
     }
 
     enum Tile {
