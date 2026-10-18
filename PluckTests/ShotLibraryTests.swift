@@ -229,6 +229,23 @@ import Testing
 
         #expect(library.names == ["a.png"])
         #expect(library.pinnedNames == ["a.png"])
+        #expect(!library.canReadFolder)
+    }
+
+    @Test func switchingFoldersAndBackKeepsThePins() throws {
+        try sandbox.addShot("pinned.png")
+        let elsewhere = sandbox.root.appending(path: "Elsewhere")
+        try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
+        let library = sandbox.library()
+        library.reconcile()
+        library.togglePin([sandbox.path("pinned.png")])
+
+        library.change(folder: elsewhere)
+        #expect(library.shots.isEmpty)
+        #expect(library.pinnedShots.isEmpty)
+
+        library.change(folder: sandbox.folder)
+        #expect(library.pinnedNames == ["pinned.png"])
     }
 
     // MARK: Pins

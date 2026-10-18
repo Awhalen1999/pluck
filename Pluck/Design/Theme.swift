@@ -107,6 +107,12 @@ enum Theme {
         static let aspectRange: ClosedRange<CGFloat> = 0.6...2.6
     }
 
+    /// The Settings window: native controls, sized here.
+    enum Settings {
+        static let width: CGFloat = 520
+        static let iconSize: CGFloat = 64
+    }
+
     enum Notch {
         /// The panel's fixed size, big enough for the Shelf and its flares.
         static let canvas = CGSize(width: 720, height: 640)

@@ -27,7 +27,13 @@ import Foundation
         didSet { defaults.set(notchDisplay.rawValue, forKey: Key.notchDisplay) }
     }
 
-    /// "Preview": Pluck's own in the notch, or the macOS floating thumbnail.
+    /// "Show in menu bar". When it's hidden, opening Pluck again opens Settings.
+    var showsMenuBarIcon: Bool {
+        didSet { defaults.set(showsMenuBarIcon, forKey: Key.showsMenuBarIcon) }
+    }
+
+    /// "Preview": Pluck's own in the notch, or the macOS floating thumbnail. Set
+    /// through `ScreenshotSetup`, which makes macOS match.
     var preview: PreviewStyle {
         didSet { defaults.set(preview.rawValue, forKey: Key.preview) }
     }
@@ -46,6 +52,7 @@ import Foundation
         opensOnHover = defaults.object(forKey: Key.opensOnHover) as? Bool ?? true
         showsLatestWhenIdle = defaults.object(forKey: Key.showsLatestWhenIdle) as? Bool ?? true
         notchDisplay = defaults.string(forKey: Key.notchDisplay).flatMap(NotchDisplay.init) ?? .builtIn
+        showsMenuBarIcon = defaults.object(forKey: Key.showsMenuBarIcon) as? Bool ?? true
         preview = defaults.string(forKey: Key.preview).flatMap(PreviewStyle.init) ?? .pluck
         previewDuration = PreviewDuration(rawValue: defaults.double(forKey: Key.previewDuration)) ?? .four
     }
@@ -56,6 +63,7 @@ import Foundation
         static let opensOnHover = "opensOnHover"
         static let showsLatestWhenIdle = "showsLatestWhenIdle"
         static let notchDisplay = "notchDisplay"
+        static let showsMenuBarIcon = "showsMenuBarIcon"
         static let preview = "preview"
         static let previewDuration = "previewDuration"
     }

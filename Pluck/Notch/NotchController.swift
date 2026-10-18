@@ -466,6 +466,12 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
                 self?.goHome()
             }
         }
+        // "Show on" changed in Settings.
+        Task { [weak self] in
+            for await _ in Observations({ [weak self] in self?.preferences.notchDisplay }) {
+                self?.goHome()
+            }
+        }
     }
 
     /// Idle with nothing to show: the only time the notch may change display, so

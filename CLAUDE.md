@@ -76,15 +76,19 @@ Before building one, sit in the user's seat:
   - Renaming a shot keeps its pin. An unpinned renamed shot is still cleaned
     up on schedule.
 - Pluck changes the macOS screenshot settings (save location, floating
-  thumbnail) only through the user's choices. It snapshots the originals once,
-  before changing anything, and every restore puts back exactly that snapshot,
-  including "never set".
+  thumbnail) only through the user's choices. It snapshots the originals once
+  ever, before changing anything, and About's Restore puts back exactly that
+  snapshot, "never set" included, and switches Pluck's Preview off.
 - With Preview set to Pluck, the macOS thumbnail is off and macOS saves into
-  the holding folder while Pluck runs; quitting puts both back. If macOS
-  doesn't take either change, both are put back, its thumbnail stays, and
-  Pluck shelves shots as they land, so there are never two previews. The save
-  folder Pluck uses is the snapshot's, refreshed at launch unless macOS still
-  points at the holding folder (after a crash).
+  the holding folder while Pluck runs. Quitting, or switching to the macOS
+  Preview, gives macOS the user's own: their thumbnail as it was, and their
+  "Save to" folder. If macOS doesn't take a change, the Preview setting becomes
+  macOS, so it always says what's really happening, and there are never two
+  previews.
+- "Save to" is Pluck's record of the user's folder. At launch, a location the
+  user chose in macOS while Pluck wasn't running is followed, unless it's still
+  the holding folder (after a crash).
+- Settings changes take effect at once, never after a restart.
 - Nothing leaves the Mac. The only network use is Sparkle's update check.
 - Markup opens the shot in Preview. Pluck never builds its own editor.
 - The notch stays on the display chosen in "Show on". A Preview appears there,
@@ -163,7 +167,10 @@ PluckTests/
 - `Core/` never imports SwiftUI. Views never touch `FileManager`, the pasteboard
   or `UserDefaults` directly; they call the model that owns that thing.
 - One owner per piece of state: the shot library owns shots, `NotchController`
-  owns the notch state, `Preferences` owns settings.
+  owns the notch state, `Preferences` owns Pluck's own settings, and
+  `ScreenshotSetup` owns where screenshots go and which preview shows them.
+  Settings changes those two only through it. The system owns "Open at login",
+  read from `SMAppService` each time and never stored.
 - `@Observable` models, main actor by default. Background work only for file I/O
   and thumbnails.
 - Inject only what a test needs (the folder URL, the clock).
@@ -365,6 +372,23 @@ Verified on this machine; each one notes how.
 - **TextEdit accepts, then asks.** Dropped into a plain-text document, TextEdit
   ends the drag as a copy, then asks whether to convert the document. Cancel
   there doesn't undo the drop.
+- **Opening Settings from code.** `showSettingsWindow:` does nothing on macOS 26.
+  SwiftUI still puts its Settings… item in the app menu of a menu bar app that
+  shows no menus, and sending that item's action opens Settings. In SwiftUI
+  views, `openSettings` works too; Pluck uses the menu item everywhere.
+- **SwiftUI quits a menu bar app whose icon is hidden** when its last window
+  closes: with `MenuBarExtra(isInserted:)` false, closing Settings terminated
+  Pluck. `applicationShouldTerminateAfterLastWindowClosed` returns false.
+- **No reopen for an active app.** Opening Pluck while it's already active (its
+  last window just closed) sends no reopen event, so closing Pluck's last
+  window hands activation back (`NSApp.hide`).
+- **SwiftUI's Settings window can't become main.** "Regular" windows are the
+  titled ones that aren't panels.
+- **Login items.** `SMAppService.mainApp.register()` registers the app where it
+  is, a debug build included, and macOS shows "Login Item Added". Don't read
+  login items with `sfltool` in tests: it can ask for an admin password.
+- **The user's accent color wins.** A system-wide accent other than multicolor
+  overrides the app's AccentColor in native controls.
 - **Not yet verified:** switching Spaces, full-screen apps.
 
 The panel, landing, hover, drag and Quick Look facts were checked with the

@@ -11,6 +11,8 @@ struct MenuBarMenu: View {
         }
         .disabled(library?.shots.isEmpty ?? true)
         Divider()
+        Button("Settings…") { openSettings() }
+            .keyboardShortcut(",")
         #if DEBUG
         Button("Design System…") {
             openWindow(id: DesignSystemView.windowID)

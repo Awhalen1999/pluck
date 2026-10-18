@@ -25,7 +25,9 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
     /// The last batch the user trashed, until it's put back or replaced.
     private(set) var lastTrashed: [Trashed] = []
 
-    @ObservationIgnored let folder: URL
+    private(set) var folder: URL
+    /// False when macOS won't let Pluck read the folder: the user denied access.
+    private(set) var canReadFolder = true
     @ObservationIgnored let incoming: URL
     /// Files drags carried into apps, kept an hour so the app that took one can
     /// read it (a path dropped in a terminal, say).
@@ -84,18 +86,34 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         reconcile()
         reconcilePending()
         savePending()
+        watch()
+        Task { [weak self] in
+            repeat {
+                self?.cleanUp()
+                try? await Task.sleep(for: Cleanup.interval)
+            } while self != nil
+        }
+    }
+
+    /// Shelves another folder's screenshots. What the index knows about the old
+    /// folder's shots is kept, so switching back brings back their pins.
+    func change(folder newFolder: URL) {
+        let newFolder = newFolder.standardizedFileURL
+        guard newFolder != folder else { return }
+        folder = newFolder
+        shots = []
+        ignored = []
+        reconcile()
+        watch()
+    }
+
+    private func watch() {
         watchers = [folder, incoming].compactMap { folder in
             let watcher = FolderWatcher(folder: folder) { [weak self] in
                 folder == self?.incoming ? self?.reconcilePending() : self?.reconcile()
             }
             if watcher == nil { log.error("Can't watch \(folder.path(percentEncoded: false))") }
             return watcher
-        }
-        Task { [weak self] in
-            repeat {
-                self?.cleanUp()
-                try? await Task.sleep(for: Cleanup.interval)
-            } while self != nil
         }
     }
 
@@ -129,8 +147,10 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
             names = Set(try FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false)))
         } catch {
             log.error("Can't read the screenshot folder: \(error)")
+            if canReadFolder { canReadFolder = false }
             return
         }
+        if !canReadFolder { canReadFolder = true }
 
         var index = self.index
         var current = shots.filter { names.contains($0.url.lastPathComponent) || inFlight[$0.id] != nil }
