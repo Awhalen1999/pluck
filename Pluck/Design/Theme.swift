@@ -152,6 +152,11 @@ enum Theme {
         static let previewWidth: CGFloat = 320
         /// The Preview shows the whole screenshot, letterboxed between these heights.
         static let previewImageHeights: ClosedRange<CGFloat> = 124...220
+        /// Captures waiting behind the Preview's front one peek out above it, each
+        /// a step higher and smaller; this many show, the front one included.
+        static let previewStackDepth = 3
+        static let previewStackStep: CGFloat = 6
+        static let previewStackShrink: CGFloat = 0.06
         static let previewRingSize: CGFloat = 14
         static let previewRingWidth: CGFloat = 2
         static let shelfWidth: CGFloat = 680

@@ -7,7 +7,7 @@ import Foundation
         didSet { defaults.set(retention.rawValue, forKey: Key.retention) }
     }
 
-    /// "Shots you drag out": remove them an hour after the drag.
+    /// "Shots you drag out": handed off, leaving Pluck once dropped. Pinned shots stay.
     var removeDraggedOut: Bool {
         didSet { defaults.set(removeDraggedOut, forKey: Key.removeDraggedOut) }
     }

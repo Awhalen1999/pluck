@@ -12,6 +12,8 @@ let testNow = Date(timeIntervalSinceReferenceDate: 800_000_000)
 final class Sandbox {
     let root = FileManager.default.temporaryDirectory.appending(path: "PluckTests-\(UUID().uuidString)")
     var folder: URL { root.appending(path: "Screenshots") }
+    var incoming: URL { root.appending(path: "Incoming") }
+    var handedOff: URL { root.appending(path: "Handed Off") }
     var trash: URL { root.appending(path: "Trash") }
     var indexURL: URL { root.appending(path: "index.json") }
     let pasteboard = NSPasteboard(name: .init("PluckTests-\(UUID().uuidString)"))
@@ -23,6 +25,7 @@ final class Sandbox {
     init() throws {
         try FileManager.default.createDirectory(at: root.appending(path: "Screenshots"), withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: root.appending(path: "Trash"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: root.appending(path: "Incoming"), withIntermediateDirectories: true)
         preferences = Preferences(defaults: UserDefaults(suiteName: defaultsName)!)
     }
 
@@ -36,7 +39,7 @@ final class Sandbox {
     /// touch the real one.
     func library() -> ShotLibrary {
         let trash = self.trash
-        return ShotLibrary(folder: folder, preferences: preferences, indexURL: indexURL,
+        return ShotLibrary(folder: folder, preferences: preferences, incoming: incoming, handedOff: handedOff, indexURL: indexURL,
                            now: { [unowned self] in now },
                            moveToTrash: { url in
                                let destination = trash.appending(path: url.lastPathComponent)
@@ -46,12 +49,12 @@ final class Sandbox {
                            pasteboard: pasteboard)
     }
 
-    /// Writes a small PNG into the screenshot folder. `tagged` marks it as a
-    /// screen capture the way macOS does.
+    /// Writes a small PNG into the screenshot folder, or the holding folder for a
+    /// capture still waiting. `tagged` marks it as a screen capture the way macOS does.
     @discardableResult
-    func addShot(_ name: String, takenAt date: Date = testNow, tagged: Bool = true,
+    func addShot(_ name: String, takenAt date: Date = testNow, tagged: Bool = true, waiting: Bool = false,
                  size: CGSize = CGSize(width: 40, height: 25)) throws -> URL {
-        let url = folder.appending(path: name)
+        let url = (waiting ? incoming : folder).appending(path: name)
         let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8,
                                 bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
                                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
@@ -78,6 +81,7 @@ final class Sandbox {
     }
 
     func path(_ name: String) -> String { folder.appending(path: name).path(percentEncoded: false) }
+    func waitingPath(_ name: String) -> String { incoming.appending(path: name).path(percentEncoded: false) }
 }
 
 extension ShotLibrary {

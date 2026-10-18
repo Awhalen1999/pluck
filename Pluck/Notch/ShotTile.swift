@@ -73,26 +73,29 @@ struct ShotTile: View {
     }
 }
 
-/// The notch's text buttons: Copy, Markup, Pin, Trash.
-struct NotchButtonStyle: ButtonStyle {
+/// The notch's text buttons: Copy, Markup, Pin, Trash. They act on a tap, not
+/// through a system button's press tracking, which keeps its own view from
+/// animating with the change it makes: the clicked button jumped while its
+/// neighbours moved on the notch's spring.
+struct NotchButtonStyle: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         NotchButton(configuration: configuration)
     }
 }
 
 private struct NotchButton: View {
-    let configuration: ButtonStyleConfiguration
+    let configuration: PrimitiveButtonStyleConfiguration
     @State private var hovered = false
 
     var body: some View {
-        let fill: AnyShapeStyle = configuration.isPressed ? AnyShapeStyle(.fill)
-            : hovered ? AnyShapeStyle(.fill.secondary) : AnyShapeStyle(.fill.tertiary)
         configuration.label
             .font(Theme.Typography.label)
             .frame(maxWidth: .infinity, minHeight: Theme.Notch.controlHeight)
-            .background(fill, in: .rect(cornerRadius: Theme.Radius.control, style: .continuous))
+            .background(hovered ? AnyShapeStyle(.fill.secondary) : AnyShapeStyle(.fill.tertiary),
+                        in: .rect(cornerRadius: Theme.Radius.control, style: .continuous))
             .contentShape(.rect)
             .onHover { hovered = $0 }
+            .onTapGesture { configuration.trigger() }
     }
 }
 

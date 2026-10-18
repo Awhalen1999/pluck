@@ -14,6 +14,7 @@ struct NotchView: View {
                                        : geometry.hasNotch ? Theme.Notch.idleRadius : frame.size.height / 2,
                                    flare: expanded ? Theme.Notch.expandedFlare : Theme.Notch.idleFlare,
                                    floats: !geometry.hasNotch)
+            let reshape = Theme.Motion.reshape(growing: frame.size.width * frame.size.height > lastSize.width * lastSize.height)
             ZStack(alignment: .top) {
                 // Behind the content, so it only gets clicks nothing in front claims.
                 // Labels don't take the pointer, so a click on one is a click here.
@@ -35,10 +36,10 @@ struct NotchView: View {
             }
             .offset(x: frame.offsetX)
             .padding(.top, geometry.topInset)
-            // Whatever changes the frame, a new state or a new shot, animates it, so
-            // two changes in one update move as one.
-            .animation(Theme.Motion.reshape(growing: frame.size.width * frame.size.height > lastSize.width * lastSize.height),
-                       value: frame)
+            // Whatever changes the notch, its frame or its state (the Preview's next
+            // shot, say), animates it, so two changes in one update move as one.
+            .animation(reshape, value: frame)
+            .animation(reshape, value: controller.state)
             .onChange(of: frame, initial: true) { _, new in lastSize = new.size }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .environment(\.colorScheme, .dark)
@@ -52,10 +53,10 @@ struct NotchView: View {
             IdleEars(controller: controller, notchWidth: notchWidth)
         case .peek:
             PeekView(controller: controller, notchWidth: notchWidth)
-        case .preview(let id):
-            if let shot = controller.library.shots(withIDs: [id]).first {
-                PreviewView(shot: shot, controller: controller, notchWidth: notchWidth)
-                    .id(id)
+        case .preview:
+            let stack = controller.previewStack
+            if !stack.isEmpty {
+                PreviewView(stack: stack, controller: controller, notchWidth: notchWidth)
             }
         case .shelf:
             ShelfView(controller: controller, notchWidth: notchWidth)

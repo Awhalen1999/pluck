@@ -1,31 +1,45 @@
 import SwiftUI
 
-/// The screenshot you just took, whole, with what you'd do next. Acting on it
-/// finishes it, hovering holds it open, and dragging it out takes it with you.
+/// The screenshots you just took, newest in front, with what you'd do next.
+/// Acting on the front one saves it and brings up the next; when the time runs
+/// out, all of them are saved. Hovering holds it, and dragging the front one out
+/// takes it with you, never saved.
 struct PreviewView: View {
-    let shot: Shot
+    /// Front first.
+    let stack: [Shot]
     let controller: NotchController
     let notchWidth: CGFloat
 
     var body: some View {
+        let shot = stack[0]
+        let card = RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
         VStack(spacing: 0) {
             NotchHeader(notchWidth: notchWidth) {
-                Text("Saved")
+                if stack.count > 1 { Text("\(stack.count) shots") }
             } trailing: {
                 CountdownRing(controller: controller)
             }
             VStack(spacing: Theme.Space.m) {
-                let card = RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 ShotImage(shot: shot, fits: true)
                     .frame(height: NotchLayout.previewImageHeight(shot))
+                    // Opaque, so the shots behind don't show through the letterbox.
+                    .background(Theme.Notch.fill)
                     .clipShape(card)
                     .overlay { card.strokeBorder(Theme.Tile.ring, lineWidth: Theme.Tile.ringWidth) }
                     .overlay {
-                        // No double-click here: a click copies and closes at once.
+                        // No double-click here: a click copies at once.
                         ShotInteraction(onClick: { _ in controller.copy([shot.id]) },
                                         onDoubleClick: nil,
                                         onDrag: { controller.beginDrag(shot.id, from: $0, event: $1) },
                                         menu: { controller.menu(for: shot.id) })
+                    }
+                    .background(alignment: .top) {
+                        ForEach(1..<min(stack.count, Theme.Notch.previewStackDepth), id: \.self) { depth in
+                            card.fill(.fill.tertiary)
+                                .scaleEffect(1 - CGFloat(depth) * Theme.Notch.previewStackShrink, anchor: .top)
+                                .offset(y: -CGFloat(depth) * Theme.Notch.previewStackStep)
+                                .opacity(1 - Double(depth - 1) * Theme.Notch.latestStackFade)
+                        }
                     }
                     .opacity(controller.draggedShots.contains(shot.id) ? Theme.Tile.draggedOpacity : 1)
                     .accessibilityElement(children: .ignore)
@@ -33,11 +47,25 @@ struct PreviewView: View {
                     .accessibilityAddTraits(.isButton)
                     .accessibilityHint("Copies it")
                     .accessibilityAction { controller.copy([shot.id]) }
+                    // The next shot comes up as a new card; the buttons stay put.
+                    .id(shot.id)
+                    .transition(Theme.Motion.contentTransition)
+                    // The header is too narrow for feedback, so it floats on the card,
+                    // over the next shot once the last one was dealt with.
+                    .overlay(alignment: .bottom) {
+                        if let feedback = controller.feedback {
+                            FeedbackLabel(feedback: feedback, controller: controller)
+                                .padding(.horizontal, Theme.Space.m)
+                                .frame(height: Theme.Notch.controlHeight)
+                                .background(Theme.Notch.fill, in: .capsule)
+                                .padding(.bottom, Theme.Space.m)
+                        }
+                    }
 
                 HStack(spacing: Theme.Space.s) {
                     Button("Copy") { controller.copy([shot.id]) }
                     Button("Markup") { controller.markup(shot.id) }
-                    Button(controller.library.isPinned(shot.id) ? "Unpin" : "Pin") { controller.togglePin([shot.id]) }
+                    Button("Pin") { controller.togglePin([shot.id]) }
                     Button("Trash") { controller.trash([shot.id]) }
                 }
                 .buttonStyle(NotchButtonStyle())

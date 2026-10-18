@@ -34,31 +34,95 @@ import Testing
         #expect(library.names == ["newest.png", "older.png", "oldest.png"])
     }
 
-    @Test func freshCapturesAreAnnouncedButOldFilesMovedInAreNot() throws {
-        try sandbox.addShot("already there.png", takenAt: testNow - 10)
+    // MARK: Waiting for the Preview
+
+    @Test func aCaptureWaitsOutsideTheFolderUntilItsSaved() throws {
         let library = sandbox.library()
-        var announced: [String] = []
-        library.onArrival = { announced.append($0.url.lastPathComponent) }
-        library.reconcile(announcing: false)
+        try sandbox.addShot("Screenshot.png", waiting: true)
+        library.reconcilePending()
+        #expect(library.pending.map(\.url.lastPathComponent) == ["Screenshot.png"])
+        #expect(library.shots.isEmpty)
 
-        try sandbox.addShot("just taken.png", takenAt: testNow - 2)
-        try sandbox.addShot("from last week.png", takenAt: testNow - 7 * 86_400)
-        library.reconcile()
+        let saved = library.save([sandbox.waitingPath("Screenshot.png")])
 
-        #expect(announced == ["just taken.png"])
-        #expect(library.shots.count == 3)
+        #expect(saved == [sandbox.path("Screenshot.png")])
+        #expect(library.pending.isEmpty)
+        #expect(library.names == ["Screenshot.png"])
+        #expect(FileManager.default.fileExists(atPath: sandbox.path("Screenshot.png")))
     }
 
-    @Test func aLandingScreenshotIsNoticedWithoutARefresh() async throws {
+    @Test func savingNeverOverwritesAShotAlreadyInTheFolder() throws {
+        try sandbox.addShot("Screenshot.png")
+        try sandbox.addShot("Screenshot.png", waiting: true)
+        let library = sandbox.library()
+        library.reconcile()
+        library.reconcilePending()
+
+        library.savePending()
+
+        #expect(library.names.sorted() == ["Screenshot 2.png", "Screenshot.png"])
+    }
+
+    @Test func aCaptureDraggedOutIsNeverSavedButTheDropKeepsItsCopy() throws {
+        try sandbox.addShot("dragged.png", waiting: true)
+        let library = sandbox.library()
+        library.reconcilePending()
+
+        let copy = try #require(library.dragCopy(of: sandbox.waitingPath("dragged.png")))
+        library.letGo(sandbox.waitingPath("dragged.png"))
+
+        #expect(library.pending.isEmpty)
+        #expect(library.shots.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: copy.path(percentEncoded: false)))
+        #expect(!FileManager.default.fileExists(atPath: sandbox.path("dragged.png")))
+    }
+
+    @Test func capturesLeftWaitingByAnEarlierRunAreSavedAtLaunch() throws {
+        try sandbox.addShot("from a crash.png", waiting: true)
+        let library = sandbox.library()
+
+        library.start()
+
+        #expect(library.pending.isEmpty)
+        #expect(library.names == ["from a crash.png"])
+    }
+
+    @Test func anythingElseSavedToTheHoldingFolderGoesStraightOn() throws {
+        let recording = sandbox.incoming.appending(path: "Screen Recording.mov")
+        try Data("not an image".utf8).write(to: recording)
+        let library = sandbox.library()
+
+        library.reconcilePending()
+
+        #expect(library.pending.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: sandbox.folder.appending(path: "Screen Recording.mov").path(percentEncoded: false)))
+    }
+
+    @Test func aLandingCaptureIsNoticedWithoutARefresh() async throws {
         let library = sandbox.library()
         library.start()
-        var announced: [String] = []
-        library.onArrival = { announced.append($0.url.lastPathComponent) }
 
-        try sandbox.addShot("landed.png")
-        for _ in 0..<40 where announced.isEmpty { try await Task.sleep(for: .milliseconds(50)) }
+        try sandbox.addShot("landed.png", waiting: true)
+        for _ in 0..<40 where library.pending.isEmpty { try await Task.sleep(for: .milliseconds(50)) }
 
-        #expect(announced == ["landed.png"])
+        #expect(library.pending.map(\.url.lastPathComponent) == ["landed.png"])
+    }
+
+    @Test func dragCopiesGoAnHourAfterTheDrag() throws {
+        try sandbox.addShot("sent.png")
+        let library = sandbox.library()
+        library.reconcile()
+        let copy = try #require(library.dragCopy(of: sandbox.path("sent.png")))
+        let made = copy.deletingLastPathComponent()
+        try FileManager.default.setAttributes([.creationDate: testNow], ofItemAtPath: made.path(percentEncoded: false))
+
+        sandbox.now = testNow + 59 * 60
+        library.cleanUp()
+        #expect(FileManager.default.fileExists(atPath: copy.path(percentEncoded: false)))
+
+        sandbox.now = testNow + 60 * 60
+        library.cleanUp()
+        #expect(!FileManager.default.fileExists(atPath: made.path(percentEncoded: false)))
     }
 
     @Test func unreadableFolderChangesNothing() throws {
@@ -112,14 +176,11 @@ import Testing
         let library = sandbox.library()
         library.reconcile()
         library.togglePin([sandbox.path("Screenshot.png")])
-        var announced = 0
-        library.onArrival = { _ in announced += 1 }
 
         try FileManager.default.moveItem(atPath: sandbox.path("Screenshot.png"), toPath: sandbox.path("bug 123.png"))
         library.reconcile()
 
         #expect(library.pinnedNames == ["bug 123.png"])
-        #expect(announced == 0)
     }
 
     @Test func deletingInFinderForgetsTheShot() throws {
@@ -172,25 +233,6 @@ import Testing
         #expect(library.shots.isEmpty)
         #expect(library.index.pinned.isEmpty)
         #expect(FileManager.default.fileExists(atPath: destination.appending(path: "a 2.png").path(percentEncoded: false)))
-    }
-
-    @Test func aShotDraggedOffThePreviewGoesWithTheDrop() throws {
-        try sandbox.addShot("dragged.png")
-        let library = sandbox.library()
-        library.reconcile()
-        library.togglePin([sandbox.path("dragged.png")])
-
-        let copy = try #require(library.dragCopy(of: sandbox.path("dragged.png")))
-        defer { try? FileManager.default.removeItem(at: copy.deletingLastPathComponent()) }
-        #expect(copy.lastPathComponent == "dragged.png")
-        #expect(!copy.path(percentEncoded: false).hasPrefix(sandbox.folder.path(percentEncoded: false)))
-
-        library.letGo(sandbox.path("dragged.png"))
-
-        #expect(library.shots.isEmpty)
-        #expect(library.index.pinned.isEmpty)
-        #expect(!FileManager.default.fileExists(atPath: sandbox.path("dragged.png")))
-        #expect(FileManager.default.fileExists(atPath: copy.path(percentEncoded: false)))
     }
 
     @Test func copyPutsEachShotOnThePasteboardAsFileAndImage() throws {

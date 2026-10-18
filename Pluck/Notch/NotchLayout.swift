@@ -10,6 +10,8 @@ enum NotchLayout {
         var shots: [Shot] = []
         /// In the user's order.
         var pinned: [Shot] = []
+        /// Captures waiting for the Preview, newest first.
+        var pending: [Shot] = []
         var feedback: Feedback?
         var showsLatest = true
         var now = Date()
@@ -66,7 +68,7 @@ enum NotchLayout {
                                       height: n.headerHeight + row + Theme.Space.l))
 
         case .preview(let id):
-            let shot = content.shots.first { $0.id == id }
+            let shot = content.pending.first { $0.id == id }
             return Frame(size: CGSize(width: n.previewWidth,
                                       height: n.headerHeight + previewImageHeight(shot) + Theme.Space.m + n.controlHeight + Theme.Space.l))
 

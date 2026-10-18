@@ -6,7 +6,12 @@ enum NotchState: Equatable {
     case idle
     case peek
     case shelf
+    /// The newest waiting capture, in front of any others.
     case preview(Shot.ID)
+
+    var isPreview: Bool {
+        if case .preview = self { true } else { false }
+    }
 }
 
 /// The notch's rules as a plain value: events go in, the state and its one timer
@@ -23,10 +28,10 @@ struct NotchMachine: Equatable {
         case wentToAnotherApp
         /// The user is done with the notch: Esc, or Return in the Shelf once it has copied.
         case dismissed
-        case shotArrived(Shot.ID)
-        case shotRemoved(Shot.ID)
-        /// The user acted on what the notch was showing: copied, pinned, trashed it.
-        case finished
+        /// A capture is up for the Preview: a new one, or the next in line.
+        case shotUp(Shot.ID)
+        /// The Preview has no capture left to show.
+        case previewEmptied
         case dragStarted
         /// `dropped` is true for a drop into another app; a cancelled drag is false.
         case dragEnded(dropped: Bool)
@@ -96,7 +101,7 @@ struct NotchMachine: Equatable {
         case .dismissed:
             go(.idle)
 
-        case .shotArrived(let id):
+        case .shotUp(let id):
             go(.preview(id))
             if pointerInside {
                 previewRemaining = settings.previewDuration
@@ -104,16 +109,13 @@ struct NotchMachine: Equatable {
                 timer = now + settings.previewDuration
             }
 
-        case .shotRemoved(let id):
-            if state == .preview(id) { go(.idle) }
-
-        case .finished:
-            if case .preview = state { go(.idle) }
+        case .previewEmptied:
+            if state.isPreview { go(.idle) }
 
         case .dragStarted:
             isDragging = true
             stepsAside = !pointerInside
-            if case .preview = state { pausePreview(at: now) }
+            if state.isPreview { pausePreview(at: now) }
             timer = nil
 
         case .dragEnded:
@@ -151,6 +153,11 @@ struct NotchMachine: Equatable {
             isDragging = false
             stepsAside = false
             // A shot delivered is the job done. A cancelled drag puts everything back.
+            // A Preview carries on with the next capture, or closes if none is left.
+            if dropped, state.isPreview {
+                resumePreview(at: now)
+                return
+            }
             if dropped {
                 go(.idle)
                 return
@@ -170,7 +177,7 @@ struct NotchMachine: Equatable {
 
     /// How much of the Preview's time is left, from 1 down to 0.
     func previewProgress(at now: Date) -> Double {
-        guard case .preview = state, settings.previewDuration > 0 else { return 0 }
+        guard state.isPreview, settings.previewDuration > 0 else { return 0 }
         let left = previewRemaining ?? timer.map { $0.timeIntervalSince(now) } ?? 0
         return min(1, max(0, left / settings.previewDuration))
     }

@@ -6,8 +6,6 @@ import OSLog
 struct ShotIndex: Codable, Equatable {
     /// Pinned shots, in the user's order.
     var pinned: [String] = []
-    /// When each shot was dragged into another app.
-    var draggedOut: [String: Date] = [:]
     /// When each shot was last unpinned. Its age for cleanup counts from then.
     var unpinned: [String: Date] = [:]
     /// When Pluck first ran. Cleanup never touches shots taken before this, so
@@ -20,7 +18,6 @@ struct ShotIndex: Codable, Equatable {
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         pinned = try c.decodeIfPresent([String].self, forKey: .pinned) ?? []
-        draggedOut = try c.decodeIfPresent([String: Date].self, forKey: .draggedOut) ?? [:]
         unpinned = try c.decodeIfPresent([String: Date].self, forKey: .unpinned) ?? [:]
         managedSince = try c.decodeIfPresent(Date.self, forKey: .managedSince)
     }
@@ -32,17 +29,15 @@ extension ShotIndex {
     /// Everything the index holds about one shot, so it can be put back after an undo.
     struct Entry {
         var pinPosition: Int?
-        var draggedOut: Date?
         var unpinned: Date?
     }
 
     func entry(for id: String) -> Entry {
-        Entry(pinPosition: pinned.firstIndex(of: id), draggedOut: draggedOut[id], unpinned: unpinned[id])
+        Entry(pinPosition: pinned.firstIndex(of: id), unpinned: unpinned[id])
     }
 
     mutating func forget(_ id: String) {
         pinned.removeAll { $0 == id }
-        draggedOut[id] = nil
         unpinned[id] = nil
     }
 
@@ -50,7 +45,6 @@ extension ShotIndex {
         if let position = entry.pinPosition, !pinned.contains(id) {
             pinned.insert(id, at: min(position, pinned.count))
         }
-        draggedOut[id] = entry.draggedOut
         unpinned[id] = entry.unpinned
     }
 
@@ -64,7 +58,6 @@ extension ShotIndex {
     /// another folder are kept, so switching the screenshot folder back restores them.
     mutating func prune(fileExists: (String) -> Bool) {
         pinned.removeAll { !fileExists($0) }
-        draggedOut = draggedOut.filter { fileExists($0.key) }
         unpinned = unpinned.filter { fileExists($0.key) }
     }
 }

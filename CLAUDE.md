@@ -48,10 +48,18 @@ Before building one, sit in the user's seat:
 - Pluck only touches files tagged as screenshots (see Platform facts). Every
   other file in the folder is left alone.
 - Removing a shot always means `FileManager.trashItem`, never a delete, so
-  Finder's Put Back works. The one exception: a shot dragged off the Preview
-  goes with the drop, as one dragged off the macOS thumbnail does. The drag
-  carries a copy outside the folder, so the drop keeps it (a path dropped in a
-  terminal still works), and the original is removed once the drop lands.
+  Finder's Put Back works. The exception is a drag, which hands a shot off.
+- A capture waits for its Preview, as one waits behind the macOS thumbnail:
+  macOS saves it into Pluck's holding folder (Application Support/Pluck/
+  Incoming), and it reaches the user's folder only once the Preview is done
+  with it: acted on, its time up, the Shelf opened, or Pluck quitting. Anything
+  left waiting by a crash is saved at the next launch.
+- A drag hands shots off. The drop gets a copy from Pluck's temporary folder,
+  kept an hour so the app can read it (a path dropped in a terminal still
+  works), and the shot leaves Pluck: a waiting capture is never saved, a saved
+  one is removed. Pinned shots, and everything when the user keeps what they
+  drag out, stay. Dropped into a Finder folder, a waiting capture is saved
+  there, and a saved shot keeps its file (Finder may be asking to replace it).
 - Cleanup rules (approved by Alex):
   - Pinned shots are always kept. There is no setting to turn that off.
   - Shots taken before Pluck's first launch are never removed automatically.
@@ -64,10 +72,12 @@ Before building one, sit in the user's seat:
   thumbnail) only through the user's choices. It snapshots the originals once,
   before changing anything, and every restore puts back exactly that snapshot,
   including "never set".
-- With Preview set to Pluck, the macOS thumbnail is off while Pluck runs (it
-  would hold each file back for seconds) and comes back on quit. If macOS
-  doesn't take the change, its thumbnail stays and Pluck's Preview steps aside,
-  so there are never two previews.
+- With Preview set to Pluck, the macOS thumbnail is off and macOS saves into
+  the holding folder while Pluck runs; quitting puts both back. If macOS
+  doesn't take either change, both are put back, its thumbnail stays, and
+  Pluck shelves shots as they land, so there are never two previews. The save
+  folder Pluck uses is the snapshot's, refreshed at launch unless macOS still
+  points at the holding folder (after a crash).
 - Nothing leaves the Mac. The only network use is Sparkle's update check.
 - Markup opens the shot in Preview. Pluck never builds its own editor.
 - The notch stays on the display chosen in "Show on". A Preview appears there,
@@ -84,12 +94,14 @@ its timer.
 | Idle    | default                                  | hover → Peek, click → Shelf, new shot → Preview            |
 | Peek    | hovering the notch past the intent delay | pointer leaves (after a grace period) → Idle, click → Shelf, new shot → Preview |
 | Shelf   | a click on the notch, or "+N" in Peek    | click outside or switching apps, Esc or ⌘W, Return (copies) → Idle; new shot → Preview |
-| Preview | a new screenshot, from any state         | its timer ends, or acting on it → Idle; click → Shelf; new shot → its Preview |
+| Preview | a new capture, from any state            | the last waiting capture dealt with, or its time up → Idle; click → Shelf; new capture → it, in front |
 
 - A click on the notch itself opens the Shelf from any state. A click on a shot
   copies it; buttons do what they say.
-- Acting on the Preview (copy, markup, pin, trash) finishes it: the notch closes
-  with feedback. In Peek and the Shelf, acting leaves them open.
+- The Preview is a stack: every waiting capture, newest in front. Acting on the
+  front one (copy, markup, pin, trash, a drop) deals with it and the next comes
+  up; with none left the notch closes. Leaving the Preview any other way saves
+  what it still holds. In Peek and the Shelf, acting leaves them open.
 - Hovering holds the Preview's timer. Leaving resumes it, never with less than
   `Timing.previewResumeMinimum` left.
 - While feedback offers Undo, hovering doesn't open Peek: the pointer is aiming
@@ -101,7 +113,8 @@ its timer.
 - The machine has at most one timer, and every transition replaces it, so a
   timer can never outlive its state. Feedback has its own timer.
 - Feedback ("Copied", "Trashed · Undo") is not a state. It is one slot any state
-  can show; a new message replaces the old one.
+  can show; a new message replaces the old one. The Preview's header is too
+  narrow for it, so there it floats on the card.
 - Hover is geometry: the pointer's position against `NotchLayout.hoverZone`,
   from a global mouse monitor plus the notch's own hover events. No invisible
   views, so nothing blocks clicks underneath.
@@ -322,9 +335,20 @@ Verified on this machine; each one notes how.
 - **`Optional.take()`.** On an implicitly unwrapped optional, `x.take()` calls
   the standard library's `Optional.take()`, which returns the value and sets
   `x` to nil. Long-lived collaborators are plain `let`s.
-- **A drag off the Preview.** `FileManager.copyItem` clones on APFS, so the
-  drag's copy in the temp folder is free. Finder moves it (operation 16);
-  TextEdit copies (1). (Checked 2026-10-18.)
+- **A drag's copy.** `FileManager.copyItem` clones on APFS, so the copy in the
+  temp folder is free. Finder moves it (operation 16); TextEdit copies (1).
+  (Checked 2026-10-18.)
+- **The save location takes at once.** Writing `location` through
+  `CFPreferences` sends the next capture there, with no restart, ⇧⌘3 included
+  (one file per display). (Checked 2026-10-18.)
+- **A button's own action doesn't animate it.** State changed in a SwiftUI
+  `Button`'s action reaches every view on the implicit animation except the
+  button itself, which jumps to its new place. The notch's buttons are a
+  `PrimitiveButtonStyle` that triggers on a tap gesture. (Checked frame by
+  frame, 2026-10-18.)
+- **Finder asks before replacing.** A file dropped into a folder that has one
+  of the same name gets Finder's Keep Both / Stop / Replace prompt, and the drag
+  has already ended with `.move` by then.
 - **Not yet verified:** switching Spaces, full-screen apps.
 
 The panel, landing, hover, drag and Quick Look facts were checked with the

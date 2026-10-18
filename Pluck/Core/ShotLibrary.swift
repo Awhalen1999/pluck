@@ -4,13 +4,18 @@ import UniformTypeIdentifiers
 
 private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
 
-/// The screenshots Pluck manages, and what it remembers about them. Shots come
-/// from the screenshot folder, which stays the source of truth; pins and
-/// drag-outs live in the index. This is the one owner of both, and every action
-/// on a shot goes through it.
+/// The screenshots Pluck manages, and what it remembers about them: the one owner
+/// of every shot file, and every action on a shot goes through it.
+///
+/// A capture lands in `incoming` first and waits there, pending, while its Preview
+/// shows, as macOS holds one behind its thumbnail. Once the Preview is done with it,
+/// it's saved into `folder`, which stays the source of truth. A drag hands a shot
+/// off instead: the drop gets a copy from `handedOff`, and the shot leaves.
 @Observable final class ShotLibrary {
     /// Every screenshot in the folder, newest first.
     private(set) var shots: [Shot] = []
+    /// Captures waiting for their Preview, newest first.
+    private(set) var pending: [Shot] = []
 
     /// Saved to disk on every change.
     private(set) var index: ShotIndex {
@@ -20,23 +25,23 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
     /// The last batch the user trashed, until it's put back or replaced.
     private(set) var lastTrashed: [Trashed] = []
 
-    /// Called for each fresh screenshot that lands while Pluck is running.
-    @ObservationIgnored var onArrival: ((Shot) -> Void)?
-
     @ObservationIgnored let folder: URL
+    @ObservationIgnored let incoming: URL
+    /// Copies the drops got, kept an hour so the app that took one can read it (a
+    /// path dropped in a terminal, say).
+    @ObservationIgnored let handedOff: URL
     @ObservationIgnored private let indexURL: URL
     @ObservationIgnored private let preferences: Preferences
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let moveToTrash: (URL) throws -> URL
     @ObservationIgnored private let pasteboard: NSPasteboard
-    @ObservationIgnored private var watcher: FolderWatcher?
+    @ObservationIgnored private var watchers: [FolderWatcher] = []
     /// Names already checked and found not to be screenshots, so a busy Desktop
     /// isn't re-read on every change.
     @ObservationIgnored private var ignored: Set<String> = []
 
-    /// A file counts as a new arrival, rather than an old file moved in, if it was
-    /// captured this recently.
-    static let arrivalWindow: TimeInterval = 60
+    /// Where macOS saves captures while Pluck's Preview is on.
+    static let holdingFolder = URL.applicationSupportDirectory.appending(path: "Pluck/Incoming")
 
     struct Trashed {
         let shot: Shot
@@ -46,16 +51,21 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
 
     init(folder: URL,
          preferences: Preferences,
+         incoming: URL = ShotLibrary.holdingFolder,
+         handedOff: URL = URL.temporaryDirectory.appending(path: "Pluck"),
          indexURL: URL = ShotIndex.defaultURL,
          now: @escaping () -> Date = Date.init,
          moveToTrash: @escaping (URL) throws -> URL = moveToSystemTrash,
          pasteboard: NSPasteboard = .general) {
         self.folder = folder.standardizedFileURL
+        self.incoming = incoming
+        self.handedOff = handedOff
         self.preferences = preferences
         self.indexURL = indexURL
         self.now = now
         self.moveToTrash = moveToTrash
         self.pasteboard = pasteboard
+        try? FileManager.default.createDirectory(at: incoming, withIntermediateDirectories: true)
 
         let saved = ShotIndex.load(from: indexURL)
         var index = saved
@@ -65,12 +75,19 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         if index != saved { saveIndex() }
     }
 
-    /// Reads the folder, then keeps up with it and runs cleanup for as long as
-    /// Pluck is open.
+    /// Reads the folders, then keeps up with them and runs cleanup for as long as
+    /// Pluck is open. Captures an earlier run left waiting (a crash, say) are saved.
     func start() {
-        reconcile(announcing: false)
-        watcher = FolderWatcher(folder: folder) { [weak self] in self?.reconcile() }
-        if watcher == nil { log.error("Can't watch \(self.folder.path(percentEncoded: false))") }
+        reconcile()
+        reconcilePending()
+        savePending()
+        watchers = [folder, incoming].compactMap { folder in
+            let watcher = FolderWatcher(folder: folder) { [weak self] in
+                folder == self?.incoming ? self?.reconcilePending() : self?.reconcile()
+            }
+            if watcher == nil { log.error("Can't watch \(folder.path(percentEncoded: false))") }
+            return watcher
+        }
         Task { [weak self] in
             repeat {
                 self?.cleanUp()
@@ -87,17 +104,23 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
 
     func isPinned(_ id: Shot.ID) -> Bool { index.pinned.contains(id) }
 
-    /// The shots with these IDs, in library order (newest first).
+    func isPending(_ id: Shot.ID) -> Bool { pending.contains { $0.id == id } }
+
+    /// A shot, saved or waiting.
+    func shot(_ id: Shot.ID) -> Shot? {
+        pending.first { $0.id == id } ?? shots.first { $0.id == id }
+    }
+
+    /// The saved shots with these IDs, in library order (newest first).
     func shots(withIDs ids: [Shot.ID]) -> [Shot] {
         let wanted = Set(ids)
         return shots.filter { wanted.contains($0.id) }
     }
 
-    /// Brings `shots` in line with the folder. New screenshots are added, and
-    /// announced when they're fresh. A shot renamed in Finder keeps its pin.
-    /// A shot whose file is gone is forgotten. If the folder can't be read,
+    /// Brings `shots` in line with the folder. A shot renamed in Finder keeps its
+    /// pin; one whose file is gone is forgotten. If the folder can't be read,
     /// nothing changes, so a lost permission never wipes pins.
-    func reconcile(announcing: Bool = true) {
+    func reconcile() {
         let names: Set<String>
         do {
             names = Set(try FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false)))
@@ -110,7 +133,6 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         var current = shots.filter { names.contains($0.url.lastPathComponent) }
         var gone = shots.filter { !names.contains($0.url.lastPathComponent) }
         let known = Set(current.map(\.url.lastPathComponent))
-        var arrivals: [Shot] = []
 
         for name in names.subtracting(known).subtracting(ignored).sorted() where !name.hasPrefix(".") {
             guard let shot = Shot(screenshotAt: folder.appending(path: name)) else {
@@ -121,8 +143,6 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
             if let renamed = gone.first(where: { $0.fileID != nil && $0.fileID == shot.fileID }) {
                 index.rename(renamed.id, to: shot.id)
                 gone.removeAll { $0 == renamed }
-            } else if announcing, now().timeIntervalSince(shot.capturedAt) < Self.arrivalWindow {
-                arrivals.append(shot)
             }
         }
         for shot in gone { index.forget(shot.id) }
@@ -130,14 +150,54 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
 
         current.sort(by: Shot.newestFirst)
         if current != shots {
-            log.debug("Folder changed: \(current.count) shots, \(arrivals.count) new, \(gone.count) gone")
+            log.debug("Folder changed: \(current.count) shots, \(gone.count) gone")
             shots = current
         }
         self.index = index
-        for shot in arrivals.sorted(by: Shot.newestFirst).reversed() { onArrival?(shot) }
+    }
+
+    /// Brings `pending` in line with the holding folder. Anything else macOS saves
+    /// there, a screen recording say, goes straight on to the folder.
+    func reconcilePending() {
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: incoming.path(percentEncoded: false)) else { return }
+        var current: [Shot] = []
+        for name in names where !name.hasPrefix(".") {
+            let url = incoming.appending(path: name)
+            if let shot = pending.first(where: { $0.url == url }) ?? Shot(screenshotAt: url) {
+                current.append(shot)
+            } else {
+                try? FileManager.default.moveItem(at: url, to: availableURL(for: name, in: folder))
+            }
+        }
+        current.sort(by: Shot.newestFirst)
+        if current != pending { pending = current }
     }
 
     // MARK: - Actions
+
+    /// Saves waiting captures into the folder; shots already there pass through.
+    /// Returns where each one is now.
+    @discardableResult
+    func save(_ ids: [Shot.ID]) -> [Shot.ID] {
+        ids.map { id in
+            guard let shot = pending.first(where: { $0.id == id }) else { return id }
+            let destination = availableURL(for: shot.url.lastPathComponent, in: folder)
+            do {
+                try FileManager.default.moveItem(at: shot.url, to: destination)
+            } catch {
+                log.error("Couldn't save \(shot.url.lastPathComponent): \(error)")
+                return id
+            }
+            let saved = Shot(url: destination, capturedAt: shot.capturedAt, pixelSize: shot.pixelSize, fileID: shot.fileID)
+            pending.removeAll { $0.id == id }
+            shots = (shots + [saved]).sorted(by: Shot.newestFirst)
+            return saved.id
+        }
+    }
+
+    func savePending() {
+        save(pending.map(\.id))
+    }
 
     /// Puts shots on the pasteboard as both a file and an image, so pasting works
     /// in Finder, chat apps and image editors alike.
@@ -165,19 +225,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         } else {
             let newPins = ids.filter { !index.pinned.contains($0) }
             index.pinned = newPins + index.pinned
-            for id in newPins {
-                index.draggedOut[id] = nil
-                index.unpinned[id] = nil
-            }
+            for id in newPins { index.unpinned[id] = nil }
         }
-        self.index = index
-    }
-
-    /// Records a drag into another app. Unless the user turned it off, cleanup
-    /// removes the shot an hour later. Pinned shots are exempt.
-    func recordDragOut(_ ids: [Shot.ID]) {
-        var index = self.index
-        for id in ids where !index.pinned.contains(id) { index.draggedOut[id] = now() }
         self.index = index
     }
 
@@ -227,13 +276,10 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         self.index = index
     }
 
-    /// A copy of the shot outside the folder, for a drag off the Preview. Like
-    /// macOS's own thumbnail, the Preview doesn't keep a shot dragged off it: the
-    /// drop gets the copy, which outlives it (a path dropped in a terminal still
-    /// works), and `letGo` removes the original. APFS clones it, so it's free.
+    /// A copy of a shot for a drag to carry. APFS clones it, so it's free.
     func dragCopy(of id: Shot.ID) -> URL? {
-        guard let shot = shots(withIDs: [id]).first else { return nil }
-        let folder = URL.temporaryDirectory.appending(path: "Pluck/\(UUID().uuidString)")
+        guard let shot = shot(id) else { return nil }
+        let folder = handedOff.appending(path: UUID().uuidString)
         let copy = folder.appending(path: shot.url.lastPathComponent)
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -248,7 +294,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
     /// Removes a shot whose copy went out with a drag. Not to the Trash: the drop
     /// has it.
     func letGo(_ id: Shot.ID) {
-        guard let shot = shots(withIDs: [id]).first else { return }
+        guard let shot = shot(id) else { return }
         do {
             try FileManager.default.removeItem(at: shot.url)
         } catch {
@@ -258,6 +304,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         var index = self.index
         index.forget(id)
         self.index = index
+        pending.removeAll { $0.id == id }
         shots.removeAll { $0.id == id }
     }
 
@@ -272,14 +319,19 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         NSWorkspace.shared.open([shot.url], withApplicationAt: preview, configuration: NSWorkspace.OpenConfiguration())
     }
 
-    /// Trashes whatever `Cleanup.expired` says has expired. It never replaces the
-    /// user's own undo.
+    /// Trashes whatever `Cleanup.expired` says has expired, and drops drag copies
+    /// an hour old. It never replaces the user's own undo.
     func cleanUp() {
-        let expired = Cleanup.expired(shots, index: index, retention: preferences.retention,
-                                      removeDraggedOut: preferences.removeDraggedOut, now: now())
+        let expired = Cleanup.expired(shots, index: index, retention: preferences.retention, now: now())
         // Check the tag again right before trashing, in case the file was swapped.
         let ids = expired.filter { Shot.isScreenshot($0.url) }.map(\.id)
         if !ids.isEmpty { _ = discard(ids) }
+
+        let copies = (try? FileManager.default.contentsOfDirectory(at: handedOff, includingPropertiesForKeys: [.creationDateKey])) ?? []
+        for copy in copies {
+            let made = (try? copy.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+            if now().timeIntervalSince(made) >= Cleanup.handOffGrace { try? FileManager.default.removeItem(at: copy) }
+        }
     }
 
     // MARK: - Private

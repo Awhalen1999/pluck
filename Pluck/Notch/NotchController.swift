@@ -9,8 +9,6 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 @Observable final class NotchController {
     let library: ShotLibrary
     let preferences: Preferences
-    /// Off when the user chose the macOS thumbnail, or macOS kept its own on.
-    let showsPreview: Bool
 
     private(set) var geometry: NotchGeometry?
     private(set) var feedback: Feedback?
@@ -30,16 +28,15 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     @ObservationIgnored private var screen: NSScreen?
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
-    /// The Preview's shot while it's dragged off it: it goes with the drop.
-    @ObservationIgnored private var dragTakesShot: Shot.ID?
+    /// The shots the drag under way carries copies of, rather than their files.
+    @ObservationIgnored private var carried: [Shot.ID] = []
     /// Where the pointer was when the arrow keys last moved the focus. Until it
     /// moves, shots scrolling under it don't take the focus back.
     @ObservationIgnored private var pointerAtKeyboardFocus: CGPoint?
 
-    init(library: ShotLibrary, preferences: Preferences, showsPreview: Bool) {
+    init(library: ShotLibrary, preferences: Preferences) {
         self.library = library
         self.preferences = preferences
-        self.showsPreview = showsPreview
         let panel = NotchPanel()
         self.panel = panel
         keyboard = KeyboardHandoff(panel: panel)
@@ -81,8 +78,14 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     }
 
     var content: NotchLayout.Content {
-        NotchLayout.Content(shots: library.shots, pinned: library.pinnedShots, feedback: feedback,
-                            showsLatest: preferences.showsLatestWhenIdle)
+        NotchLayout.Content(shots: library.shots, pinned: library.pinnedShots, pending: library.pending,
+                            feedback: feedback, showsLatest: preferences.showsLatestWhenIdle)
+    }
+
+    /// The Preview's captures, the one in front first.
+    var previewStack: [Shot] {
+        guard case .preview(let id) = state, let front = library.pending.first(where: { $0.id == id }) else { return [] }
+        return [front] + library.pending.filter { $0.id != id }
     }
 
     func previewProgress(at date: Date) -> Double { machine.previewProgress(at: date) }
@@ -113,33 +116,30 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     func clearSelection() { selection = [] }
 
     func copy(_ ids: [Shot.ID]) {
-        log.debug("Copy \(ids.count, privacy: .public)")
-        library.copy(ids)
-        send(.finished, feedback: Feedback(kind: .copied, count: ids.count))
+        act("Copy", on: ids, Feedback(kind: .copied, count: ids.count)) { library.copy($0) }
     }
 
     func togglePin(_ ids: [Shot.ID]) {
         let pinning = !ids.allSatisfy(library.isPinned)
-        log.debug("\(pinning ? "Pin" : "Unpin", privacy: .public) \(ids.count, privacy: .public)")
-        library.togglePin(ids)
-        send(.finished, feedback: Feedback(kind: pinning ? .pinned : .unpinned, count: ids.count))
+        act(pinning ? "Pin" : "Unpin", on: ids, Feedback(kind: pinning ? .pinned : .unpinned, count: ids.count)) {
+            library.togglePin($0)
+        }
     }
 
     func trash(_ ids: [Shot.ID]) {
-        log.debug("Trash \(ids.count, privacy: .public)")
-        library.trash(ids)
-        send(.finished, feedback: Feedback(kind: .trashed, count: ids.count))
+        act("Trash", on: ids, Feedback(kind: .trashed, count: ids.count)) { library.trash($0) }
     }
 
     func move(_ ids: [Shot.ID], to folder: URL) {
-        log.debug("Move \(ids.count, privacy: .public)")
-        library.move(ids, to: folder)
-        send(.finished, feedback: Feedback(kind: .moved, count: ids.count))
+        act("Move", on: ids, Feedback(kind: .moved, count: ids.count)) { library.move($0, to: folder) }
     }
 
     func markup(_ id: Shot.ID) {
-        library.openInPreview(id)
-        send(.finished)
+        act("Markup", on: [id]) { library.openInPreview($0[0]) }
+    }
+
+    func reveal(_ ids: [Shot.ID]) {
+        act("Show in Finder", on: ids) { library.revealInFinder($0) }
     }
 
     func undoTrash() {
@@ -148,17 +148,26 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         send(nil, feedback: Feedback(kind: .restored))
     }
 
-    /// Every shot in the Shelf's order, or just the selection when the shot is in
-    /// one. From the Preview it counts as acting on it.
+    /// Every shot in the Shelf's order, or just the selection when the shot is in one.
     func quickLook(_ id: Shot.ID) {
         let ids = targets(id)
-        let order = NotchLayout.shelfSections(content).flatMap(\.rows).flatMap(\.tiles).map(\.shot)
-        let shots = ids.count > 1 ? order.filter { ids.contains($0.id) } : order
-        guard let index = shots.firstIndex(where: { $0.id == id }) else { return }
-        log.debug("Quick Look")
-        keyboard.comeForward()
-        quickLookPanel.show(shots, startingAt: index)
-        if case .preview = state { send(.finished) }
+        act("Quick Look", on: ids) { saved in
+            let order = NotchLayout.shelfSections(content).flatMap(\.rows).flatMap(\.tiles).map(\.shot)
+            let shots = saved.count > 1 ? order.filter { saved.contains($0.id) } : order
+            let start = saved[ids.firstIndex(of: id) ?? 0]
+            guard let index = shots.firstIndex(where: { $0.id == start }) else { return }
+            keyboard.comeForward()
+            quickLookPanel.show(shots, startingAt: index)
+        }
+    }
+
+    /// Every action on shots goes through here. A waiting capture is saved first:
+    /// only a drag takes one without saving it.
+    private func act(_ name: String, on ids: [Shot.ID], _ feedback: Feedback? = nil, _ action: ([Shot.ID]) -> Void) {
+        log.debug("\(name, privacy: .public) \(ids.count, privacy: .public)")
+        action(library.save(ids))
+        followPending()
+        if let feedback { send(nil, feedback: feedback) }
     }
 
     func hover(_ id: Shot.ID, _ inside: Bool) {
@@ -191,14 +200,21 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     // MARK: Dragging
 
+    /// A drag hands shots off: the drop gets a copy and they leave Pluck, unless
+    /// they're pinned or the user keeps what they drag out. A waiting capture
+    /// always goes as a copy, since its file still has to be saved or let go.
     func beginDrag(_ id: Shot.ID, from view: NSView, event: NSEvent) {
-        let shots = library.shots(withIDs: targets(id))
+        let shots = targets(id).compactMap(library.shot)
         guard !shots.isEmpty else { return }
-        let copy = state == .preview(id) ? library.dragCopy(of: id) : nil
-        dragTakesShot = copy == nil ? nil : id
         let point = view.convert(event.locationInWindow, from: nil)
+        carried = []
         let items = shots.map { shot in
-            let item = NSDraggingItem(pasteboardWriter: ((shot.id == id ? copy : nil) ?? shot.url) as NSURL)
+            var url = shot.url
+            if library.isPending(shot.id) || handsOff(shot.id), let copy = library.dragCopy(of: shot.id) {
+                url = copy
+                carried.append(shot.id)
+            }
+            let item = NSDraggingItem(pasteboardWriter: url as NSURL)
             let image = ShotDragSource.image(for: shot)
             item.setDraggingFrame(CGRect(x: point.x - image.size.width / 2, y: point.y - image.size.height / 2,
                                          width: image.size.width, height: image.size.height),
@@ -215,16 +231,27 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     private func dragEnded(_ operation: NSDragOperation) {
         log.debug("Drag ended with operation \(operation.rawValue, privacy: .public)")
         let dropped = !operation.isEmpty
-        if dropped, let id = dragTakesShot {
-            library.letGo(id)
-        } else if dropped, operation != .move, preferences.removeDraggedOut {
-            // A move took the file elsewhere. Anything else leaves it here, for
-            // the one-hour cleanup.
-            library.recordDragOut(Array(draggedShots))
-        }
-        dragTakesShot = nil
         draggedShots = []
         send(.dragEnded(dropped: dropped))
+        if dropped {
+            // A move is Finder filing the copy in a folder. A waiting capture is
+            // then saved there; a shot in the folder keeps its file, since Finder
+            // may still be asking whether to replace it. An app's drop hands the
+            // shot off, unless the user keeps what they drag out.
+            for id in carried {
+                if library.isPending(id) {
+                    if operation == .move || handsOff(id) { library.letGo(id) } else { library.save([id]) }
+                } else if operation != .move {
+                    library.letGo(id)
+                }
+            }
+        }
+        carried = []
+        followPending()
+    }
+
+    private func handsOff(_ id: Shot.ID) -> Bool {
+        preferences.removeDraggedOut && !library.isPinned(id)
     }
 
     // MARK: Menu
@@ -235,7 +262,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         let menu = NSMenu()
         menu.addItem(menuItem(ids.count > 1 ? "Copy \(ids.count) Shots" : "Copy", key: "c") { [weak self] in self?.copy(ids) })
         menu.addItem(menuItem("Quick Look") { [weak self] in self?.quickLook(id) })
-        menu.addItem(menuItem("Show in Finder") { [weak self] in self?.library.revealInFinder(ids) })
+        menu.addItem(menuItem("Show in Finder") { [weak self] in self?.reveal(ids) })
         menu.addItem(.separator())
         menu.addItem(moveMenuItem(for: ids))
         menu.addItem(menuItem(ids.allSatisfy(library.isPinned) ? "Unpin" : "Pin", key: "p") { [weak self] in self?.togglePin(ids) })
@@ -344,7 +371,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         next.settings = NotchMachine.Settings(opensOnHover: preferences.opensOnHover && feedback?.canUndo != true,
                                               previewDuration: preferences.previewDuration.rawValue)
         if let event { next.handle(event, at: .now) }
-        let stateChanged = next.state != machine.state
+        let previous = machine.state
+        let stateChanged = next.state != previous
         if stateChanged {
             // Only the event's name is public; shot IDs are file paths.
             let name = event.map { String(describing: $0).prefix { $0 != "(" } } ?? "feedback"
@@ -363,6 +391,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
             focusedShot = nil
             selection = []
             pointerAtKeyboardFocus = nil
+            // Leaving the Preview saves whatever it still holds.
+            if previous.isPreview, !next.state.isPreview { library.savePending() }
             updateKeyboard()
         }
         if frame != old { syncPointer() }
@@ -409,19 +439,33 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     // MARK: Library
 
     private func watchLibrary() {
-        library.onArrival = { [weak self] shot in
-            Thumbnails.prefetch([shot])
-            guard let self, showsPreview else { return }
-            send(.shotArrived(shot.id))
+        Task { [weak self] in
+            for await _ in Observations({ [weak self] in self?.library.pending.map(\.id) ?? [] }) {
+                guard let self else { return }
+                Thumbnails.prefetch(library.pending)
+                followPending()
+            }
         }
-        // A shot that's gone leaves the focus and the selection, and its Preview closes.
+        // A shot that's gone leaves the focus and the selection.
         Task { [weak self] in
             for await ids in Observations({ [weak self] in Set(self?.library.shots.map(\.id) ?? []) }) {
                 guard let self else { return }
                 if let focusedShot, !ids.contains(focusedShot) { self.focusedShot = nil }
                 if !selection.isSubset(of: ids) { selection.formIntersection(ids) }
-                if case .preview(let id) = state, !ids.contains(id) { send(.shotRemoved(id)) }
             }
+        }
+    }
+
+    /// The Preview shows the newest waiting capture. When that changes, the next
+    /// one comes up (a new capture, or the one behind); when none is left, the
+    /// Preview closes. Mid-drag the machine holds off, and the drag's end asks again.
+    private func followPending() {
+        let front = library.pending.first?.id
+        if case .preview(let shown) = state, shown == front { return }
+        if let front {
+            send(.shotUp(front))
+        } else if state.isPreview {
+            send(.previewEmptied)
         }
     }
 

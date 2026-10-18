@@ -99,7 +99,7 @@ private struct Driver {
 // MARK: Shelf
 
 @Test func aClickOpensTheShelfFromAnyState() {
-    for setup in [NotchMachine.Event.dismissed, .shotArrived("/a.png")] {
+    for setup in [NotchMachine.Event.dismissed, .shotUp("/a.png")] {
         var d = Driver()
         d.send(setup)
         d.send(.clicked)
@@ -129,18 +129,18 @@ private struct Driver {
 @Test func aNewShotShowsItsPreviewFromAnyStateButADrag() {
     var shelf = Driver()
     shelf.send(.clicked)
-    shelf.send(.shotArrived("/new.png"))
+    shelf.send(.shotUp("/new.png"))
     #expect(shelf.state == .preview("/new.png"))
 
     var peek = Driver()
     peek.openPeek()
-    peek.send(.shotArrived("/new.png"))
+    peek.send(.shotUp("/new.png"))
     #expect(peek.state == .preview("/new.png"))
 
     var dragging = Driver()
     dragging.send(.clicked)
     dragging.send(.dragStarted)
-    dragging.send(.shotArrived("/new.png"))
+    dragging.send(.shotUp("/new.png"))
     #expect(dragging.state == .shelf)
 }
 
@@ -148,7 +148,7 @@ private struct Driver {
 
 @Test func aNewShotShowsThePreviewForItsDuration() {
     var d = Driver(previewDuration: 4)
-    d.send(.shotArrived("/a.png"))
+    d.send(.shotUp("/a.png"))
     #expect(d.state == .preview("/a.png"))
     d.wait(3.9)
     #expect(d.state == .preview("/a.png"))
@@ -158,7 +158,7 @@ private struct Driver {
 
 @Test func hoveringHoldsThePreviewAndLeavingNeverEndsItAtOnce() {
     var d = Driver(previewDuration: 4)
-    d.send(.shotArrived("/a.png"))
+    d.send(.shotUp("/a.png"))
     d.wait(3.8)
     d.send(.pointerEntered)
     d.wait(60)
@@ -174,43 +174,35 @@ private struct Driver {
 @Test func aShotArrivingUnderThePointerIsHeldFromTheStart() {
     var d = Driver()
     d.send(.pointerEntered)
-    d.send(.shotArrived("/a.png"))
+    d.send(.shotUp("/a.png"))
     d.wait(60)
     #expect(d.state == .preview("/a.png"))
 }
 
-@Test func aNewerShotReplacesThePreviewAndRestartsItsTime() {
+@Test func eachShotThatComesUpRestartsThePreviewsTime() {
+    // A newer capture, or the next in line once the front one is dealt with.
     var d = Driver(previewDuration: 4)
-    d.send(.shotArrived("/a.png"))
+    d.send(.shotUp("/a.png"))
     d.wait(3)
-    d.send(.shotArrived("/b.png"))
+    d.send(.shotUp("/b.png"))
     d.wait(3)
     #expect(d.state == .preview("/b.png"))
 }
 
-@Test func actingOnThePreviewFinishesItButNotPeek() {
+@Test func thePreviewClosesWhenNothingIsLeftToShowButNothingElseDoes() {
     var d = Driver()
-    d.send(.shotArrived("/a.png"))
-    d.send(.finished)
+    d.send(.shotUp("/a.png"))
+    d.send(.previewEmptied)
     #expect(d.state == .idle)
 
     d.openPeek()
-    d.send(.finished)
+    d.send(.previewEmptied)
     #expect(d.state == .peek)
-}
-
-@Test func thePreviewClosesIfItsShotDisappears() {
-    var d = Driver()
-    d.send(.shotArrived("/a.png"))
-    d.send(.shotRemoved("/other.png"))
-    #expect(d.state == .preview("/a.png"))
-    d.send(.shotRemoved("/a.png"))
-    #expect(d.state == .idle)
 }
 
 @Test func previewProgressRunsDownAndStopsWhileHeld() {
     var d = Driver(previewDuration: 4)
-    d.send(.shotArrived("/a.png"))
+    d.send(.shotUp("/a.png"))
     d.wait(1)
     #expect(d.machine.previewProgress(at: d.now) == 0.75)
     d.send(.pointerEntered)
@@ -248,12 +240,12 @@ private struct Driver {
 
 @Test func nothingChangesUnderADrag() {
     var d = Driver(previewDuration: 4)
-    d.send(.shotArrived("/a.png"))
+    d.send(.shotUp("/a.png"))
     d.send(.pointerEntered)
     d.send(.dragStarted)
     d.send(.pointerExited)
 
-    d.send(.shotArrived("/b.png"))
+    d.send(.shotUp("/b.png"))
     d.send(.clicked)
     d.send(.wentToAnotherApp)
     d.wait(60)
@@ -261,16 +253,19 @@ private struct Driver {
     #expect(d.state == .preview("/a.png"))
 }
 
-@Test func droppingAPreviewFinishesItAndCancellingKeepsIt() {
+@Test func droppingAPreviewsShotLeavesTheRestToComeUpAndCancellingKeepsIt() {
     var d = Driver(previewDuration: 4)
-    d.send(.shotArrived("/a.png"))
+    d.send(.shotUp("/a.png"))
     d.send(.pointerEntered)
     d.send(.dragStarted)
     d.send(.pointerExited)
     d.send(.dragEnded(dropped: true))
+    // The next capture comes up, or the Preview empties and closes.
+    #expect(d.state == .preview("/a.png"))
+    d.send(.previewEmptied)
     #expect(d.state == .idle)
 
-    d.send(.shotArrived("/b.png"))
+    d.send(.shotUp("/b.png"))
     d.send(.pointerEntered)
     d.send(.dragStarted)
     d.send(.pointerExited)
