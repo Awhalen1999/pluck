@@ -78,7 +78,7 @@ its timer.
 |---------|------------------------------------------|------------------------------------------------------------|
 | Idle    | default                                  | hover → Peek, click → Shelf, new shot → Preview            |
 | Peek    | hovering the notch past the intent delay | pointer leaves (after a grace period) → Idle, click → Shelf, new shot → Preview |
-| Shelf   | a click on the notch, or "+N" in Peek    | click outside or Esc → Idle                                |
+| Shelf   | a click on the notch, or "+N" in Peek    | click outside, Esc, or Return (copies) → Idle              |
 | Preview | a new screenshot, from Idle or Peek      | its timer ends, acting on it, or Esc → Idle; click → Shelf |
 
 - A click on the notch itself opens the Shelf from any state. A click on a shot
@@ -98,7 +98,20 @@ its timer.
 - Hover is geometry: the pointer's position against `NotchLayout.hoverZone`,
   from a global mouse monitor plus the notch's own hover events. No invisible
   views, so nothing blocks clicks underneath.
-- Esc always goes back exactly one level.
+- Esc always goes back exactly one level: a menu, then the selection, then the
+  Shelf.
+- Only the Shelf takes the keyboard. Peek and the Preview never take it from
+  the app the user is typing in, and the moment the Shelf closes the keyboard
+  goes straight back. Quick Look and the folder picker take it while they show.
+- The Shelf's keys: arrows move the focus, Return copies and closes (so ⌘V
+  pastes into the user's app), ⌘C copies, Space opens Quick Look, ⌫ or ⌘⌫
+  trashes (the focus moves on to the next shot), ⌘Z puts the last trash back,
+  P or ⌘P pins, ⌘A selects all.
+- The focus is one shot: the one under the pointer, or the one the arrow keys
+  reached. Shots scrolling under a resting pointer don't take it back.
+- ⌘-click selects in the Shelf. While there's a selection, keys, the menu and
+  drags act on all of it. A plain click clears it and copies that one shot. The
+  selection belongs to the Shelf and goes when it closes.
 - A shot taken while the Shelf is open lands in the Shelf; it does not interrupt.
 - During a drag the notch steps aside, and comes back if the drag returns.
 
@@ -223,9 +236,32 @@ Verified on this machine; each one notes how.
   while the notch is open and 10 at rest. A listen-only event tap would be
   event-driven, but receives nothing without Input Monitoring. (Checked
   2026-10-17.)
-- **Use the event's own location.** In a monitor callback, `NSEvent.mouseLocation`
-  can still be the previous position when the pointer jumps. A global event has
-  no window, so `locationInWindow` is in screen coordinates.
+- **Use the event's own location, from Quartz.** In a monitor callback,
+  `NSEvent.mouseLocation` can still be the previous position when the pointer
+  jumps. `locationInWindow` isn't safe either: a global event can still name one
+  of Pluck's windows (just after the Shelf takes the keyboard), and then it is
+  in that window's coordinates. `event.cgEvent.location` is always global, top
+  down from the primary display. (Caught as a stray "click outside" that closed
+  the Shelf about one launch in three, 2026-10-17.)
+- **The keyboard without activating.** A `.nonactivatingPanel` whose
+  `canBecomeKey` is true becomes key without bringing Pluck forward: the user's
+  app keeps the menu bar, and AppKit reports `NSApp.isActive`. To give the
+  keyboard back, `NSApp.deactivate()`; `NSApp.hide` leaves it with the notch.
+  A local key monitor sees keys before the app's menus, which would otherwise
+  take ⌘C and ⌘Z. (Checked by typing into TextEdit after the Shelf closed,
+  2026-10-17.)
+- **Quick Look and the folder picker need Pluck truly active.** With only the
+  notch key, their keys go to the user's app. `NSApp.activate()` works once the
+  notch has the keyboard, and is refused before. Afterwards `NSApp.hide` gives
+  the keyboard back; `deactivate` doesn't. Quick Look is still the key window
+  during its will-close notification.
+- **Showing resets a window's level.** Quick Look and `NSOpenPanel` take their
+  level when they show, so it's set after they show. `runModal` blocks until
+  the panel closes, so the picker uses `begin`. Below `.statusBar` + 1, the
+  Shelf covers them.
+- **A lazy stack keeps what it drew for an ID.** If an ID comes back with new
+  content, `LazyVStack` can draw the old content. Shelf rows are identified by
+  all of their shots.
 - **SwiftUI gestures fire through AppKit views.** A tap gesture on a container
   also fires for a click an embedded `NSView` already handled. Notch-level
   clicks live on a layer behind the content, never on a container of it.
@@ -240,9 +276,8 @@ Verified on this machine; each one notes how.
 - **Drag out is AppKit.** An `NSDraggingSource` started from the panel gets
   `draggingSession(_:endedAt:operation:)` with `.copy` on a successful drop.
   SwiftUI's drag APIs have no end callback.
-- **Quick Look has no Markup.** `QLPreviewPanel` works from the menu-bar app
-  after `NSApp.activate()`, but offers only Share and "Open with Preview".
-  QuickLookUI has no public Markup or editing API.
+- **Quick Look has no Markup.** `QLPreviewPanel` offers only Share and "Open
+  with Preview". QuickLookUI has no public Markup or editing API.
 - **The folder prompt blocks.** The first read of Desktop, Documents or
   Downloads shows the macOS access prompt and blocks that thread until it's
   answered. Onboarding must trigger it on purpose, at its "Allow Access" step.

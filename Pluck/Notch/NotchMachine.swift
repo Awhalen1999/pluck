@@ -19,7 +19,8 @@ struct NotchMachine: Equatable {
         /// A click on the notch itself, not on a shot or a button.
         case clicked
         case clickedOutside
-        case escape
+        /// The user is done with the notch: Esc, or Return in the Shelf once it has copied.
+        case dismissed
         case shotArrived(Shot.ID)
         case shotRemoved(Shot.ID)
         /// The user acted on what the notch was showing: copied it, pinned it, trashed it.
@@ -85,7 +86,7 @@ struct NotchMachine: Equatable {
         case .clickedOutside:
             if state == .shelf { go(.idle) }
 
-        case .escape:
+        case .dismissed:
             go(.idle)
 
         case .shotArrived(let id):

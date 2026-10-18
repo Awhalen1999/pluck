@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import SwiftUI
 import Testing
 @testable import Pluck
 
@@ -68,6 +69,33 @@ private let gap = Theme.Space.s
 
     #expect(small < large)
     #expect(large == Theme.Notch.shelfMaxHeight)
+}
+
+// MARK: Arrow keys
+
+@Test func theArrowKeysMoveThroughTheShelfAsItIsDrawn() {
+    // Drawn as three rows: [p1 p2] in Pinned, then [t0 t1 t2 t3] and [t4 t5] in Today.
+    let pinned = [shot("p1"), shot("p2")]
+    let today = (0..<6).map { shot("t\($0)", takenAt: testNow - Double($0)) }
+    let sections = NotchLayout.shelfSections(NotchLayout.Content(shots: today + pinned, pinned: pinned, now: testNow))
+    #expect(sections.flatMap(\.rows).map { $0.tiles.count } == [2, 4, 2])
+    func move(_ name: String?, _ direction: MoveCommandDirection) -> String? {
+        NotchLayout.shot(from: name.map { "/shots/\($0)" }, moving: direction, in: sections).map { URL(filePath: $0).lastPathComponent }
+    }
+
+    // Nothing focused yet: any arrow starts at the first shot.
+    #expect(move(nil, .down) == "p1")
+    // Left and right follow reading order across rows and sections, and stop at the ends.
+    #expect(move("p2", .right) == "t0")
+    #expect(move("t0", .left) == "p2")
+    #expect(move("p1", .left) == "p1")
+    #expect(move("t5", .right) == "t5")
+    // Up and down land on the nearest shot in the next row, and stop at the edges.
+    #expect(move("p2", .down) == "t1")
+    #expect(move("t3", .down) == "t5")
+    #expect(move("t5", .up) == "t1")
+    #expect(move("p1", .up) == "p1")
+    #expect(move("t4", .down) == "t4")
 }
 
 // MARK: Frames and hover

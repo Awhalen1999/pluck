@@ -10,7 +10,7 @@ struct PeekView: View {
         let shots = controller.library.shots
         VStack(spacing: 0) {
             NotchHeader(notchWidth: notchWidth) {
-                if let shot = controller.hoveredShot.flatMap({ id in shots.first { $0.id == id } }) {
+                if let shot = controller.focusedShot.flatMap({ id in shots.first { $0.id == id } }) {
                     Text(shot.detail)
                 }
             } trailing: {

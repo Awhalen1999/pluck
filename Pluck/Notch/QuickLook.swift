@@ -9,32 +9,41 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "QuickLook")
 final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     /// Where a shot's tile is on screen, for the zoom.
     var sourceFrame: (Shot.ID) -> CGRect? = { _ in nil }
-    var onClose: () -> Void = {}
+    /// Called with the shot it was showing, once it has closed.
+    var onClose: (Shot.ID?) -> Void = { _ in }
+    private(set) var isShown = false
 
     private var shots: [Shot] = []
     private var closeObserver: Any?
 
+    /// Pluck must have the keyboard first, or the panel can't take it.
     func show(_ shots: [Shot], startingAt index: Int) {
         guard let panel = QLPreviewPanel.shared() else { return }
         self.shots = shots
-        NSApp.activate()
+        isShown = true
         panel.dataSource = self
         panel.delegate = self
-        // Above the notch, so it isn't covered by an open Shelf.
-        panel.level = NSWindow.Level(NSWindow.Level.statusBar.rawValue + 1)
         panel.reloadData()
         panel.currentPreviewItemIndex = index
         panel.makeKeyAndOrderFront(nil)
-        log.debug("Shown: app active \(NSApp.isActive), panel visible \(panel.isVisible), key \(panel.isKeyWindow)")
-        closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: panel, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.closed() }
+        // Set after it shows, since showing resets it.
+        panel.level = .aboveNotch
+        log.debug("Shown: key \(panel.isKeyWindow)")
+        if closeObserver == nil {
+            closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: panel, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.closed() }
+            }
         }
     }
 
     private func closed() {
         if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
         closeObserver = nil
-        onClose()
+        isShown = false
+        let index = QLPreviewPanel.shared()?.currentPreviewItemIndex ?? -1
+        let id = shots.indices.contains(index) ? shots[index].id : nil
+        // Once it has closed: until then it's still the key window.
+        Task { onClose(id) }
     }
 
     func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { shots.count }

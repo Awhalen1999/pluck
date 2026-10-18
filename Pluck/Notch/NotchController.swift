@@ -17,8 +17,11 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     private(set) var geometry: NotchGeometry?
     private(set) var feedback: Feedback?
-    /// The shot under the pointer, for the header's detail line.
-    private(set) var hoveredShot: Shot.ID?
+    /// The shot the user is on: under the pointer, or reached with the arrow
+    /// keys. The header describes it, and the Shelf's keys act on it.
+    private(set) var focusedShot: Shot.ID?
+    /// Shots ⌘-clicked in the Shelf. While there are any, actions take them all.
+    private(set) var selection: Set<Shot.ID> = []
     /// The shots in the drag under way, shown faded where they came from.
     private(set) var draggedShots: Set<Shot.ID> = []
     private var machine = NotchMachine()
@@ -36,6 +39,9 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     @ObservationIgnored private let quickLookPanel = QuickLook()
     /// The views drawing each shot right now, so Quick Look can zoom from them.
     @ObservationIgnored private let shotViews = NSMapTable<NSString, NSView>.strongToWeakObjects()
+    /// Where the pointer was when the arrow keys last moved the focus. Until it
+    /// moves, shots scrolling under it don't take the focus back.
+    @ObservationIgnored private var pointerAtKeyboardFocus: CGPoint?
 
     init(library: ShotLibrary, preferences: Preferences, showsPreview: Bool) {
         self.library = library
@@ -78,13 +84,38 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// The Preview's timer is held while the pointer is on it.
     var previewIsHeld: Bool { machine.timer == nil }
 
+    /// The arrow keys moved the focus, so the Shelf keeps it in view.
+    var focusFollowsKeyboard: Bool { pointerAtKeyboardFocus != nil }
+
     // MARK: Intents
 
-    /// A click on the notch itself opens the Shelf, from any state.
-    func clickedNotch() { send(.clicked) }
+    /// A click on the notch itself opens the Shelf, from any state. In the Shelf
+    /// it clears the selection, as a click on empty space does in Finder.
+    func clickedNotch() {
+        selection = []
+        send(.clicked)
+    }
 
+    /// A click copies the shot. In the Shelf, ⌘-click adds it to the selection
+    /// or takes it out.
     func clicked(_ id: Shot.ID, modifiers: NSEvent.ModifierFlags) {
+        if state == .shelf, modifiers.contains(.command) {
+            select(selection.symmetricDifference([id]))
+            return
+        }
+        selection = []
         copy([id])
+    }
+
+    func clearSelection() { selection = [] }
+
+    /// Selecting is newer than whatever the header last said, so it takes the
+    /// feedback slot ("3 selected") at once.
+    private func select(_ ids: Set<Shot.ID>) {
+        withAnimation(Theme.Motion.hover) {
+            selection = ids
+            if !ids.isEmpty { feedback = nil }
+        }
     }
 
     func copy(_ ids: [Shot.ID]) {
@@ -123,18 +154,26 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         send(nil, feedback: Feedback(kind: .restored))
     }
 
-    /// Opens Quick Look on a shot, with every shot a keypress away. From the
-    /// Preview it counts as acting on it, so the Preview finishes.
+    /// Opens Quick Look on a shot, with every shot a keypress away in the
+    /// Shelf's order, or just the selection when the shot is part of one. From
+    /// the Preview it counts as acting on it, so the Preview finishes.
     func quickLook(_ id: Shot.ID) {
-        let shots = library.shots
+        let ids = targets(id)
+        let order = NotchLayout.shelfSections(content).flatMap(\.rows).flatMap(\.tiles).map(\.shot)
+        let shots = ids.count > 1 ? order.filter { ids.contains($0.id) } : order
         guard let index = shots.firstIndex(where: { $0.id == id }) else { return }
         log.debug("Quick Look")
+        comeForward()
         quickLookPanel.show(shots, startingAt: index)
         if case .preview = state { send(.finished) }
     }
 
     func hover(_ id: Shot.ID, _ inside: Bool) {
-        if inside { hoveredShot = id } else if hoveredShot == id { hoveredShot = nil }
+        if let point = pointerAtKeyboardFocus {
+            guard NSEvent.mouseLocation != point else { return }
+            pointerAtKeyboardFocus = nil
+        }
+        if inside { focusedShot = id } else if focusedShot == id { focusedShot = nil }
     }
 
     func register(_ view: NSView, for id: Shot.ID) {
@@ -157,7 +196,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// Starts dragging a shot out of the notch. The image under the cursor is the
     /// shot itself, and other apps receive the file.
     func beginDrag(_ id: Shot.ID, from view: NSView, event: NSEvent) {
-        let shots = library.shots(withIDs: [id])
+        let shots = library.shots(withIDs: targets(id))
         guard !shots.isEmpty else { return }
         let point = view.convert(event.locationInWindow, from: nil)
         let items = shots.map { shot in
@@ -192,11 +231,12 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     // MARK: Menu
 
-    /// The right-click menu for a shot: native, with the shortcuts shown.
+    /// The right-click menu for a shot, or for the selection it's part of:
+    /// native, with the Shelf's shortcuts shown.
     func menu(for id: Shot.ID) -> NSMenu {
-        let ids = [id]
+        let ids = targets(id)
         let menu = NSMenu()
-        menu.addItem(menuItem("Copy", key: "c") { [weak self] in self?.copy(ids) })
+        menu.addItem(menuItem(ids.count > 1 ? "Copy \(ids.count) Shots" : "Copy", key: "c") { [weak self] in self?.copy(ids) })
         menu.addItem(menuItem("Quick Look") { [weak self] in self?.quickLook(id) })
         menu.addItem(menuItem("Show in Finder") { [weak self] in self?.library.revealInFinder(ids) })
         menu.addItem(.separator())
@@ -228,25 +268,125 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         open.canChooseFiles = false
         open.canCreateDirectories = true
         open.prompt = "Move"
-        NSApp.activate()
-        if open.runModal() == .OK, let folder = open.url { move(ids, to: folder) }
-        returnFocus()
+        comeForward()
+        open.begin { [weak self] response in
+            if response == .OK, let folder = open.url { self?.move(ids, to: folder) }
+            self?.updateKeyboard()
+        }
+        // Above the notch, set once it shows, since showing resets it.
+        open.level = .aboveNotch
     }
 
-    // MARK: Focus
+    /// What an action on `id` applies to: the whole selection when it's part of
+    /// one, in the library's order, or just that shot.
+    private func targets(_ id: Shot.ID) -> [Shot.ID] {
+        selection.contains(id) ? library.shots(withIDs: Array(selection)).map(\.id) : [id]
+    }
+
+    // MARK: Keyboard
+
+    /// Who has the keyboard. The Shelf takes it while it's open, and Quick Look
+    /// while it shows; otherwise it goes straight back to the app the user was
+    /// in, so typing there never lands in Pluck.
+    private func updateKeyboard() {
+        let shelf = state == .shelf
+        panel.acceptsKeyboard = shelf
+        // Quick Look has it; this runs again when it closes.
+        guard !quickLookPanel.isShown else { return }
+        if shelf {
+            panel.makeKey()
+        } else if NSApp.isActive, NSApp.keyWindow == nil || NSApp.keyWindow === panel {
+            // Unless the user is in one of Pluck's own windows. A key notch lets
+            // go by deactivating; after Quick Look, Pluck is truly active and
+            // lets go by hiding. Each does nothing in the other case.
+            NSApp.deactivate()
+            NSApp.hide(nil)
+        }
+    }
+
+    /// Makes Pluck the active app, for Quick Look and the folder picker: neither
+    /// takes keys otherwise. The notch takes the keyboard first, or macOS
+    /// refuses the activation; see Platform facts.
+    private func comeForward() {
+        panel.acceptsKeyboard = true
+        panel.makeKey()
+        NSApp.activate()
+    }
 
     private func watchQuickLook() {
         quickLookPanel.sourceFrame = { [weak self] id in
             guard let view = self?.shotViews.object(forKey: id as NSString), let window = view.window else { return nil }
             return window.convertToScreen(view.convert(view.bounds, to: nil))
         }
-        quickLookPanel.onClose = { [weak self] in self?.returnFocus() }
+        quickLookPanel.onClose = { [weak self] id in
+            guard let self else { return }
+            // Back in the Shelf, the focus is on the shot Quick Look ended on.
+            if state == .shelf, let id { focusFromKeyboard(id) }
+            updateKeyboard()
+        }
     }
 
-    /// Gives the keyboard back to the app the user was in, after Pluck had to
-    /// come forward for Quick Look or a folder picker.
-    private func returnFocus() {
-        if NSApp.isActive { NSApp.hide(nil) }
+    /// The Shelf's keys, as Finder and Photos have them. Only the Shelf takes the
+    /// keyboard, so none of these can fire while the user types in another app.
+    /// Returns false for any other key, which AppKit then handles as usual.
+    private func handleKey(_ event: NSEvent) -> Bool {
+        guard event.window === panel else { return false }
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        let plain = flags.isEmpty
+        let command = flags == .command
+        let key = event.charactersIgnoringModifiers?.lowercased()
+        let special = event.specialKey
+        let ids = selection.isEmpty ? focusedShot.map { [$0] } ?? [] : library.shots(withIDs: Array(selection)).map(\.id)
+
+        if plain, let direction = special.flatMap({ Self.arrows[$0] }) {
+            focusFromKeyboard(NotchLayout.shot(from: focusedShot, moving: direction, in: NotchLayout.shelfSections(content)))
+            return true
+        }
+        // Holding a key repeats only the arrows.
+        if event.isARepeat { return true }
+
+        if plain, key == "\u{1b}" {
+            // Esc goes back one level: the selection first, then the Shelf.
+            if selection.isEmpty { send(.dismissed) } else { selection = [] }
+        } else if plain, special == .carriageReturn || special == .enter, !ids.isEmpty {
+            // Return copies and closes, so the next ⌘V lands in the user's app.
+            copy(ids)
+            send(.dismissed)
+        } else if command, key == "c", !ids.isEmpty {
+            copy(ids)
+        } else if plain, key == " ", let id = ids.first {
+            quickLook(id)
+        } else if plain || command, special == .delete || special == .deleteForward, !ids.isEmpty {
+            trashFromKeyboard(ids)
+        } else if command, key == "z", !library.lastTrashed.isEmpty {
+            undoTrash()
+        } else if plain || command, key == "p", !ids.isEmpty {
+            togglePin(ids)
+        } else if command, key == "a" {
+            select(Set(library.shots.map(\.id)))
+        } else {
+            return false
+        }
+        return true
+    }
+
+    private static let arrows: [NSEvent.SpecialKey: MoveCommandDirection] = [
+        .leftArrow: .left, .rightArrow: .right, .upArrow: .up, .downArrow: .down,
+    ]
+
+    private func focusFromKeyboard(_ id: Shot.ID?) {
+        pointerAtKeyboardFocus = NSEvent.mouseLocation
+        focusedShot = id
+    }
+
+    /// The focus moves on to the next shot, so pressing ⌫ again trashes that one.
+    private func trashFromKeyboard(_ ids: [Shot.ID]) {
+        guard selection.isEmpty, let id = focusedShot else { return trash(ids) }
+        let sections = NotchLayout.shelfSections(content)
+        let after = NotchLayout.shot(from: id, moving: .right, in: sections)
+        let next = after != id ? after : NotchLayout.shot(from: id, moving: .left, in: sections)
+        trash(ids)
+        focusFromKeyboard(next != id ? next : nil)
     }
 
     // MARK: Events
@@ -267,6 +407,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
             log.debug("\(name, privacy: .public) → \(next.state.name, privacy: .public)")
         }
 
+        let stateChanges = next.state != machine.state
         let reshapes = next.shownState != machine.shownState
         // Collapsing into the notch settles closed; anything that grows opens.
         let opening = reshapes ? next.shownState != .idle : true
@@ -277,9 +418,15 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         }
         if let newFeedback { endFeedback(after: newFeedback.duration) }
         if timerChanged { schedule(next.timer) }
+        if stateChanges {
+            // The selection belongs to the Shelf, and leaves with it.
+            if next.state != .shelf { selection = [] }
+            updateKeyboard()
+        }
         if reshapes {
             if next.shownState == .idle {
-                hoveredShot = nil
+                focusedShot = nil
+                pointerAtKeyboardFocus = nil
                 goHomeWhenSettled()
             }
             syncPointer()
@@ -337,9 +484,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     private func watchPointer() {
         // The event's own location, not NSEvent.mouseLocation: when the pointer
         // jumps, the monitor can run before the current location catches up.
-        // A global event has no window, so its location is in screen coordinates.
         let moved = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
-            let point = event.locationInWindow
+            let point = Self.screenLocation(of: event)
             MainActor.assumeIsolated {
                 self?.followPointer(to: point)
                 self?.pointerMoved(to: point)
@@ -348,7 +494,12 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         let clicked = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated { self?.send(.clickedOutside) }
         }
-        monitors = [moved, clicked].compactMap { $0 }
+        // Ahead of the app's menus, which would otherwise take ⌘C and ⌘Z.
+        let keys = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let handled = MainActor.assumeIsolated { self?.handleKey(event) ?? false }
+            return handled ? nil : event
+        }
+        monitors = [moved, clicked, keys].compactMap { $0 }
 
         // macOS only sends pointer moves to the active app, so the monitor misses
         // moves over other apps' windows. Sampling the position guarantees none
@@ -378,10 +529,13 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
             if let target = Self.screen(for: shot), target.displayID != screen?.displayID { place(on: target) }
             send(.shotArrived(shot.id))
         }
-        // A Preview whose shot disappears (deleted in Finder, say) closes at once.
+        // A shot that disappears (trashed, or deleted in Finder) leaves the focus
+        // and the selection, and a Preview of it closes at once.
         Task { [weak self] in
-            for await ids in Observations({ [weak self] in self?.library.shots.map(\.id) ?? [] }) {
+            for await ids in Observations({ [weak self] in Set(self?.library.shots.map(\.id) ?? []) }) {
                 guard let self else { return }
+                if let focusedShot, !ids.contains(focusedShot) { self.focusedShot = nil }
+                if !selection.isSubset(of: ids) { selection.formIntersection(ids) }
                 if case .preview(let id) = state, !ids.contains(id) { send(.shotRemoved(id)) }
             }
         }
@@ -452,6 +606,15 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         // primary display's top-left; screens are laid out bottom-up.
         let center = CGPoint(x: rect.midX, y: primary.frame.maxY - rect.midY)
         return screen(containing: center) ?? screen(containing: NSEvent.mouseLocation)
+    }
+
+    /// Where a monitored event happened, in screen coordinates. Not its
+    /// `locationInWindow`: a global event can still name one of Pluck's windows,
+    /// and then that is in the window's coordinates. The Quartz event's location
+    /// is always global, measured down from the top of the primary display.
+    private static func screenLocation(of event: NSEvent) -> CGPoint {
+        guard let point = event.cgEvent?.location, let primary = NSScreen.screens.first else { return NSEvent.mouseLocation }
+        return CGPoint(x: point.x, y: primary.frame.maxY - point.y)
     }
 
     private static func screen(containing point: CGPoint) -> NSScreen? {

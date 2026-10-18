@@ -29,22 +29,28 @@ struct ShotImage: View {
 
 /// A shot in Peek or the Shelf. Click copies it, double-click opens Quick Look,
 /// right-click shows its menu, and it drags straight into other apps. It lifts
-/// under the pointer and presses in under a click.
+/// while it has the focus (under the pointer, or reached with the arrow keys),
+/// presses in under a click, and is ringed in the accent while selected.
 struct ShotTile: View {
     let shot: Shot
     let size: CGSize
     let controller: NotchController
-    @State private var hovered = false
     @State private var pressed = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.Radius.tile, style: .continuous)
+        let focused = controller.focusedShot == shot.id
+        let selected = controller.selection.contains(shot.id)
         ShotImage(shot: shot)
             .frame(width: size.width, height: size.height)
             .clipShape(shape)
             .overlay {
-                shape.strokeBorder(hovered ? Theme.Tile.hoverRing : Theme.Tile.ring,
-                                   lineWidth: hovered ? Theme.Tile.hoverRingWidth : Theme.Tile.ringWidth)
+                if selected {
+                    shape.strokeBorder(Theme.Palette.accent, lineWidth: Theme.Tile.selectedRingWidth)
+                } else {
+                    shape.strokeBorder(focused ? Theme.Tile.hoverRing : Theme.Tile.ring,
+                                       lineWidth: focused ? Theme.Tile.hoverRingWidth : Theme.Tile.ringWidth)
+                }
             }
             .overlay(alignment: .topTrailing) {
                 if controller.library.isPinned(shot.id) {
@@ -62,17 +68,15 @@ struct ShotTile: View {
                                 menu: { controller.menu(for: shot.id) },
                                 register: { controller.register($0, for: shot.id) })
             }
-            .scaleEffect(pressed ? Theme.Tile.pressScale : hovered ? Theme.Tile.hoverScale : 1)
+            .scaleEffect(pressed ? Theme.Tile.pressScale : focused ? Theme.Tile.hoverScale : 1)
             .opacity(controller.draggedShots.contains(shot.id) ? Theme.Tile.draggedOpacity : 1)
-            .animation(Theme.Motion.hover, value: hovered)
+            .animation(Theme.Motion.hover, value: focused)
+            .animation(Theme.Motion.hover, value: selected)
             .animation(Theme.Motion.hover, value: pressed)
-            .onHover { inside in
-                hovered = inside
-                controller.hover(shot.id, inside)
-            }
+            .onHover { controller.hover(shot.id, $0) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Screenshot, \(shot.detail)")
-            .accessibilityAddTraits(.isButton)
+            .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
             .accessibilityHint("Copies it")
             .accessibilityAction { controller.copy([shot.id]) }
     }

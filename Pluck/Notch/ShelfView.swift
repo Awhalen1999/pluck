@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Every shot, pinned first and then by day. Clicking a shot copies it and the
-/// Shelf stays open; it closes on a click anywhere else.
+/// Shelf stays open; it closes on a click anywhere else. It has the keyboard
+/// while it's open; see `NotchController.handleKey`.
 struct ShelfView: View {
     let controller: NotchController
     let notchWidth: CGFloat
@@ -13,38 +14,71 @@ struct ShelfView: View {
         let fits = NotchLayout.shelfHeight(sections) <= Theme.Notch.shelfMaxHeight - Theme.Notch.headerHeight
         VStack(spacing: 0) {
             NotchHeader(notchWidth: notchWidth) {
-                if let shot = controller.hoveredShot.flatMap({ id in content.shots.first { $0.id == id } }) {
+                if let shot = controller.focusedShot.flatMap({ id in content.shots.first { $0.id == id } }) {
                     Text(shot.detail)
                 } else {
                     Text(content.shots.count == 1 ? "1 shot" : "\(content.shots.count) shots")
                 }
             } trailing: {
-                if let feedback = controller.feedback { FeedbackLabel(feedback: feedback, controller: controller) }
+                if let feedback = controller.feedback {
+                    FeedbackLabel(feedback: feedback, controller: controller)
+                } else if !controller.selection.isEmpty {
+                    SelectionLabel(count: controller.selection.count, controller: controller)
+                }
             }
             if sections.isEmpty {
                 NoShotsYet().frame(height: Theme.Notch.controlHeight)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(sections) { section in
-                            SectionHeader(section: section)
-                            ForEach(section.rows) { row in
-                                HStack(spacing: Theme.Space.s) {
-                                    ForEach(row.tiles) { tile in
-                                        ShotTile(shot: tile.shot, size: tile.size, controller: controller)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(sections) { section in
+                                SectionHeader(section: section)
+                                ForEach(section.rows) { row in
+                                    HStack(spacing: Theme.Space.s) {
+                                        ForEach(row.tiles) { tile in
+                                            ShotTile(shot: tile.shot, size: tile.size, controller: controller)
+                                        }
                                     }
+                                    .padding(.bottom, Theme.Space.s)
                                 }
-                                .padding(.bottom, Theme.Space.s)
                             }
                         }
+                        .padding(.horizontal, Theme.Space.xl)
+                        .padding(.bottom, NotchLayout.shelfBottomPadding)
                     }
-                    .padding(.horizontal, Theme.Space.xl)
-                    .padding(.bottom, NotchLayout.shelfBottomPadding)
+                    .scrollIndicators(fits ? .never : .automatic)
+                    .scrollBounceBehavior(.basedOnSize)
+                    .onChange(of: controller.focusedShot) { _, id in
+                        // A shot reached with the arrow keys stays in view. Its row is
+                        // what scrolls: a lazy stack only knows its rows.
+                        guard controller.focusFollowsKeyboard, let id,
+                              let row = sections.lazy.flatMap(\.rows).first(where: { $0.tiles.contains { $0.id == id } })
+                        else { return }
+                        withAnimation(Theme.Motion.hover) { proxy.scrollTo(row.id) }
+                    }
                 }
-                .scrollIndicators(fits ? .never : .automatic)
-                .scrollBounceBehavior(.basedOnSize)
             }
         }
+    }
+}
+
+/// "3 selected · Clear", in the feedback slot while nothing more recent is there.
+private struct SelectionLabel: View {
+    let count: Int
+    let controller: NotchController
+
+    var body: some View {
+        HStack(spacing: Theme.Space.xs) {
+            Text("\(count) selected")
+                .foregroundStyle(.primary)
+                .allowsHitTesting(false)
+            Button("Clear") { controller.clearSelection() }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.Palette.accent)
+        }
+        .font(Theme.Typography.label)
+        .transition(.blurReplace)
     }
 }
 

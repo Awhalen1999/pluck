@@ -74,7 +74,7 @@ private struct Driver {
 @Test func leavingPeekWithEscapeDoesNotReopenIt() {
     var d = Driver()
     d.openPeek()
-    d.send(.escape)
+    d.send(.dismissed)
     d.wait(10)
     #expect(d.state == .idle)
 }
@@ -82,7 +82,7 @@ private struct Driver {
 // MARK: Shelf
 
 @Test func aClickOpensTheShelfFromAnyState() {
-    for setup in [NotchMachine.Event.escape, .shotArrived("/a.png")] {
+    for setup in [NotchMachine.Event.dismissed, .shotArrived("/a.png")] {
         var d = Driver()
         d.send(setup)
         d.send(.clicked)
@@ -105,7 +105,7 @@ private struct Driver {
     #expect(d.state == .idle)
 
     d.send(.clicked)
-    d.send(.escape)
+    d.send(.dismissed)
     #expect(d.state == .idle)
 }
 

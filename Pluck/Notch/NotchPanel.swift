@@ -21,6 +21,18 @@ final class NotchPanel: NSPanel {
         ignoresMouseEvents = true
         contentView = FirstClickHostingView(rootView: AnyView(rootView))
     }
+
+    /// Whether the notch may take the keyboard. Only the Shelf does; Peek and
+    /// the Preview never take it from the app the user is typing in. Being key
+    /// doesn't activate Pluck, so the user's app stays frontmost.
+    var acceptsKeyboard = false
+    override var canBecomeKey: Bool { acceptsKeyboard }
+}
+
+extension NSWindow.Level {
+    /// For the system windows Pluck opens from the notch, Quick Look and the
+    /// folder picker, so an open Shelf never covers them.
+    static let aboveNotch = NSWindow.Level(NSWindow.Level.statusBar.rawValue + 1)
 }
 
 /// Takes the first click. Without this, tapping the notch only focuses the panel

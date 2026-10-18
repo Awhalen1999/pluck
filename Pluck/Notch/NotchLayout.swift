@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// Every size the notch takes, computed from Theme tokens and the current shots.
 /// The view draws these sizes and the controller hit-tests them, so what you see
@@ -29,12 +29,13 @@ enum NotchLayout {
         var id: String { title }
     }
 
-    /// Identified by its first shot, which appears nowhere else in the Shelf. (By
-    /// position, the first row of two sections would share an ID, and a lazy
-    /// stack draws only one of them.)
+    /// Identified by all of its shots, so a row that gains or loses one is a new
+    /// row. A lazy stack keeps drawing what it last drew for an ID: by position,
+    /// the first rows of two sections would share one and only one is drawn; by
+    /// first shot, pinning a shot that led a row draws that old row in Pinned.
     struct ShelfRow: Identifiable, Equatable {
         let tiles: [ShelfTile]
-        var id: Shot.ID { tiles[0].id }
+        var id: String { tiles.map(\.id).joined(separator: "\n") }
     }
 
     struct ShelfTile: Identifiable, Equatable {
@@ -179,6 +180,36 @@ enum NotchLayout {
             flush(height: min(target, (width - gap * CGFloat(row.count - 1)) / aspects))
         }
         return rows
+    }
+
+    /// Where an arrow key moves the focus in the Shelf, as it's drawn: left and
+    /// right through reading order, up and down to the nearest shot in the row
+    /// above or below. With nothing focused, the first shot; at an edge, it stays.
+    static func shot(from id: Shot.ID?, moving direction: MoveCommandDirection, in sections: [ShelfSection]) -> Shot.ID? {
+        let rows = sections.flatMap(\.rows)
+        let order = rows.flatMap(\.tiles).map(\.id)
+        guard let id, let index = order.firstIndex(of: id),
+              let row = rows.firstIndex(where: { $0.tiles.contains { $0.id == id } }) else { return order.first }
+        switch direction {
+        case .left: return order[max(index - 1, 0)]
+        case .right: return order[min(index + 1, order.count - 1)]
+        case .up, .down:
+            let next = direction == .up ? row - 1 : row + 1
+            guard rows.indices.contains(next) else { return id }
+            let x = center(of: id, in: rows[row])
+            return rows[next].tiles.min { abs(center(of: $0.id, in: rows[next]) - x) < abs(center(of: $1.id, in: rows[next]) - x) }?.id
+        @unknown default: return id
+        }
+    }
+
+    /// A tile's horizontal center within its row.
+    private static func center(of id: Shot.ID, in row: ShelfRow) -> CGFloat {
+        var x: CGFloat = 0
+        for tile in row.tiles {
+            if tile.id == id { return x + tile.size.width / 2 }
+            x += tile.size.width + Theme.Space.s
+        }
+        return x
     }
 
     /// Everything below the Shelf's header: section names, rows and the bottom padding.
