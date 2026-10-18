@@ -48,6 +48,10 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// The last pointer position and when, to tell a pointer passing over the
     /// notch from one arriving on it.
     @ObservationIgnored private var lastPointer: (point: CGPoint, time: TimeInterval)?
+    /// Where the keyboard was before Pluck took it: one of Pluck's own windows,
+    /// like Settings, or the app the user was in. It goes back there, and it's
+    /// nil while Pluck doesn't have the keyboard.
+    @ObservationIgnored private var keyboardBefore: (window: NSWindow?, app: NSRunningApplication?)?
 
     init(library: ShotLibrary, preferences: Preferences, showsPreview: Bool) {
         self.library = library
@@ -311,17 +315,42 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// in, so typing there never lands in Pluck.
     private func updateKeyboard() {
         let shelf = state == .shelf
-        panel.acceptsKeyboard = shelf
         // Quick Look has it; this runs again when it closes.
-        guard !quickLookPanel.isShown else { return }
+        guard !quickLookPanel.isShown else {
+            panel.acceptsKeyboard = shelf
+            return
+        }
         if shelf {
-            panel.makeKey()
-        } else if NSApp.isActive, NSApp.keyWindow == nil || NSApp.keyWindow === panel {
-            // Unless the user is in one of Pluck's own windows. A key notch lets
-            // go by deactivating; after Quick Look, Pluck is truly active and
-            // lets go by hiding. Each does nothing in the other case.
+            takeKeyboard()
+        } else {
+            panel.acceptsKeyboard = false
+            giveBackKeyboard()
+        }
+    }
+
+    private func takeKeyboard() {
+        if keyboardBefore == nil {
+            // AppKit can still call the notch key after it let go.
+            let window = NSApp.keyWindow === panel ? nil : NSApp.keyWindow
+            let front = NSWorkspace.shared.frontmostApplication
+            keyboardBefore = (window, front == .current ? nil : front)
+        }
+        panel.acceptsKeyboard = true
+        panel.makeKey()
+    }
+
+    private func giveBackKeyboard() {
+        // Not while the user is in one of Pluck's own windows, like the folder
+        // picker.
+        guard let before = keyboardBefore, NSApp.keyWindow == nil || NSApp.keyWindow === panel else { return }
+        keyboardBefore = nil
+        if let window = before.window, window.isVisible {
+            window.makeKey()
+        } else {
+            // A key notch lets go by deactivating. After Quick Look, Pluck is
+            // truly active, and hands activation back to the user's app.
             NSApp.deactivate()
-            NSApp.hide(nil)
+            before.app?.activate()
         }
     }
 
@@ -329,8 +358,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// takes keys otherwise. The notch takes the keyboard first, or macOS
     /// refuses the activation; see Platform facts.
     private func comeForward() {
-        panel.acceptsKeyboard = true
-        panel.makeKey()
+        takeKeyboard()
         NSApp.activate()
     }
 

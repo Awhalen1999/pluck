@@ -251,6 +251,7 @@ Verified on this machine; each one notes how.
   `canBecomeKey` is true becomes key without bringing Pluck forward: the user's
   app keeps the menu bar, and AppKit reports `NSApp.isActive`. To give the
   keyboard back, `NSApp.deactivate()`; `NSApp.hide` leaves it with the notch.
+  AppKit can go on reporting the notch as `keyWindow` after it let go.
   A local key monitor sees keys before the app's menus, which would otherwise
   take ⌘C and ⌘Z. Switching to another app posts no resign-active
   notification in this state; the panel resigning key while `NSApp.isActive`
@@ -258,9 +259,10 @@ Verified on this machine; each one notes how.
   closed, and by activating Finder, 2026-10-17.)
 - **Quick Look and the folder picker need Pluck truly active.** With only the
   notch key, their keys go to the user's app. `NSApp.activate()` works once the
-  notch has the keyboard, and is refused before. Afterwards `NSApp.hide` gives
-  the keyboard back; `deactivate` doesn't. Quick Look is still the key window
-  during its will-close notification.
+  notch has the keyboard, and is refused before. Afterwards `deactivate`
+  doesn't give the keyboard back; activating the app that was frontmost does.
+  (`NSApp.hide` also works, but hides Pluck's other windows with it.) Quick
+  Look is still the key window during its will-close notification.
 - **Showing resets a window's level.** Quick Look and `NSOpenPanel` take their
   level when they show, so it's set after they show. `runModal` blocks until
   the panel closes, so the picker uses `begin`. Below `.statusBar` + 1, the
