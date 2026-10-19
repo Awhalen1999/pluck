@@ -23,13 +23,7 @@ struct GeneralSettings: View {
                 }
                 .pickerStyle(.segmented)
                 if preferences.preview == .pluck {
-                    Picker(selection: $preferences.previewDuration) {
-                        ForEach(PreviewDuration.allCases, id: \.self) { Text("\(Int($0.rawValue)) sec").tag($0) }
-                    } label: {
-                        Text("Show preview for")
-                        Text("Hover over the preview to keep it open.")
-                    }
-                    .pickerStyle(.segmented)
+                    PreviewDurationPicker(preferences: preferences)
                 }
             } header: {
                 Text("Screenshots")
@@ -38,20 +32,8 @@ struct GeneralSettings: View {
             }
 
             Section {
-                Picker(selection: $preferences.removeDraggedOut) {
-                    Text("Keep").tag(false)
-                    Text("Remove").tag(true)
-                } label: {
-                    Text("When dragged into an app")
-                    Text(preferences.removeDraggedOut
-                         ? "Screenshots leave \(folderName) once you drop them into another app. Pinned ones stay."
-                         : "Screenshots stay in \(folderName) after you drop them into another app.")
-                }
-                .pickerStyle(.segmented)
-                Picker("Move to Trash after", selection: $preferences.retention) {
-                    ForEach(Retention.allCases, id: \.self) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.segmented)
+                DragOutPicker(preferences: preferences, folderName: folderName)
+                RetentionPicker(preferences: preferences)
             } header: {
                 Text("Cleanup")
             } footer: {
@@ -93,18 +75,18 @@ struct GeneralSettings: View {
 
             Section {
                 LabeledContent("Access to \(folderName)") {
-                    if library.canReadFolder {
-                        Text("Allowed").foregroundStyle(.secondary)
-                    } else {
+                    if library.canReadFolder == false {
                         Button("Allow in System Settings…") { NSWorkspace.shared.open(.filesAndFoldersSettings) }
+                    } else {
+                        Text("Allowed").foregroundStyle(.secondary)
                     }
                 }
             } header: {
                 Text("Permissions")
             } footer: {
-                Text(library.canReadFolder
-                     ? "Your screenshots stay on this Mac."
-                     : "Pluck needs access to \(folderName) to show your new screenshots.")
+                Text(library.canReadFolder == false
+                     ? "Pluck needs access to \(folderName) to show your new screenshots."
+                     : "Your screenshots stay on this Mac.")
             }
         }
         .formStyle(.grouped)
@@ -115,9 +97,11 @@ struct GeneralSettings: View {
     }
 }
 
+// The rows onboarding shares, so a choice reads the same in both places.
+
 /// "Save to": the usual places, the current folder if it's elsewhere,
 /// and any folder at all.
-private struct SaveFolderPicker: View {
+struct SaveFolderPicker: View {
     let setup: ScreenshotSetup
     @Binding var choosingFolder: Bool
 
@@ -149,6 +133,49 @@ private struct SaveFolderPicker: View {
     }
 }
 
+struct PreviewDurationPicker: View {
+    @Bindable var preferences: Preferences
+
+    var body: some View {
+        Picker(selection: $preferences.previewDuration) {
+            ForEach(PreviewDuration.allCases, id: \.self) { Text("\(Int($0.rawValue)) sec").tag($0) }
+        } label: {
+            Text("Show preview for")
+            Text("Hover over the preview to keep it open.")
+        }
+        .pickerStyle(.segmented)
+    }
+}
+
+struct DragOutPicker: View {
+    @Bindable var preferences: Preferences
+    let folderName: String
+
+    var body: some View {
+        Picker(selection: $preferences.removeDraggedOut) {
+            Text("Keep").tag(false)
+            Text("Remove").tag(true)
+        } label: {
+            Text("When dragged into an app")
+            Text(preferences.removeDraggedOut
+                 ? "Screenshots leave \(folderName) once you drop them into another app. Pinned ones stay."
+                 : "Screenshots stay in \(folderName) after you drop them into another app.")
+        }
+        .pickerStyle(.segmented)
+    }
+}
+
+struct RetentionPicker: View {
+    @Bindable var preferences: Preferences
+
+    var body: some View {
+        Picker("Move to Trash after", selection: $preferences.retention) {
+            ForEach(Retention.allCases, id: \.self) { Text($0.title).tag($0) }
+        }
+        .pickerStyle(.segmented)
+    }
+}
+
 private extension Retention {
     var title: String {
         switch self {
@@ -170,6 +197,6 @@ private extension NotchDisplay {
     }
 }
 
-private extension URL {
+extension URL {
     static let filesAndFoldersSettings = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders")!
 }

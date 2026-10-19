@@ -154,8 +154,21 @@ private func setup() throws -> (ScreenshotSetup, ShotLibrary, Sandbox, Scratch) 
     scratch.settings.prepare()
     let library = sandbox.library()
     let setup = ScreenshotSetup(screencapture: scratch.settings, library: library, preferences: sandbox.preferences)
-    setup.apply()
+    setup.setPreview(.pluck)
     return (setup, library, sandbox, scratch)
+}
+
+@Test func untilTheUserChoosesMacOSKeepsItsOwnSettings() throws {
+    let sandbox = try Sandbox()
+    let scratch = Scratch()
+    scratch.userHas(thumbnail: nil, location: nil)
+    scratch.settings.prepare()
+    let setup = ScreenshotSetup(screencapture: scratch.settings, library: sandbox.library(), preferences: sandbox.preferences)
+
+    setup.apply()
+
+    #expect(scratch.rawThumbnail == nil)
+    #expect(scratch.rawLocation == nil)
 }
 
 @Test func switchingToTheMacOSPreviewSavesWhatsWaitingAndHandsMacOSBack() throws {

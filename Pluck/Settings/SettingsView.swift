@@ -12,7 +12,7 @@ struct SettingsView: View {
                     GeneralSettings(preferences: app.preferences, setup: setup, library: library)
                 }
                 Tab("About", systemImage: "info.circle") {
-                    AboutSettings(setup: setup)
+                    AboutSettings(preferences: app.preferences, setup: setup)
                 }
             }
             .frame(width: Theme.Settings.width)

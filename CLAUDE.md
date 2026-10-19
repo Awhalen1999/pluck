@@ -78,7 +78,16 @@ Before building one, sit in the user's seat:
 - Pluck changes the macOS screenshot settings (save location, floating
   thumbnail) only through the user's choices. It snapshots the originals once
   ever, before changing anything, and About's Restore puts back exactly that
-  snapshot, "never set" included, and switches Pluck's Preview off.
+  snapshot, "never set" included, and switches Pluck's Preview off. Until the
+  user picks Pluck's Preview in onboarding, the Preview is the macOS one.
+- Onboarding runs until it's finished. Its window has no close button, so
+  Pluck is never left running half set up: finishing or quitting are the ways
+  out. Quitting partway brings it back at the next launch, at the save location;
+  About's "Show the welcome again" brings it back from the start. A choice in it
+  that changes macOS takes effect when it's made: the save folder when picked,
+  the Preview and login item on Continue.
+- Pluck doesn't look in the screenshot folder until onboarding asks for it, so
+  the macOS access prompt comes at its "Allow Access" step, never at launch.
 - With Preview set to Pluck, the macOS thumbnail is off and macOS saves into
   the holding folder while Pluck runs. Quitting, or switching to the macOS
   Preview, gives macOS the user's own: their thumbnail as it was, and their
@@ -167,7 +176,8 @@ PluckTests/
 - `Core/` never imports SwiftUI. Views never touch `FileManager`, the pasteboard
   or `UserDefaults` directly; they call the model that owns that thing.
 - One owner per piece of state: the shot library owns shots, `NotchController`
-  owns the notch state, `Preferences` owns Pluck's own settings, and
+  owns the notch state, `Preferences` owns Pluck's own settings and how far
+  onboarding got, and
   `ScreenshotSetup` owns where screenshots go and which preview shows them.
   Settings changes those two only through it. The system owns "Open at login",
   read from `SMAppService` each time and never stored.
@@ -327,7 +337,22 @@ Verified on this machine; each one notes how.
   with Preview". QuickLookUI has no public Markup or editing API.
 - **The folder prompt blocks.** The first read of Desktop, Documents or
   Downloads shows the macOS access prompt and blocks that thread until it's
-  answered. Onboarding must trigger it on purpose, at its "Allow Access" step.
+  answered. Onboarding triggers it on purpose, at its "Allow Access" step, from
+  a background thread. Allowing in System Settings › Files & Folders asks for
+  Touch ID or a password; `tccutil reset SystemPolicyDesktopFolder
+  app.pluck.Pluck` puts the prompt back without one.
+- **A prompt hands activation away.** Once the access prompt is answered,
+  macOS activates the app the user was in before, never a menu bar app, and
+  refuses `NSApp.activate()`; `NSApp.activate(ignoringOtherApps: true)` still
+  works. At launch from another app (a terminal, say), `NSApp.activate()` can be
+  refused too; `orderFrontRegardless` shows the onboarding window anyway.
+  (Checked 2026-10-19.)
+- **SwiftUI sizes the window it's hosted in.** Under the SwiftUI app lifecycle,
+  an `NSHostingController` or `NSHostingView` resizes its window to the content
+  plus the title bar as it lays out, whatever `sizingOptions` says. Size the
+  content, and center the window after `layoutIfNeeded`. (Checked 2026-10-19.)
+- **A folder Pluck can't read has no icon.** `NSWorkspace.icon(forFile:)` gives
+  a generic file icon for it; onboarding shows the plain folder icon.
 - **Simulating a capture.** The `screencapture` command-line tool tags its
   files the same way ⇧⌘4 does, so `screencapture -x -R 0,0,200,100 <path>`
   lands a real, tagged screenshot without anyone at the keyboard.
@@ -393,7 +418,9 @@ Verified on this machine; each one notes how.
   login items with `sfltool` in tests: it can ask for an admin password.
 - **The user's accent color wins.** A system-wide accent other than multicolor
   overrides the app's AccentColor in native controls.
-- **Not yet verified:** switching Spaces, full-screen apps.
+- **Not yet verified:** switching Spaces, full-screen apps; whether access
+  allowed in System Settings counts without relaunching Pluck (Pluck looks again
+  whenever it becomes active).
 
 The panel, landing, hover, drag and Quick Look facts were checked with the
 throwaway app on `spike/platform`, 2026-10-17.

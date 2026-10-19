@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// Builds the app's long-lived pieces once, at launch, and wires them together.
 /// Anything that touches the system starts and stops here.
@@ -7,6 +8,7 @@ import AppKit
     private(set) var library: ShotLibrary?
     private(set) var setup: ScreenshotSetup?
     @ObservationIgnored private var notch: NotchController?
+    @ObservationIgnored private var onboarding: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Unit tests run inside the app. Keep them from opening the notch or
@@ -18,11 +20,39 @@ import AppKit
         let library = ShotLibrary(folder: screencapture.saveFolder, preferences: preferences)
         let setup = ScreenshotSetup(screencapture: screencapture, library: library, preferences: preferences)
         setup.apply()
-        library.start()
         self.library = library
         self.setup = setup
         notch = NotchController(library: library, preferences: preferences)
         watchWindows()
+        // Onboarding starts the library once it has asked for the folder.
+        if preferences.onboarding == .finished { library.start() } else { showOnboarding(library: library, setup: setup) }
+    }
+
+    /// The first run's window. It has no close button: finishing or quitting are
+    /// the ways out, so Pluck is never left running half set up.
+    private func showOnboarding(library: ShotLibrary, setup: ScreenshotSetup) {
+        let view = OnboardingView(preferences: preferences, setup: setup, library: library) { [weak self] in
+            self?.onboarding?.close()
+            self?.onboarding = nil
+        }
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+        window.styleMask = [.titled]
+        for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            window.standardWindowButton(button)?.isHidden = true
+        }
+        window.title = "Welcome to Pluck"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
+        window.isReleasedWhenClosed = false
+        // SwiftUI sizes the window as it lays out, so center it after.
+        window.layoutIfNeeded()
+        window.center()
+        onboarding = window
+        NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
+        // macOS can refuse a menu bar app's activation at launch; the window shows anyway.
+        window.orderFrontRegardless()
     }
 
     /// When the last of Pluck's windows closes (Settings, say), the app the user
@@ -40,9 +70,15 @@ import AppKit
     /// closes its last window, and that must never quit it.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
-    /// With the menu bar icon hidden, opening Pluck again is the way into Settings.
+    /// With the menu bar icon hidden, opening Pluck again is the way into Settings,
+    /// or back to onboarding while it's under way.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        openSettings()
+        if let onboarding {
+            NSApp.activate()
+            onboarding.makeKeyAndOrderFront(nil)
+        } else {
+            openSettings()
+        }
         return false
     }
 

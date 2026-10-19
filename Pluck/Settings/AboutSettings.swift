@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AboutSettings: View {
+    let preferences: Preferences
     let setup: ScreenshotSetup
     @State private var restored = false
 
@@ -30,6 +31,15 @@ struct AboutSettings: View {
                     Text(restored
                          ? "Your original screenshot settings are back."
                          : "Returns the save location and thumbnail to how they were before Pluck.")
+                }
+                LabeledContent {
+                    Button(preferences.onboarding == .finished ? "Show" : "Opens next launch") {
+                        preferences.onboarding = .new
+                    }
+                    .disabled(preferences.onboarding != .finished)
+                } label: {
+                    Text("Show the welcome again")
+                    Text("It opens the next time Pluck starts.")
                 }
                 LabeledContent("Quit Pluck") {
                     Button("Quit") { NSApp.terminate(nil) }

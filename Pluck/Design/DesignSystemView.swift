@@ -14,6 +14,7 @@ struct DesignSystemView: View {
                 spaceSection
                 radiusSection
                 tileSection
+                onboardingSection
             }
             .padding(Theme.Space.xxl)
         }
@@ -48,6 +49,8 @@ struct DesignSystemView: View {
                 swatch("copied", "green", AnyShapeStyle(Theme.Palette.copied))
                 swatch("trashed", "orange", AnyShapeStyle(Theme.Palette.trashed))
                 swatch("pinned", "yellow", AnyShapeStyle(Theme.Palette.pinned))
+                swatch("allowed", "folder access", AnyShapeStyle(Theme.Palette.allowed))
+                swatch("denied", "folder access", AnyShapeStyle(Theme.Palette.denied))
             }
         }
     }
@@ -85,6 +88,16 @@ struct DesignSystemView: View {
                 tileState("hover") { DemoTile(hue: Demo.hue(4), hovered: true) }
                 tileState("selected") { DemoTile(hue: Demo.hue(4), selected: true) }
                 tileState("pinned") { DemoTile(hue: Demo.hue(4), pinned: true) }
+            }
+        }
+    }
+
+    private var onboardingSection: some View {
+        section("Onboarding", "The drawings on the wallpaper: the two preview choices, and the last step waiting.") {
+            HStack(alignment: .top, spacing: Theme.Space.xl) {
+                PreviewArt(style: .pluck).frame(width: Demo.artWidth)
+                PreviewArt(style: .macOS).frame(width: Demo.artWidth)
+                FirstShotArt(shot: nil).frame(width: Demo.artWidth * 1.4)
             }
         }
     }
@@ -159,6 +172,7 @@ private enum Demo {
     static func hue(_ i: Int) -> Double { (Double(i) * 0.13).truncatingRemainder(dividingBy: 1) }
     static let labelWidth: CGFloat = 96
     static let spaceScale: CGFloat = 8
+    static let artWidth: CGFloat = 200
     static let spaces: [(name: String, value: CGFloat)] = [
         ("xxs", Theme.Space.xxs), ("xs", Theme.Space.xs), ("s", Theme.Space.s), ("m", Theme.Space.m),
         ("l", Theme.Space.l), ("xl", Theme.Space.xl), ("xxl", Theme.Space.xxl),

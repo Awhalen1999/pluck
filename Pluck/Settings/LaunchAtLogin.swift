@@ -12,6 +12,7 @@ enum LaunchAtLogin {
     static var needsApproval: Bool { SMAppService.mainApp.status == .requiresApproval }
 
     static func set(_ enabled: Bool) {
+        guard enabled != isEnabled else { return }
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {

@@ -26,8 +26,9 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
     private(set) var lastTrashed: [Trashed] = []
 
     private(set) var folder: URL
-    /// False when macOS won't let Pluck read the folder: the user denied access.
-    private(set) var canReadFolder = true
+    /// Whether macOS lets Pluck read the folder: nil until Pluck has looked,
+    /// false when the user denied access.
+    private(set) var canReadFolder: Bool?
     @ObservationIgnored let incoming: URL
     /// Files drags carried into apps, kept an hour so the app that took one can
     /// read it (a path dropped in a terminal, say).
@@ -41,6 +42,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
     @ObservationIgnored private let moveToTrash: (URL) throws -> URL
     @ObservationIgnored private let pasteboard: NSPasteboard
     @ObservationIgnored private var watchers: [FolderWatcher] = []
+    @ObservationIgnored private var started = false
     /// Names already checked and found not to be screenshots, so a busy Desktop
     /// isn't re-read on every change.
     @ObservationIgnored private var ignored: Set<String> = []
@@ -82,7 +84,11 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
 
     /// Reads the folders, then keeps up with them and runs cleanup for as long as
     /// Pluck is open. Captures an earlier run left waiting (a crash, say) are saved.
+    /// Pluck doesn't look in the folder before this, so the macOS access prompt
+    /// comes when onboarding says it will. Only the first call does anything.
     func start() {
+        guard !started else { return }
+        started = true
         reconcile()
         reconcilePending()
         savePending()
@@ -93,6 +99,23 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
                 try? await Task.sleep(for: Cleanup.interval)
             } while self != nil
         }
+        // Access allowed in System Settings counts once the user is back in Pluck.
+        Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
+                guard let self, canReadFolder == false else { continue }
+                reconcile()
+                watch()
+            }
+        }
+    }
+
+    /// Asks macOS for the folder, then starts. The first read of a protected folder
+    /// shows the access prompt and blocks the thread that asked until it's
+    /// answered, so it's asked off the main thread and Pluck stays responsive.
+    func requestAccess() async {
+        let path = folder.path(percentEncoded: false)
+        _ = await Task.detached { try? FileManager.default.contentsOfDirectory(atPath: path) }.value
+        start()
     }
 
     /// Shelves another folder's screenshots. What the index knows about the old
@@ -103,6 +126,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         folder = newFolder
         shots = []
         ignored = []
+        canReadFolder = nil
+        guard started else { return }
         reconcile()
         watch()
     }
@@ -147,10 +172,10 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
             names = Set(try FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false)))
         } catch {
             log.error("Can't read the screenshot folder: \(error)")
-            if canReadFolder { canReadFolder = false }
+            if canReadFolder != false { canReadFolder = false }
             return
         }
-        if !canReadFolder { canReadFolder = true }
+        if canReadFolder != true { canReadFolder = true }
 
         var index = self.index
         var current = shots.filter { names.contains($0.url.lastPathComponent) || inFlight[$0.id] != nil }

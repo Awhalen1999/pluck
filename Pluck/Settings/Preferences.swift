@@ -33,7 +33,8 @@ import Foundation
     }
 
     /// "Preview": Pluck's own in the notch, or the macOS floating thumbnail. Set
-    /// through `ScreenshotSetup`, which makes macOS match.
+    /// through `ScreenshotSetup`, which makes macOS match. Until the user chooses
+    /// in onboarding it's the macOS one: Pluck changes nothing without a choice.
     var preview: PreviewStyle {
         didSet { defaults.set(preview.rawValue, forKey: Key.preview) }
     }
@@ -41,6 +42,12 @@ import Foundation
     /// "Keep the preview up for".
     var previewDuration: PreviewDuration {
         didSet { defaults.set(previewDuration.rawValue, forKey: Key.previewDuration) }
+    }
+
+    /// How far the first run got. Not a setting: it decides whether onboarding
+    /// shows, and where it opens.
+    var onboarding: OnboardingProgress {
+        didSet { defaults.set(onboarding.rawValue, forKey: Key.onboarding) }
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -53,8 +60,9 @@ import Foundation
         showsLatestWhenIdle = defaults.object(forKey: Key.showsLatestWhenIdle) as? Bool ?? true
         notchDisplay = defaults.string(forKey: Key.notchDisplay).flatMap(NotchDisplay.init) ?? .builtIn
         showsMenuBarIcon = defaults.object(forKey: Key.showsMenuBarIcon) as? Bool ?? true
-        preview = defaults.string(forKey: Key.preview).flatMap(PreviewStyle.init) ?? .pluck
+        preview = defaults.string(forKey: Key.preview).flatMap(PreviewStyle.init) ?? .macOS
         previewDuration = PreviewDuration(rawValue: defaults.double(forKey: Key.previewDuration)) ?? .four
+        onboarding = defaults.string(forKey: Key.onboarding).flatMap(OnboardingProgress.init) ?? .new
     }
 
     private enum Key {
@@ -66,6 +74,7 @@ import Foundation
         static let showsMenuBarIcon = "showsMenuBarIcon"
         static let preview = "preview"
         static let previewDuration = "previewDuration"
+        static let onboarding = "onboarding"
     }
 }
 
@@ -85,4 +94,12 @@ enum PreviewStyle: String, CaseIterable {
 
 enum PreviewDuration: Double, CaseIterable {
     case two = 2, four = 4, six = 6
+}
+
+enum OnboardingProgress: String {
+    /// It opens on the welcome: the first launch, or after "Show the welcome again".
+    case new
+    /// Quit partway: it opens again on its first choice, the save location.
+    case started
+    case finished
 }
