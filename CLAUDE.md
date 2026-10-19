@@ -416,6 +416,11 @@ Verified on this machine; each one notes how.
 - **Login items.** `SMAppService.mainApp.register()` registers the app where it
   is, a debug build included, and macOS shows "Login Item Added". Don't read
   login items with `sfltool` in tests: it can ask for an admin password.
+- **The app icon is an Icon Composer file.** `Pluck/AppIcon.icon` is built
+  straight into `Assets.car` and `AppIcon.icns`; its name is the
+  `ASSETCATALOG_COMPILER_APPICON_NAME`. A build path macOS saw before it had an
+  icon keeps the cached one until `lsregister -f` on the app. (Checked
+  2026-10-19.)
 - **The user's accent color wins.** A system-wide accent other than multicolor
   overrides the app's AccentColor in native controls.
 - **Not yet verified:** switching Spaces, full-screen apps; whether access
