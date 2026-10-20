@@ -63,6 +63,18 @@ import Testing
         #expect(library.names.sorted() == ["Screenshot 2.png", "Screenshot.png"])
     }
 
+    @Test func aCaptureIsSavedEvenAfterItsFolderWasDeleted() throws {
+        try sandbox.addShot("waiting.png", waiting: true)
+        let library = sandbox.library()
+        library.reconcilePending()
+        try FileManager.default.removeItem(at: sandbox.folder)
+
+        library.savePending()
+
+        #expect(library.pending.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: sandbox.path("waiting.png")))
+    }
+
     // MARK: Drags
 
     @Test func aDragCarriesTheShotsOwnFileAndNothingChangesUnderIt() throws {
@@ -318,6 +330,17 @@ import Testing
     }
 
     // MARK: Trash, move, copy
+
+    @Test func trashingWhatsAlreadyGoneKeepsTheUndo() throws {
+        try sandbox.addShot("a.png")
+        let library = sandbox.library()
+        library.reconcile()
+
+        library.trash([sandbox.path("a.png")])
+        library.trash([sandbox.path("a.png")])
+
+        #expect(library.lastTrashed.map(\.shot.url.lastPathComponent) == ["a.png"])
+    }
 
     @Test func undoPutsTrashedShotsBackWithTheirPins() throws {
         for (i, name) in ["a.png", "b.png", "c.png"].enumerated() {

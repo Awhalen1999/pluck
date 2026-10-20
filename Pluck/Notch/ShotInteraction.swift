@@ -60,9 +60,10 @@ final class ShotDragSource: NSObject, NSDraggingSource {
     var ended: (NSDragOperation) -> Void = { _ in }
 
     /// What Finder offers for a file, and the destination picks: editors and chat
-    /// apps copy (TextEdit only takes generic), Finder moves within a disk.
+    /// apps copy (TextEdit only takes generic), Finder moves within a disk, and
+    /// the Trash deletes.
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-        [.copy, .move, .generic]
+        [.copy, .move, .generic, .delete]
     }
 
     func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) { moved(screenPoint) }

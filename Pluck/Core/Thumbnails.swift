@@ -32,10 +32,10 @@ enum Thumbnails {
         }
     }
 
-    /// Keyed by path and capture time, so a file replaced under the same name
-    /// gets a fresh thumbnail.
+    /// Keyed by the file itself, which a capture keeps as it's saved or renamed,
+    /// and its capture time, so a file replaced under the same name gets a fresh one.
     private static func key(_ shot: Shot) -> NSString {
-        "\(shot.id)|\(shot.capturedAt.timeIntervalSinceReferenceDate)" as NSString
+        "\(shot.fileID.map(String.init) ?? shot.id)|\(shot.capturedAt.timeIntervalSinceReferenceDate)" as NSString
     }
 
     @concurrent

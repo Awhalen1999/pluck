@@ -6,7 +6,7 @@ struct PluckApp: App {
 
     var body: some Scene {
         MenuBarExtra(isInserted: Bindable(appDelegate.preferences).showsMenuBarIcon) {
-            MenuBarMenu(library: appDelegate.library)
+            MenuBarMenu(notch: appDelegate.notch)
         } label: {
             Image(.menuBarIcon).accessibilityLabel("Pluck")
         }

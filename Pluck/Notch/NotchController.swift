@@ -58,7 +58,6 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         goHome()
         watchScreens()
         watchLibrary()
-        Thumbnails.prefetch(library.shots.prefix(Theme.Notch.peekTileCount))
     }
 
     // MARK: Reading
@@ -116,22 +115,27 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     func clearSelection() { selection = [] }
 
     func copy(_ ids: [Shot.ID]) {
-        act("Copy", on: ids, Feedback(kind: .copied, count: ids.count)) { library.copy($0) }
+        act("Copy", on: ids, Feedback(kind: .copied)) { library.copy($0) }
+    }
+
+    /// The menu bar's Copy Latest Screenshot: the capture in the Preview, if there is one.
+    func copyLatest() {
+        if let latest = library.pending.first ?? library.shots.first { copy([latest.id]) }
     }
 
     func togglePin(_ ids: [Shot.ID]) {
         let pinning = !ids.allSatisfy(library.isPinned)
-        act(pinning ? "Pin" : "Unpin", on: ids, Feedback(kind: pinning ? .pinned : .unpinned, count: ids.count)) {
+        act(pinning ? "Pin" : "Unpin", on: ids, Feedback(kind: pinning ? .pinned : .unpinned)) {
             library.togglePin($0)
         }
     }
 
     func trash(_ ids: [Shot.ID]) {
-        act("Trash", on: ids, Feedback(kind: .trashed, count: ids.count), saving: false) { library.trash($0) }
+        act("Trash", on: ids, Feedback(kind: .trashed), saving: false) { library.trash($0) }
     }
 
     func move(_ ids: [Shot.ID], to folder: URL) {
-        act("Move", on: ids, Feedback(kind: .moved, count: ids.count), saving: false) { library.move($0, to: folder) }
+        act("Move", on: ids, Feedback(kind: .moved), saving: false) { library.move($0, to: folder) }
     }
 
     func markup(_ id: Shot.ID) {
@@ -164,12 +168,19 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// Every action on shots goes through here. A waiting capture is saved first,
     /// unless the action takes it somewhere else anyway (the Trash, another
     /// folder), so it never flashes onto the Desktop on its way.
+    /// Shots already gone, to a click the notch hadn't caught up with or a menu
+    /// left open, are left out; with none left, nothing happens.
     private func act(_ name: String, on ids: [Shot.ID], _ feedback: Feedback? = nil, saving: Bool = true,
                      _ action: ([Shot.ID]) -> Void) {
+        let ids = ids.filter { library.shot($0) != nil }
+        guard !ids.isEmpty else { return }
         log.debug("\(name, privacy: .public) \(ids.count, privacy: .public)")
         action(saving ? library.save(ids) : ids)
         followPending()
-        if let feedback { send(nil, feedback: feedback) }
+        if var feedback {
+            feedback.count = ids.count
+            send(nil, feedback: feedback)
+        }
     }
 
     func hover(_ id: Shot.ID, _ inside: Bool) {
@@ -229,13 +240,18 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
 
     private func dragEnded(_ operation: NSDragOperation) {
         log.debug("Drag ended with operation \(operation.rawValue, privacy: .public)")
-        let dropped = !operation.isEmpty
+        let shots = Array(draggedShots)
         draggedShots = []
+        // The Trash takes a drag as a delete, which leaves the file to its source:
+        // the shots go back where they were, then to the Trash as the button sends them.
+        let trashed = operation.contains(.delete)
+        let dropped = !operation.isEmpty && !trashed
         send(.dragEnded(dropped: dropped))
         // A move is Finder putting the file where the user dropped it: that's where
         // it's kept. Otherwise an app took it, and a capture the user keeps is saved.
         library.finishHandOff(dropped: dropped, keeping: operation == .move ? [] : keeping)
         keeping = []
+        if trashed { trash(shots) }
         followPending()
     }
 
@@ -433,6 +449,12 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
                 guard let self else { return }
                 Thumbnails.prefetch(library.pending)
                 followPending()
+            }
+        }
+        // Peek opens with its thumbnails in place.
+        Task { [weak self] in
+            for await shots in Observations({ [weak self] in Array(self?.library.shots.prefix(Theme.Notch.peekTileCount) ?? []) }) {
+                Thumbnails.prefetch(shots)
             }
         }
         // A shot that's gone leaves the focus and the selection.

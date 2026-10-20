@@ -7,6 +7,7 @@ final class ScreenshotSetup {
     private let screencapture: ScreencaptureSettings
     private let library: ShotLibrary
     private let preferences: Preferences
+    private var macOSWatcher: NSObject?
 
     init(screencapture: ScreencaptureSettings, library: ShotLibrary, preferences: Preferences) {
         self.screencapture = screencapture
@@ -38,7 +39,23 @@ final class ScreenshotSetup {
         library.change(folder: folder)
         // While Pluck's Preview holds captures, macOS keeps saving to the holding
         // folder; they reach the new folder once their Preview is done.
-        if preferences.preview == .macOS { screencapture.release() }
+        if preferences.preview == .macOS { screencapture.releaseFolder() }
+    }
+
+    /// ⇧⌘5's Options change macOS's settings directly, Pluck running or not, and
+    /// the user's choice there wins: a folder becomes "Save to", and turning the
+    /// floating thumbnail on means the macOS preview, so there are never two.
+    func followMacOS() {
+        let live = screencapture.live
+        if let folder = live.folder, !screencapture.isSaveFolder(folder) { setSaveFolder(folder) }
+        guard preferences.preview == .pluck, live.folder != nil || live.thumbnail else { return }
+        if live.thumbnail {
+            library.savePending()
+            preferences.preview = .macOS
+            screencapture.releaseFolder()
+        } else {
+            apply()
+        }
     }
 
     /// About's Restore: the macOS settings go back to how they were before Pluck,
@@ -48,6 +65,11 @@ final class ScreenshotSetup {
         preferences.preview = .macOS
         screencapture.restoreOriginals()
         library.change(folder: screencapture.saveFolder)
+    }
+
+    /// Follows ⇧⌘5's Options for as long as Pluck runs.
+    func watchMacOS() {
+        macOSWatcher = screencapture.watch { [weak self] in self?.followMacOS() }
     }
 
     /// Quitting: what's waiting is saved, and macOS gets the user's own back.

@@ -51,11 +51,12 @@ Before building one, sit in the user's seat:
   Finder's Put Back works. The one exception is the hand-off folder: what a drag
   left there is deleted after an hour.
 - A capture waits for its Preview, as one waits behind the macOS thumbnail.
-  macOS saves it into Pluck's holding folder (Application Support/Pluck/
-  Incoming), and it reaches the user's folder only once the Preview is done
-  with it: acted on, its time up, the Shelf opened, or Pluck quitting. Trashed
-  or moved, it goes straight there and never touches the user's folder.
-  Anything left waiting by a crash is saved at the next launch.
+  macOS saves it into Pluck's holding folder (Application Support/Pluck/Pluck,
+  so ⇧⌘5's Options say "Pluck"), and it reaches the user's folder only once
+  the Preview is done with it: acted on, its time up, the Shelf opened, or
+  Pluck quitting. Trashed or moved, it goes straight there and never touches
+  the user's folder. Anything left waiting by a crash is saved at the next
+  launch.
 - A drag hands shots off, by one rule: the shot's own file moves into Pluck's
   hand-off folder (in the temporary folder) for the drag, and the drop gets it.
   - Into a Finder folder, Finder moves it there, like any file, and that's
@@ -64,6 +65,8 @@ Before building one, sit in the user's seat:
     (a path dropped in a terminal still works), and the shot leaves Pluck.
   - A cancelled drag moves it back. Nothing changes under a drag: the shot
     stays listed while its file is away.
+  - Onto the Trash, it's trashed as the Trash button does it: back where it
+    was first, so Put Back and Undo work.
   - Pinned shots, and saved shots when the user keeps what they drag out, go
     as themselves. A waiting capture the user keeps is saved as a copy once
     dropped into an app.
@@ -96,7 +99,14 @@ Before building one, sit in the user's seat:
   previews.
 - "Save to" is Pluck's record of the user's folder. At launch, a location the
   user chose in macOS while Pluck wasn't running is followed, unless it's still
-  the holding folder (after a crash).
+  the holding folder (after a crash). A folder deleted while Pluck runs is made
+  again when a capture is saved; one gone at launch falls back to the Desktop.
+- ⇧⌘5's Options change macOS's settings directly, and the user's choice there
+  wins, Pluck running or not: a folder becomes "Save to" (and Pluck holds again),
+  and turning on the floating thumbnail switches the Preview to macOS's.
+- The only permission Pluck asks for is access to the screenshot folder. No
+  Accessibility, Screen Recording, Input Monitoring or Automation: v1 has no
+  global shortcuts and no auto-paste, so it needs none.
 - Settings changes take effect at once, never after a restart.
 - Nothing leaves the Mac. The only network use is Sparkle's update check.
 - Markup opens the shot in Preview. Pluck never builds its own editor.
@@ -184,7 +194,7 @@ PluckTests/
 - `@Observable` models, main actor by default. Background work only for file I/O
   and thumbnails.
 - Inject only what a test needs (the folder URL, the clock).
-- Dependencies: Sparkle and KeyboardShortcuts. Anything else is discussed first.
+- Dependencies: Sparkle. Anything else is discussed first.
 
 ## Design system
 
@@ -427,7 +437,24 @@ Verified on this machine; each one notes how.
   out; two overlapping cards would read as Screen Mirroring.
 - **The user's accent color wins.** A system-wide accent other than multicolor
   overrides the app's AccentColor in native controls.
-- **Not yet verified:** switching Spaces, full-screen apps; whether access
+- **Full-screen apps.** The notch shows over a full-screen app, which is its own
+  Space: a Preview appears there, and hovering opens Peek while macOS slides its
+  menu bar in beside it. (Checked 2026-10-19.)
+- **The Trash deletes.** Dropped on the Dock's Trash, a drag ends with `.delete`
+  (32), offered or not, and the file stays put: the source is to delete it.
+- **Watching another app's preferences.** Key-value observing a defaults suite
+  (`UserDefaults(suiteName:)`) reports changes other processes make, deletions
+  included, on the main thread. (Checked with `defaults write`, 2026-10-19.)
+- **⇧⌘5 writes at once, and remembers.** Its Options menu writes `location` and
+  `show-thumbnail` the moment an item is chosen, and names the location folder by
+  its own name. The toolbar's agent (`screencaptureui`, which outlives the
+  toolbar) keeps the folder chosen there, so a capture taken from the toolbar
+  goes to it even after the setting changes back; ⇧⌘3 and ⇧⌘4 follow the
+  setting. Its menu ignores a quick synthetic click; press, pause, release.
+- **A saved capture keeps its file.** Moving from the holding folder to the
+  user's keeps the file's identity (`fileIdentifierKey`), so its thumbnail is
+  cached by that, not by path.
+- **Not yet verified:** whether access
   allowed in System Settings counts without relaunching Pluck (Pluck looks again
   whenever it becomes active).
 

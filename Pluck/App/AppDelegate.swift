@@ -7,7 +7,7 @@ import SwiftUI
     let preferences = Preferences()
     private(set) var library: ShotLibrary?
     private(set) var setup: ScreenshotSetup?
-    @ObservationIgnored private var notch: NotchController?
+    private(set) var notch: NotchController?
     @ObservationIgnored private var onboarding: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -20,6 +20,7 @@ import SwiftUI
         let library = ShotLibrary(folder: screencapture.saveFolder, preferences: preferences)
         let setup = ScreenshotSetup(screencapture: screencapture, library: library, preferences: preferences)
         setup.apply()
+        setup.watchMacOS()
         self.library = library
         self.setup = setup
         notch = NotchController(library: library, preferences: preferences)

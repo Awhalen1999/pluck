@@ -2,14 +2,12 @@ import SwiftUI
 
 /// The menu bar item: the way in when a full-screen app hides the notch.
 struct MenuBarMenu: View {
-    let library: ShotLibrary?
+    let notch: NotchController?
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("Copy Latest Screenshot") {
-            if let library, let latest = library.shots.first { library.copy([latest.id]) }
-        }
-        .disabled(library?.shots.isEmpty ?? true)
+        Button("Copy Latest Screenshot") { notch?.copyLatest() }
+            .disabled(notch.map { $0.library.shots.isEmpty && $0.library.pending.isEmpty } ?? true)
         Divider()
         Button("Settings…") { openSettings() }
             .keyboardShortcut(",")

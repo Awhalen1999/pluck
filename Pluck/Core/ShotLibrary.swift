@@ -47,8 +47,9 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
     /// isn't re-read on every change.
     @ObservationIgnored private var ignored: Set<String> = []
 
-    /// Where macOS saves captures while Pluck's Preview is on.
-    static let holdingFolder = URL.applicationSupportDirectory.appending(path: "Pluck/Incoming")
+    /// Where macOS saves captures while Pluck's Preview is on. ⇧⌘5's Options show
+    /// it by name, so it's called "Pluck".
+    static let holdingFolder = URL.applicationSupportDirectory.appending(path: "Pluck/Pluck")
 
     struct Trashed {
         let shot: Shot
@@ -227,7 +228,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
     /// Returns where each one is now.
     @discardableResult
     func save(_ ids: [Shot.ID]) -> [Shot.ID] {
-        ids.map { id in
+        if ids.contains(where: isPending) { makeFolderIfGone() }
+        return ids.map { id in
             guard let shot = pending.first(where: { $0.id == id }) else { return id }
             let destination = availableURL(for: shot.url.lastPathComponent, in: folder)
             do {
@@ -281,7 +283,8 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
     /// Moves shots to the Trash, waiting captures straight from the holding folder.
     /// The batch can be put back with `undoTrash()` until the next trash.
     func trash(_ ids: [Shot.ID]) {
-        lastTrashed = discard(ids)
+        let trashed = discard(ids)
+        if !trashed.isEmpty { lastTrashed = trashed }
     }
 
     /// Puts the last trashed batch back where it was, pins included.
@@ -419,6 +422,14 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         pending.removeAll { gone.contains($0.id) }
         self.index = index
         return trashed
+    }
+
+    /// A folder deleted since is still where the user wants screenshots.
+    // ponytail: one on a disk that's been ejected can't be made, so captures wait until it's back or Pluck restarts, when "Save to" falls back to the Desktop.
+    private func makeFolderIfGone() {
+        guard !FileManager.default.fileExists(atPath: folder.path(percentEncoded: false)) else { return }
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        if started { watch() }
     }
 
     /// Saved shots and waiting captures with these IDs.

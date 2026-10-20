@@ -219,3 +219,63 @@ private func setup() throws -> (ScreenshotSetup, ShotLibrary, Sandbox, Scratch) 
     #expect(scratch.rawLocation == sandbox.folder.path(percentEncoded: false))
     #expect(library.folder.standardizedFileURL == sandbox.folder.standardizedFileURL)
 }
+
+// MARK: Choices made in ⇧⌘5's Options
+
+/// A folder Pluck didn't make, for "Other Location…".
+private func chosenFolder(in sandbox: Sandbox) throws -> URL {
+    let folder = sandbox.root.appending(path: "Chosen")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    return folder
+}
+
+@Test func plucksOwnSettingsArentMistakenForTheUsers() throws {
+    let (setup, library, sandbox, scratch) = try setup()
+
+    setup.followMacOS()
+
+    #expect(sandbox.preferences.preview == .pluck)
+    #expect(scratch.rawLocation == scratch.holding.path(percentEncoded: false))
+    #expect(library.folder.standardizedFileURL == sandbox.folder.standardizedFileURL)
+}
+
+@Test func aFolderChosenInMacOSWhilePluckHoldsBecomesSaveTo() throws {
+    let (setup, library, sandbox, scratch) = try setup()
+    let chosen = try chosenFolder(in: sandbox)
+    scratch.userHas(thumbnail: false, location: chosen.path(percentEncoded: false))
+
+    setup.followMacOS()
+
+    #expect(library.folder.standardizedFileURL == chosen.standardizedFileURL)
+    // Pluck's Preview carries on: macOS is back on the holding folder.
+    #expect(scratch.rawLocation == scratch.holding.path(percentEncoded: false))
+    #expect(sandbox.preferences.preview == .pluck)
+}
+
+@Test func turningOnTheThumbnailInMacOSSwitchesToItsPreview() throws {
+    let (setup, library, sandbox, scratch) = try setup()
+    try sandbox.addShot("waiting.png", waiting: true)
+    library.reconcilePending()
+    scratch.userHas(thumbnail: true, location: scratch.holding.path(percentEncoded: false))
+
+    setup.followMacOS()
+
+    #expect(sandbox.preferences.preview == .macOS)
+    #expect(scratch.rawThumbnail as? Bool == true)
+    #expect(scratch.rawLocation == sandbox.folder.path(percentEncoded: false))
+    #expect(library.names == ["waiting.png"])
+}
+
+@Test func withTheMacOSPreviewAFolderChosenInMacOSBecomesSaveTo() throws {
+    let (setup, library, sandbox, scratch) = try setup()
+    setup.setPreview(.macOS)
+    let chosen = try chosenFolder(in: sandbox)
+    scratch.userHas(thumbnail: false, location: chosen.path(percentEncoded: false))
+
+    setup.followMacOS()
+
+    #expect(library.folder.standardizedFileURL == chosen.standardizedFileURL)
+    #expect(scratch.rawLocation == chosen.path(percentEncoded: false))
+    // The thumbnail is the user's while Pluck isn't holding it.
+    #expect(scratch.rawThumbnail as? Bool == false)
+}

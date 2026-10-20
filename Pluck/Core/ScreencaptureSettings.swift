@@ -39,6 +39,9 @@ struct ScreencaptureSettings {
         store.set(path(folder), forKey: Self.saveFolderKey)
     }
 
+    /// However it's spelled.
+    func isSaveFolder(_ folder: URL) -> Bool { path(folder) == path(saveFolder) }
+
     /// Points macOS at the holding folder with its thumbnail off, for Pluck's
     /// Preview, and reads both back. If macOS didn't take them, it gets the user's
     /// own back, and this returns false.
@@ -54,7 +57,27 @@ struct ScreencaptureSettings {
     /// isn't running.
     func release() {
         set(snapshot["show-thumbnail"] as AnyObject?, for: "show-thumbnail")
+        releaseFolder()
+    }
+
+    /// Gives macOS the user's save folder, and leaves its thumbnail as it is.
+    func releaseFolder() {
         set(store.string(forKey: Self.saveFolderKey) as NSString?, for: "location")
+    }
+
+    /// What macOS has now, which the user can change in ⇧⌘5's Options at any
+    /// time: the folder it saves to, nil while it's the holding folder, and
+    /// whether its floating thumbnail is on.
+    var live: (folder: URL?, thumbnail: Bool) {
+        // A missing location means Desktop, a missing thumbnail setting means on.
+        let location = (value(for: "location") as? String).map { ($0 as NSString).expandingTildeInPath }
+        let folder = URL(filePath: location ?? URL.desktopDirectory.path(percentEncoded: false), directoryHint: .isDirectory)
+        return (path(folder) == path(holding) ? nil : folder, value(for: "show-thumbnail") as? Bool != false)
+    }
+
+    /// Calls `changed` whenever macOS's screenshot settings change, whoever changed them.
+    func watch(_ changed: @escaping @MainActor @Sendable () -> Void) -> NSObject {
+        PreferencesObserver(domain: domain, keys: Self.keys, changed: changed)
     }
 
     /// Puts both back as they were before Pluck, the save folder included.
@@ -81,5 +104,31 @@ struct ScreencaptureSettings {
     private func set(_ value: AnyObject?, for key: String) {
         CFPreferencesSetAppValue(key as CFString, value, domain as CFString)
         CFPreferencesAppSynchronize(domain as CFString)
+    }
+}
+
+/// Observes keys in another app's preferences. Key-value observing a defaults
+/// suite also reports changes other processes make.
+private final class PreferencesObserver: NSObject {
+    private let defaults: UserDefaults?
+    private let keys: [String]
+    nonisolated private let changed: @MainActor @Sendable () -> Void
+
+    init(domain: String, keys: [String], changed: @escaping @MainActor @Sendable () -> Void) {
+        defaults = UserDefaults(suiteName: domain)
+        self.keys = keys
+        self.changed = changed
+        super.init()
+        for key in keys { defaults?.addObserver(self, forKeyPath: key, context: nil) }
+    }
+
+    isolated deinit {
+        for key in keys { defaults?.removeObserver(self, forKeyPath: key) }
+    }
+
+    /// Handled once the write that caused it is done, Pluck's own included.
+    nonisolated override func observeValue(forKeyPath keyPath: String?, of object: Any?,
+                                           change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
+        Task { @MainActor [changed] in changed() }
     }
 }
