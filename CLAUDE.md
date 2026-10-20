@@ -54,7 +54,7 @@ Before building one, sit in the user's seat:
   macOS saves it into Pluck's holding folder (Application Support/Pluck/Pluck,
   so ⇧⌘5's Options say "Pluck"), and it reaches the user's folder only once
   the Preview is done with it: acted on, its time up, the Shelf opened, or
-  Pluck quitting. Trashed or moved, it goes straight there and never touches
+  Pluck quitting. Trashed, it goes straight there and never touches
   the user's folder. Anything left waiting by a crash is saved at the next
   launch.
 - A drag hands shots off, by one rule: the shot's own file moves into Pluck's
@@ -75,7 +75,6 @@ Before building one, sit in the user's seat:
   - Shots taken before Pluck's first launch are never removed automatically.
   - Unpinning restarts a shot's clock, so it never vanishes the moment it's
     unpinned.
-  - "Move to" lets go: a shot filed elsewhere leaves Pluck for good.
   - Renaming a shot keeps its pin. An unpinned renamed shot is still cleaned
     up on schedule.
 - Pluck changes the macOS screenshot settings (save location, floating
@@ -155,7 +154,7 @@ its timer.
   Shelf.
 - Only the Shelf takes the keyboard. Peek and the Preview never take it from
   the app the user is typing in, and the moment the Shelf closes the keyboard
-  goes straight back. Quick Look and the folder picker take it while they show.
+  goes straight back. Quick Look takes it while it shows.
 - The Shelf's keys: arrows move the focus, Esc or ⌘W closes, Return copies
   and closes (so ⌘V pastes into the user's app), ⌘C copies, Space opens Quick
   Look, ⌫ or ⌘⌫ trashes (the focus moves on to the next shot), ⌘Z puts the
@@ -317,16 +316,15 @@ Verified on this machine; each one notes how.
   notification in this state; the panel resigning key while `NSApp.isActive`
   is false is the signal. (Checked by typing into TextEdit after the Shelf
   closed, and by activating Finder, 2026-10-17.)
-- **Quick Look and the folder picker need Pluck truly active.** With only the
-  notch key, their keys go to the user's app. `NSApp.activate()` works once the
+- **Quick Look needs Pluck truly active.** With only the notch key, its keys go
+  to the user's app. `NSApp.activate()` works once the
   notch has the keyboard, and is refused before. Afterwards `deactivate`
   doesn't give the keyboard back; activating the app that was frontmost does.
   (`NSApp.hide` also works, but hides Pluck's other windows with it.) Quick
   Look is still the key window during its will-close notification.
-- **Showing resets a window's level.** Quick Look and `NSOpenPanel` take their
-  level when they show, so it's set after they show. `runModal` blocks until
-  the panel closes, so the picker uses `begin`. Below `.statusBar` + 1, the
-  Shelf covers them.
+- **Showing resets a window's level.** Quick Look takes its level when it
+  shows, so it's set after it shows. Below `.statusBar` + 1, the Shelf covers
+  it.
 - **A lazy stack keeps what it drew for an ID.** If an ID comes back with new
   content, `LazyVStack` can draw the old content. Shelf rows are identified by
   all of their shots.

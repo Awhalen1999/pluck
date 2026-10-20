@@ -25,7 +25,6 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     @ObservationIgnored private let input = NotchInput()
     @ObservationIgnored private let quickLookPanel = QuickLook()
     @ObservationIgnored private let dragSource = ShotDragSource()
-    @ObservationIgnored private var screen: NSScreen?
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
     /// Waiting captures in the drag under way that the user keeps once dropped.
@@ -134,10 +133,6 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         act("Trash", on: ids, Feedback(kind: .trashed), saving: false) { library.trash($0) }
     }
 
-    func move(_ ids: [Shot.ID], to folder: URL) {
-        act("Move", on: ids, Feedback(kind: .moved), saving: false) { library.move($0, to: folder) }
-    }
-
     func markup(_ id: Shot.ID) {
         act("Markup", on: [id]) { library.openInPreview($0[0]) }
     }
@@ -166,8 +161,7 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     }
 
     /// Every action on shots goes through here. A waiting capture is saved first,
-    /// unless the action takes it somewhere else anyway (the Trash, another
-    /// folder), so it never flashes onto the Desktop on its way.
+    /// unless it's going to the Trash, so it never flashes onto the Desktop on its way.
     /// Shots already gone, to a click the notch hadn't caught up with or a menu
     /// left open, are left out; with none left, nothing happens.
     private func act(_ name: String, on ids: [Shot.ID], _ feedback: Feedback? = nil, saving: Bool = true,
@@ -269,41 +263,9 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         menu.addItem(menuItem("Quick Look") { [weak self] in self?.quickLook(id) })
         menu.addItem(menuItem("Show in Finder") { [weak self] in self?.reveal(ids) })
         menu.addItem(.separator())
-        menu.addItem(moveMenuItem(for: ids))
         menu.addItem(menuItem(ids.allSatisfy(library.isPinned) ? "Unpin" : "Pin", key: "p") { [weak self] in self?.togglePin(ids) })
         menu.addItem(menuItem("Move to Trash", key: "\u{8}") { [weak self] in self?.trash(ids) })
         return menu
-    }
-
-    private func moveMenuItem(for ids: [Shot.ID]) -> NSMenuItem {
-        let submenu = NSMenu()
-        let folders: [URL] = [.desktopDirectory, .documentsDirectory, .downloadsDirectory, .picturesDirectory]
-        for folder in folders where folder.standardizedFileURL != library.folder {
-            submenu.addItem(menuItem(FileManager.default.displayName(atPath: folder.path(percentEncoded: false))) { [weak self] in
-                self?.move(ids, to: folder)
-            })
-        }
-        submenu.addItem(.separator())
-        submenu.addItem(menuItem("Other…") { [weak self] in self?.chooseFolder(for: ids) })
-        let item = NSMenuItem(title: "Move To", action: nil, keyEquivalent: "")
-        item.submenu = submenu
-        return item
-    }
-
-    private func chooseFolder(for ids: [Shot.ID]) {
-        let open = NSOpenPanel()
-        open.canChooseDirectories = true
-        open.canChooseFiles = false
-        open.canCreateDirectories = true
-        open.prompt = "Move"
-        keyboard.comeForward()
-        // Not `runModal`, which would block the notch while it's up.
-        open.begin { [weak self] response in
-            if response == .OK, let folder = open.url { self?.move(ids, to: folder) }
-            self?.updateKeyboard()
-        }
-        // Showing resets the level.
-        open.level = .aboveNotch
     }
 
     // MARK: Keyboard
@@ -429,7 +391,6 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
     /// The panel takes the mouse exactly while the pointer is on the shape, so a
     /// click always lands where the user sees it; hover uses the hover zone.
     private func pointerMoved(to point: CGPoint, fast: Bool) {
-        followPointer(to: point)
         guard let geometry else { return }
         let onShape = NotchLayout.shapeRect(for: frame, geometry: geometry).contains(point)
         if panel.ignoresMouseEvents == onShape { panel.ignoresMouseEvents = !onShape }
@@ -496,36 +457,17 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
         }
     }
 
-    /// Idle with nothing to show: the only time the notch may change display, so
-    /// it never jumps while the user is looking at it.
+    /// Idle with nothing to show, when the pointer needs watching least.
     private var isResting: Bool {
         shownState == .idle && feedback == nil && !machine.isDragging
     }
 
+    /// The display "Show on" names. Without a built-in display (a closed lid),
+    /// that's the main one.
     private func goHome() {
         let screens = NSScreen.screens
-        let home = switch preferences.notchDisplay {
-        case .builtIn: screens.first(where: \.isBuiltIn)
-        case .main: screens.first
-        case .withMouse: Self.screen(containing: NSEvent.mouseLocation)
-        }
-        if let home = home ?? screens.first { place(on: home) }
-    }
-
-    /// With "Show on: With mouse", a resting notch follows the pointer to its display.
-    private func followPointer(to point: CGPoint) {
-        guard preferences.notchDisplay == .withMouse, isResting,
-              let target = Self.screen(containing: point), target.displayID != screen?.displayID else { return }
-        place(on: target)
-    }
-
-    private func place(on screen: NSScreen) {
-        geometry = panel.place(on: screen)
-        self.screen = screen
-    }
-
-    private static func screen(containing point: CGPoint) -> NSScreen? {
-        NSScreen.screens.first { NSMouseInRect(point, $0.frame, false) }
+        let home = preferences.notchDisplay == .builtIn ? screens.first(where: \.isBuiltIn) : nil
+        if let home = home ?? screens.first { geometry = panel.place(on: home) }
     }
 }
 

@@ -308,31 +308,6 @@ private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
         self.index = index
     }
 
-    /// Moves shots into `destination` and lets go of them, waiting captures
-    /// straight from the holding folder. A shot the user filed away is theirs now,
-    /// so cleanup must never touch it.
-    func move(_ ids: [Shot.ID], to destination: URL) {
-        guard destination.standardizedFileURL != folder else {
-            save(ids)
-            return
-        }
-        var index = self.index
-        var moved: Set<Shot.ID> = []
-        for shot in anywhere(ids) {
-            do {
-                try FileManager.default.moveItem(at: shot.url, to: availableURL(for: shot.url.lastPathComponent, in: destination))
-            } catch {
-                log.error("Couldn't move \(shot.url.lastPathComponent): \(error)")
-                continue
-            }
-            moved.insert(shot.id)
-            index.forget(shot.id)
-        }
-        shots.removeAll { moved.contains($0.id) }
-        pending.removeAll { moved.contains($0.id) }
-        self.index = index
-    }
-
     /// Moves shots' files into the hand-off folder for a drag to carry, returning
     /// where each one is now.
     // ponytail: a crash mid-drag strands the file there, and cleanup deletes it an hour on; record flights on disk if that ever shows up.

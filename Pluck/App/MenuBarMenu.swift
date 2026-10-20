@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The menu bar item: the way in when a full-screen app hides the notch.
+/// The menu bar item: Settings, Quit, and the latest screenshot.
 struct MenuBarMenu: View {
     let notch: NotchController?
     @Environment(\.openWindow) private var openWindow

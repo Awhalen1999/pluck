@@ -84,8 +84,6 @@ enum NotchDisplay: String, CaseIterable {
     case builtIn
     /// The display with the menu bar in System Settings' arrangement.
     case main
-    /// Whichever display the pointer is on.
-    case withMouse
 }
 
 enum PreviewStyle: String, CaseIterable {

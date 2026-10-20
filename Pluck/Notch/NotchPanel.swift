@@ -41,7 +41,7 @@ final class NotchPanel: NSPanel {
 }
 
 extension NSWindow.Level {
-    /// For Quick Look and the folder picker, so an open Shelf never covers them.
+    /// For Quick Look, so an open Shelf never covers it.
     static let aboveNotch = NSWindow.Level(NSWindow.Level.statusBar.rawValue + 1)
 }
 

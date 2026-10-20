@@ -4,7 +4,7 @@ import SwiftUI
 /// feedback slot. A new one replaces the old.
 struct Feedback: Equatable {
     enum Kind: Equatable {
-        case copied, pinned, unpinned, trashed, moved, restored
+        case copied, pinned, unpinned, trashed, restored
     }
 
     let kind: Kind
@@ -23,7 +23,6 @@ struct Feedback: Equatable {
         case .pinned: return "Pinned" + many
         case .unpinned: return "Unpinned"
         case .trashed: return "Trashed" + many
-        case .moved: return "Moved" + many
         case .restored: return "Restored"
         }
     }
@@ -33,7 +32,6 @@ struct Feedback: Equatable {
         case .copied, .restored: "checkmark.circle.fill"
         case .pinned, .unpinned: "pin.fill"
         case .trashed: "trash.fill"
-        case .moved: "folder.fill"
         }
     }
 
@@ -42,7 +40,6 @@ struct Feedback: Equatable {
         case .copied, .restored: Theme.Palette.copied
         case .pinned, .unpinned: Theme.Palette.pinned
         case .trashed: Theme.Palette.trashed
-        case .moved: .secondary
         }
     }
 }

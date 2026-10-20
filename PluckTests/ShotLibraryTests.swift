@@ -165,20 +165,6 @@ import Testing
         #expect(FileManager.default.fileExists(atPath: sandbox.path("trashed.png")))
     }
 
-    @Test func aCaptureMovedElsewhereGoesStraightThere() throws {
-        try sandbox.addShot("filed.png", waiting: true)
-        let elsewhere = sandbox.root.appending(path: "Elsewhere")
-        try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
-        let library = sandbox.library()
-        library.reconcilePending()
-
-        library.move([sandbox.waitingPath("filed.png")], to: elsewhere)
-
-        #expect(library.pending.isEmpty)
-        #expect(library.shots.isEmpty)
-        #expect(FileManager.default.fileExists(atPath: elsewhere.appending(path: "filed.png").path(percentEncoded: false)))
-    }
-
     @Test func capturesLeftWaitingByAnEarlierRunAreSavedAtLaunch() throws {
         try sandbox.addShot("from a crash.png", waiting: true)
         let library = sandbox.library()
@@ -361,22 +347,6 @@ import Testing
         #expect(library.pinnedNames == ["a.png", "b.png", "c.png"])
         #expect(FileManager.default.fileExists(atPath: sandbox.path("a.png")))
         #expect(library.lastTrashed.isEmpty)
-    }
-
-    @Test func movingAShotLetsGoOfItWithoutOverwriting() throws {
-        try sandbox.addShot("a.png")
-        let destination = sandbox.root.appending(path: "Kept")
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-        try "taken".write(to: destination.appending(path: "a.png"), atomically: true, encoding: .utf8)
-        let library = sandbox.library()
-        library.reconcile()
-        library.togglePin([sandbox.path("a.png")])
-
-        library.move([sandbox.path("a.png")], to: destination)
-
-        #expect(library.shots.isEmpty)
-        #expect(library.index.pinned.isEmpty)
-        #expect(FileManager.default.fileExists(atPath: destination.appending(path: "a 2.png").path(percentEncoded: false)))
     }
 
     @Test func copyPutsEachShotOnThePasteboardAsFileAndImage() throws {

@@ -14,7 +14,7 @@ final class KeyboardHandoff {
         self.panel = panel
         Task { [weak self, panel] in
             for await _ in NotificationCenter.default.notifications(named: NSWindow.didResignKeyNotification, object: panel) {
-                // Quick Look and the folder picker take it too, but Pluck stays active.
+                // Quick Look takes it too, but Pluck stays active.
                 if !NSApp.isActive { self?.onTakenAway() }
             }
         }
@@ -31,8 +31,8 @@ final class KeyboardHandoff {
         panel.makeKey()
     }
 
-    /// For Quick Look and the folder picker, which only take keys in the active
-    /// app. macOS refuses the activation unless the notch has the keyboard first.
+    /// For Quick Look, which only takes keys in the active app. macOS refuses the
+    /// activation unless the notch has the keyboard first.
     func comeForward() {
         take()
         NSApp.activate()
@@ -40,7 +40,7 @@ final class KeyboardHandoff {
 
     func giveBack() {
         panel.acceptsKeyboard = false
-        // Not while the user is in one of Pluck's own windows, like the folder picker.
+        // Not while the user is in one of Pluck's own windows, like Quick Look.
         guard let before, NSApp.keyWindow == nil || NSApp.keyWindow === panel else { return }
         self.before = nil
         if let window = before.window, window.isVisible {

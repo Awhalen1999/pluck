@@ -69,24 +69,21 @@ struct GeneralSettings: View {
                 }
                 Toggle(isOn: $preferences.showsMenuBarIcon) {
                     Text("Show in menu bar")
-                    Text("A way in when a full-screen app hides the notch. If it’s hidden, open Pluck again to get back here.")
+                    Text("Pluck’s menu, with Settings and Quit. If it’s hidden, open Pluck again to get back here.")
                 }
             }
 
-            Section {
-                LabeledContent("Access to \(folderName)") {
-                    if library.canReadFolder == false {
+            // Only while there's something to fix: the folder is the one permission.
+            if library.canReadFolder == false {
+                Section {
+                    LabeledContent("Access to \(folderName)") {
                         Button("Allow in System Settings…") { NSWorkspace.shared.open(.filesAndFoldersSettings) }
-                    } else {
-                        Text("Allowed").foregroundStyle(.secondary)
                     }
+                } header: {
+                    Text("Permissions")
+                } footer: {
+                    Text("Pluck needs access to \(folderName) to show your new screenshots.")
                 }
-            } header: {
-                Text("Permissions")
-            } footer: {
-                Text(library.canReadFolder == false
-                     ? "Pluck needs access to \(folderName) to show your new screenshots."
-                     : "Your screenshots stay on this Mac.")
             }
         }
         .formStyle(.grouped)
@@ -192,7 +189,6 @@ private extension NotchDisplay {
         switch self {
         case .builtIn: "Built-in Display"
         case .main: "Main Display"
-        case .withMouse: "Follow Pointer"
         }
     }
 }
