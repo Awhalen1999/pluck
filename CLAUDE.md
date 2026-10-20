@@ -407,9 +407,12 @@ Verified on this machine; each one notes how.
   of the same name gets Finder's Keep Both / Stop / Replace prompt, and the drag
   has already ended with `.move` by then. Hence drags carry the shot's own
   file: there's never a second one of the same name.
-- **TextEdit accepts, then asks.** Dropped into a plain-text document, TextEdit
-  ends the drag as a copy, then asks whether to convert the document. Cancel
-  there doesn't undo the drop.
+- **TextEdit asks about a drop.** Dropped into a plain-text document, TextEdit
+  ends the drag as a copy, then asks whether to convert the document; Cancel
+  there doesn't undo the drop. Dropped into a rich-text one, it asks to convert
+  it to RTFD with the drag still open, and Cancel ends it as cancelled, after
+  which TextEdit itself can hang. Test drops into a plain-text document.
+  (Checked 2026-10-19.)
 - **Opening Settings from code.** `showSettingsWindow:` does nothing on macOS 26.
   SwiftUI still puts its Settings… item in the app menu of a menu bar app that
   shows no menus, and sending that item's action opens Settings. In SwiftUI
