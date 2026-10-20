@@ -49,14 +49,17 @@ struct ScreencaptureSettings {
         set(false as NSNumber, for: "show-thumbnail")
         set(path(holding) as NSString, for: "location")
         let held = value(for: "show-thumbnail") as? Bool == false && value(for: "location") as? String == path(holding)
-        if !held { release() }
+        if !held {
+            restoreThumbnail()
+            releaseFolder()
+        }
         return held
     }
 
-    /// Gives macOS the user's save folder and their own thumbnail, as when Pluck
-    /// isn't running.
+    /// Gives macOS the user's save folder, and their own thumbnail if Pluck was
+    /// holding it. Otherwise the thumbnail is already the user's, to leave alone.
     func release() {
-        set(snapshot["show-thumbnail"] as AnyObject?, for: "show-thumbnail")
+        if live.folder == nil { restoreThumbnail() }
         releaseFolder()
     }
 
@@ -83,7 +86,8 @@ struct ScreencaptureSettings {
     /// Puts both back as they were before Pluck, the save folder included.
     func restoreOriginals() {
         store.set(snapshot["location"] as? String, forKey: Self.saveFolderKey)
-        release()
+        restoreThumbnail()
+        releaseFolder()
     }
 
     private static let keys = ["show-thumbnail", "location"]
@@ -91,6 +95,10 @@ struct ScreencaptureSettings {
     private static let saveFolderKey = "saveFolder"
 
     private var snapshot: [String: Any] { store.dictionary(forKey: Self.snapshotKey) ?? [:] }
+
+    private func restoreThumbnail() {
+        set(snapshot["show-thumbnail"] as AnyObject?, for: "show-thumbnail")
+    }
 
     /// One spelling per folder, with no trailing slash, as macOS writes them.
     private func path(_ folder: URL) -> String { (folder.path(percentEncoded: false) as NSString).standardizingPath }

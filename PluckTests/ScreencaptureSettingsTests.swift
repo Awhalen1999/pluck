@@ -279,3 +279,13 @@ private func chosenFolder(in sandbox: Sandbox) throws -> URL {
     // The thumbnail is the user's while Pluck isn't holding it.
     #expect(scratch.rawThumbnail as? Bool == false)
 }
+
+@Test func withTheMacOSPreviewQuittingLeavesTheThumbnailAsTheUserSetIt() throws {
+    let (setup, _, sandbox, scratch) = try setup()
+    setup.setPreview(.macOS)
+    scratch.userHas(thumbnail: false, location: sandbox.folder.path(percentEncoded: false))
+
+    setup.release()
+
+    #expect(scratch.rawThumbnail as? Bool == false)
+}

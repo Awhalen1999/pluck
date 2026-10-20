@@ -94,7 +94,8 @@ Before building one, sit in the user's seat:
 - With Preview set to Pluck, the macOS thumbnail is off and macOS saves into
   the holding folder while Pluck runs. Quitting, or switching to the macOS
   Preview, gives macOS the user's own: their thumbnail as it was, and their
-  "Save to" folder. If macOS doesn't take a change, the Preview setting becomes
+  "Save to" folder. With the macOS Preview the thumbnail is theirs, and Pluck
+  never writes it. If macOS doesn't take a change, the Preview setting becomes
   macOS, so it always says what's really happening, and there are never two
   previews.
 - "Save to" is Pluck's record of the user's folder. At launch, a location the
