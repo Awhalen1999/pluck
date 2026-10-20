@@ -8,8 +8,7 @@ struct PluckApp: App {
         MenuBarExtra(isInserted: Bindable(appDelegate.preferences).showsMenuBarIcon) {
             MenuBarMenu(library: appDelegate.library)
         } label: {
-            // ponytail: placeholder symbol until the menu bar icon is designed.
-            Image(systemName: "camera.viewfinder").accessibilityLabel("Pluck")
+            Image(.menuBarIcon).accessibilityLabel("Pluck")
         }
         Settings {
             SettingsView(app: appDelegate)

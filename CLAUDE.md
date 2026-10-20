@@ -421,6 +421,10 @@ Verified on this machine; each one notes how.
   `ASSETCATALOG_COMPILER_APPICON_NAME`. A build path macOS saw before it had an
   icon keeps the cached one until `lsregister -f` on the app. (Checked
   2026-10-19.)
+- **The menu bar icon is a template image.** `MenuBarIcon` is an SVG marked
+  template in the asset catalog, so macOS colors it for light and dark menu
+  bars and highlights it when clicked. It shows the notch with a shot dropping
+  out; two overlapping cards would read as Screen Mirroring.
 - **The user's accent color wins.** A system-wide accent other than multicolor
   overrides the app's AccentColor in native controls.
 - **Not yet verified:** switching Spaces, full-screen apps; whether access
