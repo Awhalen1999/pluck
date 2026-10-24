@@ -17,6 +17,9 @@ final class ScreenshotSetup {
 
     var saveFolder: URL { library.folder }
 
+    /// False while macOS saves to its default, the Desktop, because nobody chose.
+    var hasChosenFolder: Bool { screencapture.hasSaveFolder }
+
     /// With Pluck's Preview, macOS saves into the holding folder and its thumbnail
     /// is off: each capture waits there for its Preview. Otherwise macOS keeps its
     /// own thumbnail and saves straight into the folder. If macOS refuses the first,

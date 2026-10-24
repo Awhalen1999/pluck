@@ -39,6 +39,9 @@ struct ScreencaptureSettings {
         store.set(path(folder), forKey: Self.saveFolderKey)
     }
 
+    /// False while the user has never chosen one, in Pluck or in macOS.
+    var hasSaveFolder: Bool { store.string(forKey: Self.saveFolderKey) != nil }
+
     /// However it's spelled.
     func isSaveFolder(_ folder: URL) -> Bool { path(folder) == path(saveFolder) }
 

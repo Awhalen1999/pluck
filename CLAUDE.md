@@ -86,8 +86,10 @@ Before building one, sit in the user's seat:
   Pluck is never left running half set up: finishing or quitting are the ways
   out. Quitting partway brings it back at the next launch, at the save location;
   About's "Show the welcome again" brings it back from the start. A choice in it
-  that changes macOS takes effect when it's made: the save folder when picked,
-  the Preview and login item on Continue.
+  that changes macOS takes effect on Continue: the save folder (or as soon as
+  its access is asked for), the Preview, the login item. With no folder chosen
+  yet, it suggests macOS's Screenshots folder in Pictures over the Desktop:
+  tidier, and it needs no permission.
 - Pluck doesn't look in the screenshot folder until onboarding asks for it, so
   the macOS access prompt comes at its "Allow Access" step, never at launch.
 - With Preview set to Pluck, the macOS thumbnail is off and macOS saves into
@@ -230,6 +232,12 @@ without a physical notch), **Idle / Peek / Shelf / Preview** (its states),
 In copy, "screenshot" in sentences and in Settings; "shot" only where the notch
 is short of room ("3 shots"). Settings copy names the choice in the label and
 says what happens in one plain line below it.
+
+Copy is plain and short: what happens, in everyday words, the same wording
+wherever the same thing appears (a preview's line is one string, used by
+Settings and onboarding). No em dashes, no cute lines, no folder names that
+make a sentence trip ("Screenshots leave Screenshots"). Check it in the window:
+a line that pushes its control onto its own row is too long.
 
 ## Code style
 

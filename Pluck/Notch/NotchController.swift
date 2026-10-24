@@ -259,7 +259,7 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
     func menu(for id: Shot.ID) -> NSMenu {
         let ids = targets(id)
         let menu = NSMenu()
-        menu.addItem(menuItem(ids.count > 1 ? "Copy \(ids.count) Shots" : "Copy", key: "c") { [weak self] in self?.copy(ids) })
+        menu.addItem(menuItem(ids.count > 1 ? "Copy \(ids.count) Screenshots" : "Copy", key: "c") { [weak self] in self?.copy(ids) })
         menu.addItem(menuItem("Quick Look") { [weak self] in self?.quickLook(id) })
         menu.addItem(menuItem("Show in Finder") { [weak self] in self?.reveal(ids) })
         menu.addItem(.separator())

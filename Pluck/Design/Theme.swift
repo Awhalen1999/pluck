@@ -140,18 +140,14 @@ enum Theme {
                                               startPoint: .top, endPoint: .bottom)
         static let wallpaperGlow = RadialGradient(colors: [Palette.accent.opacity(0.35), .clear],
                                                   center: UnitPoint(x: 0.75, y: 1.2), startRadius: 0, endRadius: 200)
-        /// The preview choices' drawings: Pluck's open in the notch, or the
-        /// macOS thumbnail in the corner.
-        static let choiceArtHeight: CGFloat = 96
-        static let choiceNotch = CGSize(width: 124, height: 78)
-        static let choiceTileHeight: CGFloat = 13
-        static let choiceIdleNotch = CGSize(width: 70, height: 12)
-        static let choiceThumbnail = CGSize(width: 78, height: 46)
-        /// The last step's drawing: the notch at rest over ⇧⌘4, then open on the
-        /// first screenshot.
-        static let firstShotArtHeight: CGFloat = 170
-        static let firstShotIdle = CGSize(width: 150, height: 22)
-        static let firstShotOpen = CGSize(width: 240, height: 112)
+        /// The preview choices' drawings: the notch drawn at its real size, then
+        /// scaled down, so the Preview looks exactly as it will.
+        static let choiceArtHeight: CGFloat = 116
+        static let artScale: CGFloat = 0.36
+        static let choiceThumbnailWidth: CGFloat = 80
+        /// The last step's drawing: the notch at rest over ⇧⌘4.
+        static let shortcutArtHeight: CGFloat = 170
+        static let shortcutNotch = CGSize(width: 150, height: 22)
         static let keycapSize: CGFloat = 30
         static let keycapFont = Font.title3
         /// The last step's badge: a viewfinder while it waits, a check once done.

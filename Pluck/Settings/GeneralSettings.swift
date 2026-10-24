@@ -11,15 +11,13 @@ struct GeneralSettings: View {
         let folderName = FileManager.default.displayName(atPath: setup.saveFolder.path(percentEncoded: false))
         Form {
             Section {
-                SaveFolderPicker(setup: setup, choosingFolder: $choosingFolder)
+                SaveFolderPicker(folder: setup.saveFolder, choose: { setup.setSaveFolder($0) }, choosingFolder: $choosingFolder)
                 Picker(selection: Binding(get: { preferences.preview }, set: { setup.setPreview($0) })) {
                     Text("Pluck").tag(PreviewStyle.pluck)
                     Text("macOS").tag(PreviewStyle.macOS)
                 } label: {
                     Text("Preview")
-                    Text(preferences.preview == .pluck
-                         ? "Appears in the notch, ready to copy, mark up, pin or drag anywhere."
-                         : "The standard macOS thumbnail, in the corner of the screen.")
+                    Text(preferences.preview.detail)
                 }
                 .pickerStyle(.segmented)
                 if preferences.preview == .pluck {
@@ -28,22 +26,22 @@ struct GeneralSettings: View {
             } header: {
                 Text("Screenshots")
             } footer: {
-                Text("Pluck manages these macOS screenshot settings for you. You can restore your originals any time in About.")
+                Text("These are your macOS screenshot settings. You can restore the originals in About.")
             }
 
             Section {
-                DragOutPicker(preferences: preferences, folderName: folderName)
+                DragOutPicker(preferences: preferences)
                 RetentionPicker(preferences: preferences)
             } header: {
                 Text("Cleanup")
             } footer: {
-                Text("Pinned screenshots are never removed, and anything moved to the Trash can be put back from there.")
+                Text("Screenshots from before Pluck are never cleaned up. Anything moved to the Trash can be put back.")
             }
 
             Section("Notch") {
                 Toggle(isOn: $preferences.opensOnHover) {
                     Text("Open on hover")
-                    Text("Rest the pointer on the notch to see recent screenshots. When off, click the notch instead.")
+                    Text("Rest the pointer on the notch to see recent screenshots. When off, click it instead.")
                 }
                 Toggle(isOn: $preferences.showsLatestWhenIdle) {
                     Text("Show latest screenshot")
@@ -53,7 +51,7 @@ struct GeneralSettings: View {
                     ForEach(NotchDisplay.allCases, id: \.self) { Text($0.title).tag($0) }
                 } label: {
                     Text("Show on")
-                    Text("Where the notch and previews appear.")
+                    Text("The display where the notch and previews appear.")
                 }
             }
 
@@ -63,13 +61,16 @@ struct GeneralSettings: View {
                     opensAtLogin = LaunchAtLogin.isEnabled
                 }))
                 if LaunchAtLogin.needsApproval {
-                    LabeledContent("Allow Pluck in Login Items to finish setting this up") {
+                    LabeledContent {
                         Button("Open Login Items") { LaunchAtLogin.openSystemSettings() }
+                    } label: {
+                        Text("Waiting for your approval")
+                        Text("Allow Pluck in Login Items to open it at login.")
                     }
                 }
                 Toggle(isOn: $preferences.showsMenuBarIcon) {
                     Text("Show in menu bar")
-                    Text("Pluck’s menu, with Settings and Quit. If it’s hidden, open Pluck again to get back here.")
+                    Text("Pluck’s menu, with Settings and Quit. If you hide it, open Pluck again to get back here.")
                 }
             }
 
@@ -77,12 +78,12 @@ struct GeneralSettings: View {
             if library.canReadFolder == false {
                 Section {
                     LabeledContent("Access to \(folderName)") {
-                        Button("Allow in System Settings…") { NSWorkspace.shared.open(.filesAndFoldersSettings) }
+                        Button("Open System Settings") { NSWorkspace.shared.open(.filesAndFoldersSettings) }
                     }
                 } header: {
                     Text("Permissions")
                 } footer: {
-                    Text("Pluck needs access to \(folderName) to show your new screenshots.")
+                    Text("Pluck needs access to \(folderName) to see new screenshots.")
                 }
             }
         }
@@ -99,7 +100,8 @@ struct GeneralSettings: View {
 /// "Save to": the usual places, the current folder if it's elsewhere,
 /// and any folder at all.
 struct SaveFolderPicker: View {
-    let setup: ScreenshotSetup
+    let folder: URL
+    let choose: (URL) -> Void
     @Binding var choosingFolder: Bool
 
     private enum Choice: Hashable {
@@ -108,11 +110,11 @@ struct SaveFolderPicker: View {
     }
 
     var body: some View {
-        let current = Self.path(setup.saveFolder)
-        let usual = [URL.desktopDirectory, .downloadsDirectory, URL.picturesDirectory.appending(path: "Screenshots")].map(Self.path)
+        let current = folder.standardPath
+        let usual = [URL.desktopDirectory, .downloadsDirectory, .screenshotsFolder].map(\.standardPath)
         Picker("Save to", selection: Binding(get: { Choice.folder(current) }, set: { choice in
             switch choice {
-            case .folder(let path): setup.setSaveFolder(URL(filePath: path, directoryHint: .isDirectory))
+            case .folder(let path): choose(URL(filePath: path, directoryHint: .isDirectory))
             case .choose: choosingFolder = true
             }
         })) {
@@ -122,11 +124,6 @@ struct SaveFolderPicker: View {
             Divider()
             Text("Choose Folder…").tag(Choice.choose)
         }
-    }
-
-    /// One spelling per folder, so the same folder always matches itself.
-    private static func path(_ folder: URL) -> String {
-        (folder.path(percentEncoded: false) as NSString).standardizingPath
     }
 }
 
@@ -146,7 +143,6 @@ struct PreviewDurationPicker: View {
 
 struct DragOutPicker: View {
     @Bindable var preferences: Preferences
-    let folderName: String
 
     var body: some View {
         Picker(selection: $preferences.removeDraggedOut) {
@@ -155,8 +151,8 @@ struct DragOutPicker: View {
         } label: {
             Text("When dragged into an app")
             Text(preferences.removeDraggedOut
-                 ? "Screenshots leave \(folderName) once you drop them into another app. Pinned ones stay."
-                 : "Screenshots stay in \(folderName) after you drop them into another app.")
+                 ? "Screenshots you drop into an app are removed from your folder. Pinned ones stay."
+                 : "Screenshots you drop into an app stay in your folder.")
         }
         .pickerStyle(.segmented)
     }
@@ -166,10 +162,23 @@ struct RetentionPicker: View {
     @Bindable var preferences: Preferences
 
     var body: some View {
-        Picker("Move to Trash after", selection: $preferences.retention) {
+        Picker(selection: $preferences.retention) {
             ForEach(Retention.allCases, id: \.self) { Text($0.title).tag($0) }
+        } label: {
+            Text("Move to Trash after")
+            Text("Pinned screenshots are always kept.")
         }
         .pickerStyle(.segmented)
+    }
+}
+
+extension PreviewStyle {
+    /// What each preview is, in one line.
+    var detail: String {
+        switch self {
+        case .pluck: "Shows in the notch, ready to copy, mark up, pin, or drag into any app."
+        case .macOS: "The standard thumbnail in the corner of the screen."
+        }
     }
 }
 
@@ -195,4 +204,10 @@ private extension NotchDisplay {
 
 extension URL {
     static let filesAndFoldersSettings = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders")!
+    /// macOS's own Screenshots folder. Outside Desktop, Documents and Downloads,
+    /// so using it needs no permission.
+    static let screenshotsFolder = URL.picturesDirectory.appending(path: "Screenshots", directoryHint: .isDirectory)
+
+    /// One spelling per folder, so the same folder always matches itself.
+    var standardPath: String { (path(percentEncoded: false) as NSString).standardizingPath }
 }

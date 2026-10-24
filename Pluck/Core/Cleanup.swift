@@ -1,6 +1,6 @@
 import Foundation
 
-/// How long Pluck keeps screenshots: Settings, "Remove screenshots after".
+/// How long Pluck keeps screenshots: Settings, "Move to Trash after".
 enum Retention: String, CaseIterable {
     case oneDay, sevenDays, thirtyDays, never
 

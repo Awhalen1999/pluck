@@ -1,92 +1,95 @@
 import SwiftUI
 
-/// A preview choice, drawn: Pluck's open in the notch, or the macOS thumbnail
-/// in the corner of the screen.
+/// A preview choice, drawn on the same sample screenshot: Pluck's Preview open
+/// in the notch, built from the real one's parts at its real size, or the macOS
+/// thumbnail in the corner of the screen. Both are scaled down as one.
 struct PreviewArt: View {
     let style: PreviewStyle
 
     var body: some View {
-        ZStack(alignment: .top) {
-            Wallpaper()
-            switch style {
-            case .pluck:
-                NotchShape(radius: Theme.Radius.card, flare: Theme.Notch.idleFlare)
-                    .fill(Theme.Notch.fill)
-                    .frame(width: Theme.Onboarding.choiceNotch.width, height: Theme.Onboarding.choiceNotch.height)
-                    .overlay {
-                        VStack(spacing: Theme.Space.xs) {
-                            RoundedRectangle(cornerRadius: Theme.Radius.mini, style: .continuous)
-                                .fill(Theme.Palette.accent.gradient)
-                            HStack(spacing: Theme.Space.xs) {
-                                ForEach(0..<4, id: \.self) { _ in
-                                    RoundedRectangle(cornerRadius: Theme.Radius.mini, style: .continuous).fill(.fill.tertiary)
-                                }
-                            }
-                            .frame(height: Theme.Onboarding.choiceTileHeight)
-                        }
-                        .padding(.horizontal, Theme.Space.m)
-                        .padding(.top, Theme.Space.l)
-                        .padding(.bottom, Theme.Space.m)
+        Wallpaper()
+            .frame(height: Theme.Onboarding.choiceArtHeight)
+            .overlay(alignment: .top) {
+                Group {
+                    switch style {
+                    case .pluck: PreviewReplica()
+                    case .macOS:
+                        NotchShape(radius: Theme.Notch.idleRadius, flare: Theme.Notch.idleFlare)
+                            .fill(Theme.Notch.fill)
+                            .frame(width: Theme.Notch.referenceSize.width, height: Theme.Notch.referenceSize.height)
                     }
-            case .macOS:
-                NotchShape(radius: Theme.Radius.tile, flare: Theme.Notch.idleFlare)
-                    .fill(Theme.Notch.fill)
-                    .frame(width: Theme.Onboarding.choiceIdleNotch.width, height: Theme.Onboarding.choiceIdleNotch.height)
-                RoundedRectangle(cornerRadius: Theme.Radius.mini, style: .continuous)
-                    .fill(.white.gradient)
-                    .frame(width: Theme.Onboarding.choiceThumbnail.width, height: Theme.Onboarding.choiceThumbnail.height)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    .padding(Theme.Space.l)
+                }
+                .scaleEffect(Theme.Onboarding.artScale, anchor: .top)
             }
-        }
-        .frame(height: Theme.Onboarding.choiceArtHeight)
-        .clipShape(.rect(cornerRadius: Theme.Radius.control))
-        .environment(\.colorScheme, .dark)
+            .overlay(alignment: .bottomTrailing) {
+                if style == .macOS {
+                    SampleScreenshot(radius: Theme.Radius.mini)
+                        .frame(width: Theme.Onboarding.choiceThumbnailWidth)
+                        .padding(Theme.Space.m)
+                }
+            }
+            .clipShape(.rect(cornerRadius: Theme.Radius.control))
+            .environment(\.colorScheme, .dark)
+            .accessibilityHidden(true)
     }
 }
 
-/// Onboarding's last step, drawn: the notch at rest over ⇧⌘4, then open on the
-/// user's first screenshot, on the notch's own spring.
-struct FirstShotArt: View {
-    let shot: Shot?
+/// The Preview as it opens after a screenshot: the shot, then what you'd do next.
+private struct PreviewReplica: View {
+    var body: some View {
+        VStack(spacing: Theme.Space.m) {
+            SampleScreenshot(radius: Theme.Radius.card)
+            HStack(spacing: Theme.Space.s) {
+                ForEach(["Copy", "Markup", "Pin", "Trash"], id: \.self) { Button($0) {} }
+            }
+            .buttonStyle(NotchButtonStyle())
+        }
+        .padding(.top, Theme.Notch.headerHeight)
+        .padding([.horizontal, .bottom], Theme.Space.l)
+        .frame(width: Theme.Notch.previewWidth)
+        // Its own height, whatever room the drawing has: it's scaled down after.
+        .fixedSize(horizontal: false, vertical: true)
+        .background(NotchShape(radius: Theme.Notch.expandedRadius, flare: Theme.Notch.expandedFlare).fill(Theme.Notch.fill))
+        .allowsHitTesting(false)
+    }
+}
+
+private struct SampleScreenshot: View {
+    let radius: CGFloat
 
     var body: some View {
-        let open = shot != nil
-        let size = open ? Theme.Onboarding.firstShotOpen : Theme.Onboarding.firstShotIdle
-        let notch = NotchShape(radius: open ? Theme.Notch.expandedRadius : Theme.Notch.idleRadius,
-                               flare: open ? Theme.Notch.expandedFlare : Theme.Notch.idleFlare)
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        Image(.sampleScreenshot)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .clipShape(shape)
+            .overlay { shape.strokeBorder(Theme.Tile.ring, lineWidth: Theme.Tile.ringWidth) }
+    }
+}
+
+/// The last step's drawing while it waits: the notch at rest over ⇧⌘4.
+struct ShortcutArt: View {
+    var body: some View {
         ZStack(alignment: .top) {
             Wallpaper()
-            notch
+            NotchShape(radius: Theme.Notch.idleRadius, flare: Theme.Notch.idleFlare)
                 .fill(Theme.Notch.fill)
-                .frame(width: size.width, height: size.height)
-                .overlay {
-                    if let shot {
-                        ShotImage(shot: shot)
-                            .clipShape(.rect(cornerRadius: Theme.Radius.tile))
-                            .padding(.top, Theme.Notch.headerHeight)
-                            .padding([.horizontal, .bottom], Theme.Space.m)
-                            .transition(Theme.Motion.contentTransition)
-                    }
+                .frame(width: Theme.Onboarding.shortcutNotch.width, height: Theme.Onboarding.shortcutNotch.height)
+            HStack(spacing: Theme.Space.xs) {
+                ForEach(["⇧", "⌘", "4"], id: \.self) { key in
+                    Text(key)
+                        .font(Theme.Onboarding.keycapFont)
+                        .frame(width: Theme.Onboarding.keycapSize, height: Theme.Onboarding.keycapSize)
+                        .background(.fill.tertiary, in: .rect(cornerRadius: Theme.Radius.control))
                 }
-                .clipShape(notch)
-            if !open {
-                HStack(spacing: Theme.Space.xs) {
-                    ForEach(["⇧", "⌘", "4"], id: \.self) { key in
-                        Text(key)
-                            .font(Theme.Onboarding.keycapFont)
-                            .frame(width: Theme.Onboarding.keycapSize, height: Theme.Onboarding.keycapSize)
-                            .background(.fill.tertiary, in: .rect(cornerRadius: Theme.Radius.control))
-                    }
-                }
-                .frame(maxHeight: .infinity, alignment: .bottom)
-                .padding(.bottom, Theme.Space.xxl)
             }
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            .padding(.bottom, Theme.Space.xxl)
         }
-        .frame(height: Theme.Onboarding.firstShotArtHeight)
+        .frame(height: Theme.Onboarding.shortcutArtHeight)
         .clipShape(.rect(cornerRadius: Theme.Radius.card))
         .environment(\.colorScheme, .dark)
-        .animation(Theme.Motion.reshape(growing: open), value: size)
+        .accessibilityHidden(true)
     }
 }
 
