@@ -11,7 +11,7 @@ Alex is the designer and PM. Claude is the tech lead and owns the code end to en
 1. **Simple beats clever.** The smallest readable solution that works. No
    abstraction with one implementation, no config for a value that never changes,
    no scaffolding for later.
-2. **Native first.** System menus, `Form`, `Toggle`, `Picker`, Quick Look,
+2. **Native first.** System menus, `Form`, `Toggle`, `Picker`, Preview,
    `NSStatusItem`, system fonts and colors. Go custom only where we truly want
    control, which is the notch itself.
 3. **Linear behavior.** One owner per piece of state, one state machine for the
@@ -111,7 +111,9 @@ Before building one, sit in the user's seat:
   global shortcuts and no auto-paste, so it needs none.
 - Settings changes take effect at once, never after a restart.
 - Nothing leaves the Mac. The only network use is Sparkle's update check.
-- Markup opens the shot in Preview. Pluck never builds its own editor.
+- Viewing a shot opens it in Preview, where Markup is: the Preview's button,
+  the menu, a double-click, Space in the Shelf. Pluck never builds its own
+  viewer or editor, and doesn't use Quick Look.
 - The notch stays on the display chosen in "Show on". A Preview appears there,
   whichever display the screenshot was taken on.
 
@@ -131,7 +133,7 @@ its timer.
 - A click on the notch itself opens the Shelf from any state. A click on a shot
   copies it; buttons do what they say.
 - The Preview is a stack: every waiting capture, newest in front. Acting on the
-  front one (copy, markup, pin, trash, a drop) deals with it and the next comes
+  front one (copy, Preview, pin, trash, a drop) deals with it and the next comes
   up; with none left the notch closes. Leaving the Preview any other way saves
   what it still holds. In Peek and the Shelf, acting leaves them open.
 - Hovering holds the Preview's timer. Leaving resumes it, never with less than
@@ -156,10 +158,10 @@ its timer.
   Shelf.
 - Only the Shelf takes the keyboard. Peek and the Preview never take it from
   the app the user is typing in, and the moment the Shelf closes the keyboard
-  goes straight back. Quick Look takes it while it shows.
+  goes straight back.
 - The Shelf's keys: arrows move the focus, Esc or ⌘W closes, Return copies
-  and closes (so ⌘V pastes into the user's app), ⌘C copies, Space opens Quick
-  Look, ⌫ or ⌘⌫ trashes (the focus moves on to the next shot), ⌘Z puts the
+  and closes (so ⌘V pastes into the user's app), ⌘C copies, Space opens
+  Preview, ⌫ or ⌘⌫ trashes (the focus moves on to the next shot), ⌘Z puts the
   last trash back, P or ⌘P pins, ⌘A selects all.
 - The focus is one shot: the one under the pointer, or the one the arrow keys
   reached. Shots scrolling under a resting pointer don't take it back.
@@ -342,15 +344,6 @@ Verified on this machine; each one notes how.
   notification in this state; the panel resigning key while `NSApp.isActive`
   is false is the signal. (Checked by typing into TextEdit after the Shelf
   closed, and by activating Finder, 2026-10-17.)
-- **Quick Look needs Pluck truly active.** With only the notch key, its keys go
-  to the user's app. `NSApp.activate()` works once the
-  notch has the keyboard, and is refused before. Afterwards `deactivate`
-  doesn't give the keyboard back; activating the app that was frontmost does.
-  (`NSApp.hide` also works, but hides Pluck's other windows with it.) Quick
-  Look is still the key window during its will-close notification.
-- **Showing resets a window's level.** Quick Look takes its level when it
-  shows, so it's set after it shows. Below `.statusBar` + 1, the Shelf covers
-  it.
 - **A lazy stack keeps what it drew for an ID.** If an ID comes back with new
   content, `LazyVStack` can draw the old content. Shelf rows are identified by
   all of their shots.
@@ -369,7 +362,8 @@ Verified on this machine; each one notes how.
   `draggingSession(_:endedAt:operation:)` with `.copy` on a successful drop.
   SwiftUI's drag APIs have no end callback.
 - **Quick Look has no Markup.** `QLPreviewPanel` offers only Share and "Open
-  with Preview". QuickLookUI has no public Markup or editing API.
+  with Preview". QuickLookUI has no public Markup or editing API, so Pluck
+  opens Preview instead.
 - **The folder prompt blocks.** The first read of Desktop, Documents or
   Downloads shows the macOS access prompt and blocks that thread until it's
   answered. Onboarding triggers it on purpose, at its "Allow Access" step, from

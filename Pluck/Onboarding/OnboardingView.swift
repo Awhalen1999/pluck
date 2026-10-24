@@ -46,7 +46,7 @@ struct OnboardingView: View {
                 case .firstScreenshot: firstScreenshot
                 }
             }
-            .padding(.top, Theme.Space.xl)
+            .padding(.top, Theme.Onboarding.margin)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             Divider()
             footer
@@ -60,7 +60,7 @@ struct OnboardingView: View {
     // MARK: Steps
 
     private var welcome: some View {
-        VStack(spacing: Theme.Space.xl) {
+        VStack(spacing: Theme.Onboarding.margin) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: Theme.Onboarding.iconSize, height: Theme.Onboarding.iconSize)
@@ -194,7 +194,7 @@ struct OnboardingView: View {
     }
 
     private var firstScreenshot: some View {
-        VStack(spacing: Theme.Space.xl) {
+        VStack(spacing: Theme.Onboarding.margin) {
             Image(systemName: firstShot == nil ? "viewfinder" : "checkmark")
                 .font(Theme.Onboarding.statusFont)
                 .foregroundStyle(firstShot == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.white))
@@ -203,7 +203,7 @@ struct OnboardingView: View {
             if firstShot == nil {
                 header("Take a screenshot", "Press ⇧⌘4, then drag over any part of the screen.")
                 ShortcutArt()
-                    .padding(.horizontal, Theme.Onboarding.inset)
+                    .padding(.horizontal, Theme.Onboarding.margin)
             } else {
                 choices("You’re all set", "Here’s how to get to your screenshots.") {
                     Section {
@@ -233,13 +233,14 @@ struct OnboardingView: View {
         }
         .multilineTextAlignment(.center)
         .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, Theme.Onboarding.inset)
+        .padding(.horizontal, Theme.Onboarding.margin)
     }
 
     /// A step with choices: its header, then native rows, as in Settings.
     private func choices(_ title: String, _ message: String, @ViewBuilder rows: () -> some View) -> some View {
         VStack(spacing: 0) {
             header(title, message)
+            // Its own inset is the margin, above and beside it.
             Form { rows() }
                 .formStyle(.grouped)
                 .scrollContentBackground(.hidden)
@@ -280,7 +281,7 @@ struct OnboardingView: View {
             }
         }
         .controlSize(.large)
-        .padding(Theme.Space.xl)
+        .padding(Theme.Onboarding.margin)
     }
 
     // MARK: Flow

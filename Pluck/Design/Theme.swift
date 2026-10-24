@@ -119,17 +119,20 @@ enum Theme {
     /// The onboarding window: native controls, and small drawings of the notch
     /// on a stand-in screen.
     enum Onboarding {
-        /// Below the title bar, which makes the window 560 pt square.
-        static let size = CGSize(width: 560, height: 528)
-        /// Side margins for each step's header.
-        static let inset: CGFloat = 44
+        /// Below the title bar. Just tall enough for the welcome, its video at full width.
+        static let size = CGSize(width: 560, height: 574)
+        /// The one spacing in every step: the side margins, the space between its
+        /// parts, and the footer's. It's the grouped Form's own inset, so rows,
+        /// drawings, the video and the buttons share one edge, and a header sits as
+        /// far above a Form as above a drawing.
+        static let margin: CGFloat = 20
         /// A header's message is held to this width, so it breaks into even lines.
         static let messageWidth: CGFloat = 400
         static let welcomeTitle = Font.largeTitle.bold()
         static let title = Font.title.bold()
         static let iconSize: CGFloat = 64
-        /// The promo is 16:9.
-        static let videoSize = CGSize(width: 412, height: 232)
+        /// The promo, 16:9, from margin to margin.
+        static let videoSize = CGSize(width: size.width - 2 * margin, height: (size.width - 2 * margin) * 9 / 16)
         /// The footer's page dots: the current one long, the ones done in the accent.
         static let dot: CGFloat = 5
         static let currentDotWidth: CGFloat = 18

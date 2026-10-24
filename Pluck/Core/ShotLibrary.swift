@@ -351,11 +351,11 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "ShotLibrary")
         NSWorkspace.shared.activateFileViewerSelecting(shots(withIDs: ids).map(\.url))
     }
 
-    /// Markup: Pluck has no editor of its own, so the shot opens in Preview.
-    func openInPreview(_ id: Shot.ID) {
-        guard let shot = shots(withIDs: [id]).first,
-              let preview = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Preview") else { return }
-        NSWorkspace.shared.open([shot.url], withApplicationAt: preview, configuration: NSWorkspace.OpenConfiguration())
+    /// Pluck has no viewer or editor of its own: shots open in Preview, Markup
+    /// and all, several at once in one window.
+    func openInPreview(_ ids: [Shot.ID]) {
+        guard let preview = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Preview") else { return }
+        NSWorkspace.shared.open(shots(withIDs: ids).map(\.url), withApplicationAt: preview, configuration: NSWorkspace.OpenConfiguration())
     }
 
     /// Trashes whatever `Cleanup.expired` says has expired, and deletes what drags

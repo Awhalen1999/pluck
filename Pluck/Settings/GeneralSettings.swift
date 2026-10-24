@@ -176,7 +176,7 @@ extension PreviewStyle {
     /// What each preview is, in one line.
     var detail: String {
         switch self {
-        case .pluck: "Shows in the notch, ready to copy, mark up, pin, or drag into any app."
+        case .pluck: "Shows in the notch, ready to copy, pin, or drag into any app."
         case .macOS: "The standard thumbnail in the corner of the screen."
         }
     }

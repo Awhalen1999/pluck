@@ -40,11 +40,6 @@ final class NotchPanel: NSPanel {
     }
 }
 
-extension NSWindow.Level {
-    /// For Quick Look, so an open Shelf never covers it.
-    static let aboveNotch = NSWindow.Level(NSWindow.Level.statusBar.rawValue + 1)
-}
-
 /// Without this, a tap on a non-key panel only focuses it, and needs a second click.
 private final class FirstClickHostingView: NSHostingView<AnyView> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }

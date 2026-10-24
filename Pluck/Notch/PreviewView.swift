@@ -71,7 +71,7 @@ struct PreviewView: View {
 
                 HStack(spacing: Theme.Space.s) {
                     Button("Copy") { controller.copy([shot.id]) }
-                    Button("Markup") { controller.markup(shot.id) }
+                    Button("Preview") { controller.openInPreview([shot.id]) }
                     Button("Pin") { controller.togglePin([shot.id]) }
                     Button("Trash") { controller.trash([shot.id]) }
                 }

@@ -16,7 +16,7 @@ private func special(_ key: NSEvent.SpecialKey) -> String { String(Character(Uni
     #expect(ShelfKey(key("w", .command)) == .close)
     #expect(ShelfKey(key("\r")) == .copyAndClose)
     #expect(ShelfKey(key("c", .command)) == .copy)
-    #expect(ShelfKey(key(" ")) == .quickLook)
+    #expect(ShelfKey(key(" ")) == .preview)
     #expect(ShelfKey(key(special(.delete))) == .trash)
     #expect(ShelfKey(key(special(.delete), .command)) == .trash)
     #expect(ShelfKey(key("z", .command)) == .undo)

@@ -23,7 +23,6 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
     @ObservationIgnored private let panel: NotchPanel
     @ObservationIgnored private let keyboard: KeyboardHandoff
     @ObservationIgnored private let input = NotchInput()
-    @ObservationIgnored private let quickLookPanel = QuickLook()
     @ObservationIgnored private let dragSource = ShotDragSource()
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackTask: Task<Void, Never>?
@@ -46,11 +45,6 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
         input.keyDown = { [weak self] event in self?.handleKey(event) ?? false }
         input.sampleInterval = { [weak self] in
             self?.isResting ?? true ? Theme.Timing.pointerAtRest : Theme.Timing.pointerOpen
-        }
-        quickLookPanel.onClose = { [weak self] id in
-            guard let self else { return }
-            if state == .shelf, let id { focusFromKeyboard(id) }
-            updateKeyboard()
         }
         dragSource.moved = { [weak self] point in self?.input.report(point) }
         dragSource.ended = { [weak self] operation in self?.dragEnded(operation) }
@@ -133,8 +127,8 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
         act("Trash", on: ids, Feedback(kind: .trashed), saving: false) { library.trash($0) }
     }
 
-    func markup(_ id: Shot.ID) {
-        act("Markup", on: [id]) { library.openInPreview($0[0]) }
+    func openInPreview(_ ids: [Shot.ID]) {
+        act("Preview", on: ids) { library.openInPreview($0) }
     }
 
     func reveal(_ ids: [Shot.ID]) {
@@ -145,19 +139,6 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
         log.debug("Undo trash")
         library.undoTrash()
         send(nil, feedback: Feedback(kind: .restored))
-    }
-
-    /// Every shot in the Shelf's order, or just the selection when the shot is in one.
-    func quickLook(_ id: Shot.ID) {
-        let ids = targets(id)
-        act("Quick Look", on: ids) { saved in
-            let order = NotchLayout.shelfSections(content).flatMap(\.rows).flatMap(\.tiles).map(\.shot)
-            let shots = saved.count > 1 ? order.filter { saved.contains($0.id) } : order
-            let start = saved[ids.firstIndex(of: id) ?? 0]
-            guard let index = shots.firstIndex(where: { $0.id == start }) else { return }
-            keyboard.comeForward()
-            quickLookPanel.show(shots, startingAt: index)
-        }
     }
 
     /// Every action on shots goes through here. A waiting capture is saved first,
@@ -260,7 +241,7 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
         let ids = targets(id)
         let menu = NSMenu()
         menu.addItem(menuItem(ids.count > 1 ? "Copy \(ids.count) Screenshots" : "Copy", key: "c") { [weak self] in self?.copy(ids) })
-        menu.addItem(menuItem("Quick Look") { [weak self] in self?.quickLook(id) })
+        menu.addItem(menuItem("Preview") { [weak self] in self?.openInPreview(ids) })
         menu.addItem(menuItem("Show in Finder") { [weak self] in self?.reveal(ids) })
         menu.addItem(.separator())
         menu.addItem(menuItem(ids.allSatisfy(library.isPinned) ? "Unpin" : "Pin", key: "p") { [weak self] in self?.togglePin(ids) })
@@ -270,10 +251,9 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
 
     // MARK: Keyboard
 
-    /// The Shelf has the keyboard while it's open, and Quick Look while it shows.
-    /// Otherwise it's back where it was, so typing never lands in Pluck.
+    /// The Shelf has the keyboard while it's open. Otherwise it's back where it
+    /// was, so typing never lands in Pluck.
     private func updateKeyboard() {
-        guard !quickLookPanel.isShown else { return }
         if state == .shelf { keyboard.take() } else { keyboard.giveBack() }
     }
 
@@ -295,9 +275,9 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
         case .copy:
             guard !ids.isEmpty else { return false }
             copy(ids)
-        case .quickLook:
-            guard let id = ids.first else { return false }
-            quickLook(id)
+        case .preview:
+            guard !ids.isEmpty else { return false }
+            openInPreview(ids)
         case .trash:
             guard !ids.isEmpty else { return false }
             trashFromKeyboard(ids)

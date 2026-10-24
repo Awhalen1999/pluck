@@ -40,7 +40,7 @@ private struct PreviewReplica: View {
         VStack(spacing: Theme.Space.m) {
             SampleScreenshot(radius: Theme.Radius.card)
             HStack(spacing: Theme.Space.s) {
-                ForEach(["Copy", "Markup", "Pin", "Trash"], id: \.self) { Button($0) {} }
+                ForEach(["Copy", "Preview", "Pin", "Trash"], id: \.self) { Button($0) {} }
             }
             .buttonStyle(NotchButtonStyle())
         }
