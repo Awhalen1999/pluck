@@ -474,6 +474,10 @@ Verified on this machine; each one notes how.
 - **A saved capture keeps its file.** Moving from the holding folder to the
   user's keeps the file's identity (`fileIdentifierKey`), so its thumbnail is
   cached by that, not by path.
+- **CI's compiler is older.** GitHub's macOS runner has Xcode 26.6 (Swift
+  6.3), which crashes generating the thunk for a main-actor method passed
+  straight as a `Binding` setter (`set: model.method`). Write the closure
+  (`set: { model.method($0) }`). (Caught by the first CI run, 2026-10-24.)
 - **Not yet verified:** whether access
   allowed in System Settings counts without relaunching Pluck (Pluck looks again
   whenever it becomes active).

@@ -12,7 +12,7 @@ struct GeneralSettings: View {
         Form {
             Section {
                 SaveFolderPicker(setup: setup, choosingFolder: $choosingFolder)
-                Picker(selection: Binding(get: { preferences.preview }, set: setup.setPreview)) {
+                Picker(selection: Binding(get: { preferences.preview }, set: { setup.setPreview($0) })) {
                     Text("Pluck").tag(PreviewStyle.pluck)
                     Text("macOS").tag(PreviewStyle.macOS)
                 } label: {
