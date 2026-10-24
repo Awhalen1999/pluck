@@ -27,7 +27,7 @@ struct ShotImage: View {
 }
 
 /// A shot in Peek or the Shelf: click copies, ⌘-click selects (in the Shelf),
-/// double-click opens Quick Look, and it drags into other apps. Ringed while it
+/// double-click opens it in Preview, and it drags into other apps. Ringed while it
 /// has the focus, in the accent while selected.
 struct ShotTile: View {
     let shot: Shot
@@ -59,7 +59,7 @@ struct ShotTile: View {
             }
             .overlay {
                 ShotInteraction(onClick: { controller.clicked(shot.id, modifiers: $0) },
-                                onDoubleClick: { controller.quickLook(shot.id) },
+                                onDoubleClick: { controller.openInPreview([shot.id]) },
                                 onDrag: { controller.beginDrag(shot.id, from: $0, event: $1) },
                                 menu: { controller.menu(for: shot.id) })
             }
@@ -73,7 +73,7 @@ struct ShotTile: View {
     }
 }
 
-/// The notch's text buttons: Copy, Markup, Pin, Trash. They act on a tap, not
+/// The notch's text buttons: Copy, Preview, Pin, Trash. They act on a tap, not
 /// through a system button's press tracking, which keeps its own view from
 /// animating with the change it makes: the clicked button jumped while its
 /// neighbours moved on the notch's spring.

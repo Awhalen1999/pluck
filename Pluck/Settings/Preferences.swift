@@ -7,7 +7,7 @@ import Foundation
         didSet { defaults.set(retention.rawValue, forKey: Key.retention) }
     }
 
-    /// "Shots you drag out": handed off, leaving Pluck once dropped. Pinned shots stay.
+    /// "When dragged into an app": Remove hands shots off, leaving Pluck once dropped. Pinned shots stay.
     var removeDraggedOut: Bool {
         didSet { defaults.set(removeDraggedOut, forKey: Key.removeDraggedOut) }
     }
@@ -17,7 +17,7 @@ import Foundation
         didSet { defaults.set(opensOnHover, forKey: Key.opensOnHover) }
     }
 
-    /// "Show latest shot when idle", beside the notch.
+    /// "Show latest screenshot", beside the notch.
     var showsLatestWhenIdle: Bool {
         didSet { defaults.set(showsLatestWhenIdle, forKey: Key.showsLatestWhenIdle) }
     }
@@ -39,7 +39,7 @@ import Foundation
         didSet { defaults.set(preview.rawValue, forKey: Key.preview) }
     }
 
-    /// "Keep the preview up for".
+    /// "Show preview for".
     var previewDuration: PreviewDuration {
         didSet { defaults.set(previewDuration.rawValue, forKey: Key.previewDuration) }
     }
@@ -55,9 +55,9 @@ import Foundation
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         retention = defaults.string(forKey: Key.retention).flatMap(Retention.init) ?? .sevenDays
-        removeDraggedOut = defaults.object(forKey: Key.removeDraggedOut) as? Bool ?? true
+        removeDraggedOut = defaults.object(forKey: Key.removeDraggedOut) as? Bool ?? false
         opensOnHover = defaults.object(forKey: Key.opensOnHover) as? Bool ?? true
-        showsLatestWhenIdle = defaults.object(forKey: Key.showsLatestWhenIdle) as? Bool ?? true
+        showsLatestWhenIdle = defaults.object(forKey: Key.showsLatestWhenIdle) as? Bool ?? false
         notchDisplay = defaults.string(forKey: Key.notchDisplay).flatMap(NotchDisplay.init) ?? .builtIn
         showsMenuBarIcon = defaults.object(forKey: Key.showsMenuBarIcon) as? Bool ?? true
         preview = defaults.string(forKey: Key.preview).flatMap(PreviewStyle.init) ?? .macOS

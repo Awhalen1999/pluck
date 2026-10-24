@@ -14,7 +14,7 @@ final class KeyboardHandoff {
         self.panel = panel
         Task { [weak self, panel] in
             for await _ in NotificationCenter.default.notifications(named: NSWindow.didResignKeyNotification, object: panel) {
-                // Quick Look takes it too, but Pluck stays active.
+                // One of Pluck's own windows can take it too; then Pluck stays active.
                 if !NSApp.isActive { self?.onTakenAway() }
             }
         }
@@ -31,23 +31,16 @@ final class KeyboardHandoff {
         panel.makeKey()
     }
 
-    /// For Quick Look, which only takes keys in the active app. macOS refuses the
-    /// activation unless the notch has the keyboard first.
-    func comeForward() {
-        take()
-        NSApp.activate()
-    }
-
     func giveBack() {
         panel.acceptsKeyboard = false
-        // Not while the user is in one of Pluck's own windows, like Quick Look.
+        // Not while the user is in one of Pluck's own windows, like Settings.
         guard let before, NSApp.keyWindow == nil || NSApp.keyWindow === panel else { return }
         self.before = nil
         if let window = before.window, window.isVisible {
             window.makeKey()
         } else {
-            // A key notch lets go by deactivating. After Quick Look Pluck is truly
-            // active, and only activating the user's app gives the keyboard back.
+            // A key notch lets go by deactivating. Should Pluck be truly active,
+            // only activating the user's app gives the keyboard back.
             NSApp.deactivate()
             before.app?.activate()
         }

@@ -119,17 +119,20 @@ enum Theme {
     /// The onboarding window: native controls, and small drawings of the notch
     /// on a stand-in screen.
     enum Onboarding {
-        /// Below the title bar, which makes the window 560 pt square.
-        static let size = CGSize(width: 560, height: 528)
-        /// Side margins for each step's header.
-        static let inset: CGFloat = 44
+        /// Below the title bar. Just tall enough for the welcome, its video at full width.
+        static let size = CGSize(width: 560, height: 574)
+        /// The one spacing in every step: the side margins, the space between its
+        /// parts, and the footer's. It's the grouped Form's own inset, so rows,
+        /// drawings, the video and the buttons share one edge, and a header sits as
+        /// far above a Form as above a drawing.
+        static let margin: CGFloat = 20
         /// A header's message is held to this width, so it breaks into even lines.
         static let messageWidth: CGFloat = 400
         static let welcomeTitle = Font.largeTitle.bold()
         static let title = Font.title.bold()
         static let iconSize: CGFloat = 64
-        /// The promo is 16:9.
-        static let videoSize = CGSize(width: 412, height: 232)
+        /// The promo, 16:9, from margin to margin.
+        static let videoSize = CGSize(width: size.width - 2 * margin, height: (size.width - 2 * margin) * 9 / 16)
         /// The footer's page dots: the current one long, the ones done in the accent.
         static let dot: CGFloat = 5
         static let currentDotWidth: CGFloat = 18
@@ -140,18 +143,14 @@ enum Theme {
                                               startPoint: .top, endPoint: .bottom)
         static let wallpaperGlow = RadialGradient(colors: [Palette.accent.opacity(0.35), .clear],
                                                   center: UnitPoint(x: 0.75, y: 1.2), startRadius: 0, endRadius: 200)
-        /// The preview choices' drawings: Pluck's open in the notch, or the
-        /// macOS thumbnail in the corner.
-        static let choiceArtHeight: CGFloat = 96
-        static let choiceNotch = CGSize(width: 124, height: 78)
-        static let choiceTileHeight: CGFloat = 13
-        static let choiceIdleNotch = CGSize(width: 70, height: 12)
-        static let choiceThumbnail = CGSize(width: 78, height: 46)
-        /// The last step's drawing: the notch at rest over ⇧⌘4, then open on the
-        /// first screenshot.
-        static let firstShotArtHeight: CGFloat = 170
-        static let firstShotIdle = CGSize(width: 150, height: 22)
-        static let firstShotOpen = CGSize(width: 240, height: 112)
+        /// The preview choices' drawings: the notch drawn at its real size, then
+        /// scaled down, so the Preview looks exactly as it will.
+        static let choiceArtHeight: CGFloat = 116
+        static let artScale: CGFloat = 0.36
+        static let choiceThumbnailWidth: CGFloat = 80
+        /// The last step's drawing: the notch at rest over ⇧⌘4.
+        static let shortcutArtHeight: CGFloat = 170
+        static let shortcutNotch = CGSize(width: 150, height: 22)
         static let keycapSize: CGFloat = 30
         static let keycapFont = Font.title3
         /// The last step's badge: a viewfinder while it waits, a check once done.

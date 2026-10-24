@@ -97,7 +97,7 @@ struct DesignSystemView: View {
             HStack(alignment: .top, spacing: Theme.Space.xl) {
                 PreviewArt(style: .pluck).frame(width: Demo.artWidth)
                 PreviewArt(style: .macOS).frame(width: Demo.artWidth)
-                FirstShotArt(shot: nil).frame(width: Demo.artWidth * 1.4)
+                ShortcutArt().frame(width: Demo.artWidth * 1.4)
             }
         }
     }

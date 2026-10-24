@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The first run, in five steps: the welcome, where screenshots go, which
 /// preview shows them, a few defaults, and the first screenshot. A choice that
-/// changes macOS takes effect when it's made, never before: the save folder
-/// when it's picked, the preview and login item on Continue.
+/// changes macOS takes effect on Continue, never before: the save folder (or as
+/// soon as its access is asked for), the preview, the login item.
 struct OnboardingView: View {
     let preferences: Preferences
     let setup: ScreenshotSetup
@@ -12,6 +12,9 @@ struct OnboardingView: View {
     let finish: () -> Void
 
     @State private var step: Step
+    /// Where screenshots will go. With no folder chosen yet, macOS's Screenshots
+    /// folder rather than its default, the Desktop: tidier, and no permission.
+    @State private var folder: URL
     @State private var preview = PreviewStyle.pluck
     @State private var opensAtLogin = true
     @State private var choosingFolder = false
@@ -29,6 +32,7 @@ struct OnboardingView: View {
         self.library = library
         self.finish = finish
         _step = State(initialValue: preferences.onboarding == .new ? .welcome : .saveLocation)
+        _folder = State(initialValue: setup.hasChosenFolder ? setup.saveFolder : .screenshotsFolder)
     }
 
     var body: some View {
@@ -42,26 +46,26 @@ struct OnboardingView: View {
                 case .firstScreenshot: firstScreenshot
                 }
             }
-            .padding(.top, Theme.Space.xl)
+            .padding(.top, Theme.Onboarding.margin)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             Divider()
             footer
         }
         .frame(width: Theme.Onboarding.size.width, height: Theme.Onboarding.size.height)
         .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
-            if case .success(let folder) = result { setup.setSaveFolder(folder) }
+            if case .success(let chosen) = result { folder = chosen }
         }
     }
 
     // MARK: Steps
 
     private var welcome: some View {
-        VStack(spacing: Theme.Space.xl) {
+        VStack(spacing: Theme.Onboarding.margin) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: Theme.Onboarding.iconSize, height: Theme.Onboarding.iconSize)
             header("Welcome to Pluck",
-                   "Your screenshots, right in the notch. Drag them anywhere, copy in a click, and old ones clean themselves up.",
+                   "Pluck keeps your screenshots in the notch, ready to copy or drag into any app, and clears out the old ones for you.",
                    font: Theme.Onboarding.welcomeTitle)
             PromoVideo()
                 .frame(width: Theme.Onboarding.videoSize.width, height: Theme.Onboarding.videoSize.height)
@@ -70,14 +74,14 @@ struct OnboardingView: View {
     }
 
     private var saveLocation: some View {
-        let path = setup.saveFolder.path(percentEncoded: false)
+        let path = folder.path(percentEncoded: false)
         let name = FileManager.default.displayName(atPath: path)
-        return choices("Where should screenshots go?",
-                       "Pluck uses your Mac’s screenshot folder and only picks up real screenshots, so other files in it are left alone.") {
+        return choices("Choose a folder",
+                       "macOS saves your screenshots here. Pluck works only with screenshots and leaves other files alone.") {
             Section {
                 LabeledContent {
                     Menu("Change") {
-                        SaveFolderPicker(setup: setup, choosingFolder: $choosingFolder)
+                        SaveFolderPicker(folder: folder, choose: { folder = $0 }, choosingFolder: $choosingFolder)
                             .pickerStyle(.inline)
                             .labelsHidden()
                     }
@@ -90,19 +94,20 @@ struct OnboardingView: View {
                         Image(nsImage: NSWorkspace.shared.icon(for: .folder))
                     }
                 }
-                folderAccess(name: name)
+                if access != .notNeeded { folderAccess }
             } footer: {
-                Label("Changing it here also changes ⇧⌘5 → Options. Nothing leaves your Mac.", systemImage: "lock")
+                Label("Your screenshots never leave your Mac.", systemImage: "lock")
                     .frame(maxWidth: .infinity)
             }
         }
     }
 
-    private func folderAccess(name: String) -> some View {
+    private var folderAccess: some View {
         LabeledContent {
             switch access {
             case .ask:
                 Button("Allow Access…") {
+                    useFolder()
                     Task {
                         await library.requestAccess()
                         // After its prompt macOS goes back to the app the user was in
@@ -116,34 +121,32 @@ struct OnboardingView: View {
         } label: {
             Text("Folder access")
             switch access {
-            case .ask: Text("macOS protects your \(name) folder, so it will ask once.")
-            case .denied: Text("Pluck can’t see new screenshots without this.").foregroundStyle(Theme.Palette.denied)
-            case .notNeeded: Text("No permission needed for this folder.")
-            case .allowed: Text("Pluck can see new screenshots here.")
+            case .ask: Text("macOS asks once before Pluck can see this folder.")
+            case .denied: Text("Pluck needs this to see new screenshots.").foregroundStyle(Theme.Palette.denied)
+            case .notNeeded, .allowed: Text("Pluck can see new screenshots here.")
             }
         }
     }
 
     private var previewChoice: some View {
-        choices("Choose your preview", "What you see right after you take a screenshot.") {
+        choices("Choose a preview", "What appears after you take a screenshot.") {
             Section {
                 HStack(alignment: .top, spacing: Theme.Space.l) {
-                    choice(.pluck, "Pluck preview",
-                           "A live preview in the notch with Copy, Markup, Pin and Trash. Drag it straight into any app.")
-                    choice(.macOS, "macOS thumbnail", "Apple’s standard corner thumbnail, with Markup.")
+                    choice(.pluck, "Pluck preview")
+                    choice(.macOS, "macOS thumbnail")
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 if preview == .pluck { PreviewDurationPicker(preferences: preferences) }
             } footer: {
                 Text(preview == .pluck
-                     ? "Pluck turns off the macOS floating thumbnail so the two don’t overlap."
+                     ? "Pluck turns off the macOS thumbnail while it runs."
                      : "Pluck leaves your macOS settings as they are.")
                     .frame(maxWidth: .infinity)
             }
         }
     }
 
-    private func choice(_ style: PreviewStyle, _ title: String, _ detail: String) -> some View {
+    private func choice(_ style: PreviewStyle, _ title: String) -> some View {
         let chosen = preview == style
         let shape = RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
         return Button { preview = style } label: {
@@ -161,7 +164,7 @@ struct OnboardingView: View {
                             .background(.tint.quaternary, in: .rect(cornerRadius: Theme.Radius.mini))
                     }
                 }
-                Text(detail)
+                Text(style.detail)
                     .font(Theme.Typography.detail)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -179,32 +182,39 @@ struct OnboardingView: View {
     }
 
     private var defaults: some View {
-        let name = FileManager.default.displayName(atPath: setup.saveFolder.path(percentEncoded: false))
-        return choices("Make it yours", "A few defaults. Change anything later in Settings.") {
+        choices("Set your defaults", "You can change these any time in Settings.") {
             Section {
                 Toggle("Open Pluck at login", isOn: $opensAtLogin)
-                DragOutPicker(preferences: preferences, folderName: name)
+                DragOutPicker(preferences: preferences)
                 RetentionPicker(preferences: preferences)
             } footer: {
-                Text("Pinned screenshots are always kept.").frame(maxWidth: .infinity)
+                Text("Screenshots from before Pluck are never cleaned up.").frame(maxWidth: .infinity)
             }
         }
     }
 
     private var firstScreenshot: some View {
-        VStack(spacing: Theme.Space.xl) {
+        VStack(spacing: Theme.Onboarding.margin) {
             Image(systemName: firstShot == nil ? "viewfinder" : "checkmark")
                 .font(Theme.Onboarding.statusFont)
                 .foregroundStyle(firstShot == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.white))
                 .frame(width: Theme.Onboarding.statusSize, height: Theme.Onboarding.statusSize)
                 .background(firstShot == nil ? AnyShapeStyle(.fill.tertiary) : AnyShapeStyle(.tint), in: .circle)
             if firstShot == nil {
-                header("Take your first screenshot", "Press ⇧⌘4 and drag over anything. It will show up in the notch.")
+                header("Take a screenshot", "Press ⇧⌘4, then drag over any part of the screen.")
+                ShortcutArt()
+                    .padding(.horizontal, Theme.Onboarding.margin)
             } else {
-                header("You’re all set", "Pluck lives in your notch. Hover there any time to see your screenshots.")
+                choices("You’re all set", "Here’s how to get to your screenshots.") {
+                    Section {
+                        tip("Hover over the notch", "See your latest screenshots.", symbol: "cursorarrow")
+                        tip("Click the notch", "See all of them, and pin the ones to keep.", symbol: "cursorarrow.click")
+                        tip("Drag a screenshot", "Drop it into any app or folder.", symbol: "hand.draw")
+                    } footer: {
+                        Text("Settings are in the Pluck menu, in the menu bar.").frame(maxWidth: .infinity)
+                    }
+                }
             }
-            FirstShotArt(shot: firstShot)
-                .padding(.horizontal, Theme.Onboarding.inset)
         }
         .onAppear { waitingSince = .now }
         .onChange(of: library.pending.first ?? library.shots.first) { _, newest in
@@ -223,17 +233,27 @@ struct OnboardingView: View {
         }
         .multilineTextAlignment(.center)
         .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, Theme.Onboarding.inset)
+        .padding(.horizontal, Theme.Onboarding.margin)
     }
 
     /// A step with choices: its header, then native rows, as in Settings.
     private func choices(_ title: String, _ message: String, @ViewBuilder rows: () -> some View) -> some View {
         VStack(spacing: 0) {
             header(title, message)
+            // Its own inset is the margin, above and beside it.
             Form { rows() }
                 .formStyle(.grouped)
                 .scrollContentBackground(.hidden)
                 .scrollDisabled(true)
+        }
+    }
+
+    private func tip(_ title: String, _ detail: String, symbol: String) -> some View {
+        Label {
+            Text(title)
+            Text(detail)
+        } icon: {
+            Image(systemName: symbol).foregroundStyle(.tint)
         }
     }
 
@@ -254,14 +274,14 @@ struct OnboardingView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button(step == .welcome ? "Get Started" : step == .firstScreenshot ? "Open Pluck" : "Continue", action: next)
+                Button(step == .welcome ? "Get Started" : step == .firstScreenshot ? "Done" : "Continue", action: next)
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canContinue)
             }
         }
         .controlSize(.large)
-        .padding(Theme.Space.xl)
+        .padding(Theme.Onboarding.margin)
     }
 
     // MARK: Flow
@@ -279,6 +299,7 @@ struct OnboardingView: View {
         case .welcome:
             preferences.onboarding = .started
         case .saveLocation:
+            useFolder()
             library.start()
             // A folder that turned out to be protected after all just asked.
             guard library.canReadFolder == true else { return }
@@ -294,15 +315,22 @@ struct OnboardingView: View {
         step = Step(rawValue: step.rawValue + 1)!
     }
 
+    /// Gives macOS the folder shown, if it doesn't have it already.
+    private func useFolder() {
+        if folder.standardPath != setup.saveFolder.standardPath { setup.setSaveFolder(folder) }
+    }
+
     private enum Access { case notNeeded, ask, allowed, denied }
 
-    /// Pluck hasn't looked in the folder until onboarding asks for it.
+    /// Pluck hasn't looked in the folder until onboarding asks for it, and knows
+    /// nothing about one macOS doesn't have yet.
     private var access: Access {
-        switch (library.canReadFolder, setup.saveFolder.isPrivacyProtected) {
-        case (false?, _): .denied
-        case (nil, true): .ask
-        case (_, false): .notNeeded
-        case (true?, true): .allowed
+        let canRead = folder.standardPath == setup.saveFolder.standardPath ? library.canReadFolder : nil
+        switch (canRead, folder.isPrivacyProtected) {
+        case (false?, _): return .denied
+        case (nil, true): return .ask
+        case (_, false): return .notNeeded
+        case (true?, true): return .allowed
         }
     }
 }
@@ -346,10 +374,8 @@ private extension URL {
     /// before an app reads these.
     // ponytail: iCloud Drive and other volumes ask too; chosen here, they ask at Continue.
     var isPrivacyProtected: Bool {
-        let path = (path(percentEncoded: false) as NSString).standardizingPath
-        return [URL.desktopDirectory, .documentsDirectory, .downloadsDirectory].contains { folder in
-            let protected = (folder.path(percentEncoded: false) as NSString).standardizingPath
-            return path == protected || path.hasPrefix(protected + "/")
+        [URL.desktopDirectory, .documentsDirectory, .downloadsDirectory].contains { protected in
+            standardPath == protected.standardPath || standardPath.hasPrefix(protected.standardPath + "/")
         }
     }
 }

@@ -32,7 +32,7 @@ struct AboutSettings: View {
                         Text("Check for updates automatically")
                         Text("Pluck looks for a new version once a day.")
                     }
-                    LabeledContent("Check for updates now") {
+                    LabeledContent("Check for updates") {
                         Button("Check Now") { updater.checkForUpdates() }
                     }
                 }
@@ -48,11 +48,11 @@ struct AboutSettings: View {
                 } label: {
                     Text("Restore macOS screenshot settings")
                     Text(restored
-                         ? "Your original screenshot settings are back."
-                         : "Returns the save location and thumbnail to how they were before Pluck.")
+                         ? "Your original settings are back."
+                         : "Puts the save location and thumbnail back the way they were before Pluck.")
                 }
                 LabeledContent {
-                    Button(preferences.onboarding == .finished ? "Show" : "Opens next launch") {
+                    Button("Show Next Time") {
                         preferences.onboarding = .new
                     }
                     .disabled(preferences.onboarding != .finished)

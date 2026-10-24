@@ -11,7 +11,7 @@ enum ShelfKey: Equatable {
     /// Return, so the next ⌘V lands in the user's app.
     case copyAndClose
     case copy
-    case quickLook
+    case preview
     case trash
     case undo
     case pin
@@ -35,7 +35,7 @@ enum ShelfKey: Equatable {
         } else if command, key == "c" {
             self = .copy
         } else if plain, key == " " {
-            self = .quickLook
+            self = .preview
         } else if plain || command, special == .delete || special == .deleteForward {
             self = .trash
         } else if command, key == "z" {
