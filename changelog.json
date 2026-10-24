@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "version": "1.0.0",
+    "build": "2",
+    "date": "2026-10-24",
+    "notes": "Pluck 1.0 is here.\n\nPluck lives in your notch and makes the screenshot you just took easy to use, then gets it out of your way.\n\nIn this first release:\n\n- Every screenshot appears in the notch, ready to copy, mark up, pin, or drag into any app\n- Hover the notch to peek at recent screenshots, or click it to open the Shelf and see them all\n- Old screenshots move to the Trash on your schedule, and pinned ones are always kept\n- Pluck only touches real screenshots, asks for one permission, and nothing leaves your Mac"
+  }
+]

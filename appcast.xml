@@ -7,5 +7,25 @@
         <link>https://downloads.pluck.awln.dev/appcast.xml</link>
         <description>Most recent updates for Pluck.</description>
         <language>en</language>
+        <item>
+            <title>1.0.0</title>
+            <pubDate>Sat, 24 Oct 2026 14:29:35 +0000</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[
+<p>Pluck 1.0 is here.</p>
+<p>Pluck lives in your notch and makes the screenshot you just took easy to use, then gets it out of your way.</p>
+<p>In this first release:</p>
+<ul>
+<li>Every screenshot appears in the notch, ready to copy, mark up, pin, or drag into any app</li>
+<li>Hover the notch to peek at recent screenshots, or click it to open the Shelf and see them all</li>
+<li>Old screenshots move to the Trash on your schedule, and pinned ones are always kept</li>
+<li>Pluck only touches real screenshots, asks for one permission, and nothing leaves your Mac</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/Awhalen1999/pluck/releases/download/v1.0.0/Pluck.dmg" sparkle:edSignature="VEWD+K4MKa/4aHKOQbXrRwJIMqLViknKoZqQGTb/D180vA1sQrJSfPJdblFRDgk/J7tFQEX1eCapv1jV8Cb4Bw==" length="8169071" type="application/octet-stream"/>
+        </item>
+
     </channel>
 </rss>
