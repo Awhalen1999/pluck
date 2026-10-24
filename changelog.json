@@ -1,5 +1,11 @@
 [
   {
+    "version": "1.0.1",
+    "build": "3",
+    "date": "2026-10-24",
+    "notes": "Pluck 1.0.1\n\n- Viewing a screenshot now always opens it in Preview, where Markup is. The Markup button is now called Preview, and Quick Look is gone from the menu, double-click and Space.\n- Screenshots you drag into an app now stay in your folder by default. Choose Remove in Settings to have them leave once dropped.\n- The small thumbnail beside the notch is now off by default, so Pluck stays out of sight until you need it. Turn it on in Settings.\n- New installs save screenshots to the Screenshots folder in Pictures, which needs no extra permission.\n- Onboarding shows the real Pluck preview when you choose between it and the macOS thumbnail, and ends with a quick guide to the notch.\n- Clearer, simpler wording throughout onboarding and Settings."
+  },
+  {
     "version": "1.0.0",
     "build": "2",
     "date": "2026-10-24",

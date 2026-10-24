@@ -8,6 +8,26 @@
         <description>Most recent updates for Pluck.</description>
         <language>en</language>
         <item>
+            <title>1.0.1</title>
+            <pubDate>Sat, 24 Oct 2026 16:11:43 +0000</pubDate>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[
+<p>Pluck 1.0.1</p>
+<ul>
+<li>Viewing a screenshot now always opens it in Preview, where Markup is. The Markup button is now called Preview, and Quick Look is gone from the menu, double-click and Space.</li>
+<li>Screenshots you drag into an app now stay in your folder by default. Choose Remove in Settings to have them leave once dropped.</li>
+<li>The small thumbnail beside the notch is now off by default, so Pluck stays out of sight until you need it. Turn it on in Settings.</li>
+<li>New installs save screenshots to the Screenshots folder in Pictures, which needs no extra permission.</li>
+<li>Onboarding shows the real Pluck preview when you choose between it and the macOS thumbnail, and ends with a quick guide to the notch.</li>
+<li>Clearer, simpler wording throughout onboarding and Settings.</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/Awhalen1999/pluck/releases/download/v1.0.1/Pluck.dmg" sparkle:edSignature="wn+PgmnPmAEwIkhK1r5pD7W0JS+dgBXJ9WXC/Rr7bJBnvRpUKFla7UzbKyN4J5kRly8IDJRRu+EK29yrjNQZAw==" length="8187438" type="application/octet-stream"/>
+        </item>
+
+        <item>
             <title>1.0.0</title>
             <pubDate>Sat, 24 Oct 2026 14:29:35 +0000</pubDate>
             <sparkle:version>2</sparkle:version>
