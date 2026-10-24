@@ -1,26 +1,13 @@
+<div align="center">
+  <img src=".github/assets/app-icon.png" width="180" height="180" alt="Pluck icon">
+
 # Pluck
 
-Your screenshots, right in the notch. Pluck is a small macOS app for people who
-take a lot of throwaway screenshots: drag them anywhere, copy in a click, and old
-ones clean themselves up.
+</div>
 
-Everything stays on your Mac. Pluck only works with real screenshots, and anything
-it removes goes to the Trash.
+Pluck is a screenshot shelf that lives in your Mac's notch. Take a screenshot and it appears right there, ready to copy, mark up, pin, or drag into any app.
 
-Requires macOS 26 or later.
-
-## Status
-
-In development. Not released yet.
-
-## Roadmap
-
-- [x] Preview in the notch after every screenshot: copy, markup, pin, trash
-- [x] Peek at recent shots by hovering the notch
-- [x] The Shelf: every recent shot, grouped by day, with pins on top
-- [x] Drag a shot straight into any app
-- [x] Automatic cleanup to the Trash, pinned shots always kept
-- [x] Keyboard shortcuts and Quick Look
-- [x] Works on displays without a notch
-- [ ] Settings and first-run onboarding
-- [ ] Signed, notarized releases with automatic updates
+[![download](https://img.shields.io/github/v/release/Awhalen1999/pluck?label=download&color=brightgreen)](https://github.com/Awhalen1999/pluck/releases/latest)
+![platform](https://img.shields.io/badge/platform-macOS-blue)
+![requirements](https://img.shields.io/badge/requirements-macOS%2026%2B-fa4e49)
+[![license](https://img.shields.io/github/license/Awhalen1999/pluck?color=orange)](LICENSE)
