@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AA1D41AD8C075D6F3AC3998B /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 177039CB3B639C7CB8777291 /* Sparkle */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		A507465C36C1BBBC561AD6E0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -42,6 +46,17 @@
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
+/* Begin PBXFrameworksBuildPhase section */
+		0DE17B04D02149733286B2BD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA1D41AD8C075D6F3AC3998B /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
 /* Begin PBXGroup section */
 		648FDB677F38E5CE9A9FC3AC /* Products */ = {
 			isa = PBXGroup;
@@ -69,6 +84,7 @@
 			buildConfigurationList = A6D0061185E6E4FE99EE212A /* Build configuration list for PBXNativeTarget "Pluck" */;
 			buildPhases = (
 				B3688CC64E2A3784AA18F055 /* Sources */,
+				0DE17B04D02149733286B2BD /* Frameworks */,
 				0E74CB23CAA0DB60122B8D33 /* Resources */,
 			);
 			buildRules = (
@@ -80,6 +96,7 @@
 			);
 			name = Pluck;
 			packageProductDependencies = (
+				177039CB3B639C7CB8777291 /* Sparkle */,
 			);
 			productName = Pluck;
 			productReference = DC983D71C65D3D2772BD4922 /* Pluck.app */;
@@ -135,6 +152,9 @@
 			);
 			mainGroup = 7F808B3FFADB9F365705A235;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7BBA68710E290B56D639AF62 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 648FDB677F38E5CE9A9FC3AC /* Products */;
 			projectDirPath = "";
@@ -197,6 +217,7 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Pluck;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -209,7 +230,7 @@
 				);
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = app.pluck.Pluck;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.awln.pluck;
 				PRODUCT_NAME = Pluck;
 				SDKROOT = macosx;
 			};
@@ -296,7 +317,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.pluck.PluckTests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.awln.pluck.tests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pluck.app/Contents/MacOS/Pluck";
 			};
@@ -313,7 +334,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.pluck.PluckTests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.awln.pluck.tests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pluck.app/Contents/MacOS/Pluck";
 			};
@@ -390,6 +411,7 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Pluck;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -402,7 +424,7 @@
 				);
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = app.pluck.Pluck;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.awln.pluck;
 				PRODUCT_NAME = Pluck;
 				SDKROOT = macosx;
 			};
@@ -439,6 +461,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7BBA68710E290B56D639AF62 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		177039CB3B639C7CB8777291 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7BBA68710E290B56D639AF62 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F0416873598E5CE022435FD0 /* Project object */;
 }

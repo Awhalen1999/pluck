@@ -7,8 +7,8 @@ import Testing
 /// test ends.
 @MainActor
 private final class Scratch {
-    let domain = "app.pluck.tests.screencapture-\(UUID().uuidString)"
-    let storeName = "app.pluck.tests.originals-\(UUID().uuidString)"
+    let domain = "dev.awln.pluck.tests.screencapture-\(UUID().uuidString)"
+    let storeName = "dev.awln.pluck.tests.originals-\(UUID().uuidString)"
     let holding = FileManager.default.temporaryDirectory.appending(path: "PluckTests-holding-\(UUID().uuidString)")
     lazy var settings = ScreencaptureSettings(domain: domain, store: UserDefaults(suiteName: storeName)!, holding: holding)
 

@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 /// Builds the app's long-lived pieces once, at launch, and wires them together.
@@ -8,6 +9,9 @@ import SwiftUI
     private(set) var library: ShotLibrary?
     private(set) var setup: ScreenshotSetup?
     private(set) var notch: NotchController?
+    /// Sparkle, configured in Info.plist: the feed, its key and a daily check.
+    /// Release builds only, so a development build never updates itself.
+    private(set) var updates: SPUStandardUpdaterController?
     @ObservationIgnored private var onboarding: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -25,6 +29,10 @@ import SwiftUI
         self.setup = setup
         notch = NotchController(library: library, preferences: preferences)
         watchWindows()
+        #if !DEBUG
+        // ponytail: no gentle reminders, so a scheduled update's window can open behind the user's app; add SPUStandardUserDriverDelegate if updates go unnoticed.
+        updates = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        #endif
         // Onboarding starts the library once it has asked for the folder.
         if preferences.onboarding == .finished { library.start() } else { showOnboarding(library: library, setup: setup) }
     }

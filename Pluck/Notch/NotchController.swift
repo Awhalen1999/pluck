@@ -2,7 +2,7 @@ import AppKit
 import OSLog
 import SwiftUI
 
-private let log = Logger(subsystem: "app.pluck.Pluck", category: "Notch")
+private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
 
 /// Owns the notch: its state, what the user does with it, and where it sits. The
 /// rules are `NotchMachine`'s; this feeds it events and carries out actions.

@@ -2,7 +2,7 @@ import AppKit
 import OSLog
 import UniformTypeIdentifiers
 
-private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotLibrary")
+private let log = Logger(subsystem: "dev.awln.pluck", category: "ShotLibrary")
 
 /// The screenshots Pluck manages, and what it remembers about them: the one owner
 /// of every shot file, and every action on a shot goes through it.

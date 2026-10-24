@@ -2,3 +2,8 @@
 xcuserdata/
 DerivedData/
 build/
+
+# Signing material never belongs in the repo.
+*.p12
+*.p8
+.env

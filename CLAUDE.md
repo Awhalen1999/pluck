@@ -251,7 +251,7 @@ says what happens in one plain line below it.
 
 - The Xcode project uses synced folders: a new file under `Pluck/` or
   `PluckTests/` is in the build automatically. Edit `project.pbxproj` only for
-  build settings.
+  build settings and packages.
 - Swift 6 language mode, main actor by default. Not sandboxed, hardened runtime.
 - Unit tests run inside the app, so `AppDelegate` starts nothing under XCTest.
   Anything that touches the system starts from there.
@@ -262,6 +262,24 @@ says what happens in one plain line below it.
   one PR per change, and `main` stays release-ready.
 - Spikes live on `spike/*` branches and are never merged; what they prove is
   written into Platform facts below.
+
+## Releasing
+
+- `./release.sh X.Y.Z` on a clean, synced `main` sets the version, bumps the
+  build number, tags with the release notes and pushes. The tag runs
+  `release.yml`: the tests, a Developer ID archive, notarization of the app and
+  the DMG, Sparkle's signature, a GitHub Release, and the update feed.
+- The feed is `https://downloads.pluck.awln.dev/appcast.xml`, on the
+  `gh-pages` branch, with `changelog.json` beside it for the website. The
+  domain is a Cloudflare CNAME to GitHub Pages, DNS only.
+- Release notes are the tag message, in Pluck's voice: one plain line, then
+  short bullets. No em dashes.
+- Signing material lives in the repo's Actions secrets, never in a file.
+  Sparkle's private key is also in the login keychain, under the `pluck`
+  account; its public half is in `Info.plist`.
+- Only Release builds start Sparkle, so a development build never updates
+  itself.
+- A failed release is fixed with a new version number, never a moved tag.
 
 ## Platform facts
 
@@ -349,7 +367,7 @@ Verified on this machine; each one notes how.
   answered. Onboarding triggers it on purpose, at its "Allow Access" step, from
   a background thread. Allowing in System Settings › Files & Folders asks for
   Touch ID or a password; `tccutil reset SystemPolicyDesktopFolder
-  app.pluck.Pluck` puts the prompt back without one.
+  dev.awln.pluck` puts the prompt back without one.
 - **A prompt hands activation away.** Once the access prompt is answered,
   macOS activates the app the user was in before, never a menu bar app, and
   refuses `NSApp.activate()`; `NSApp.activate(ignoringOtherApps: true)` still

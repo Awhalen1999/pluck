@@ -64,7 +64,7 @@ extension ShotIndex {
 
 // MARK: - Disk
 
-private let log = Logger(subsystem: "app.pluck.Pluck", category: "ShotIndex")
+private let log = Logger(subsystem: "dev.awln.pluck", category: "ShotIndex")
 
 extension ShotIndex {
     static let defaultURL = URL.applicationSupportDirectory.appending(path: "Pluck/index.json")

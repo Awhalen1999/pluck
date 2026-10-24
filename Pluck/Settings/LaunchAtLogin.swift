@@ -1,7 +1,7 @@
 import OSLog
 import ServiceManagement
 
-private let log = Logger(subsystem: "app.pluck.Pluck", category: "LaunchAtLogin")
+private let log = Logger(subsystem: "dev.awln.pluck", category: "LaunchAtLogin")
 
 /// "Open Pluck at login". The system owns it, so it's read from there each time
 /// and never stored in Pluck's preferences.

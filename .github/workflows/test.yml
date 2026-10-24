@@ -1,0 +1,34 @@
+name: Tests
+
+# Runs the suite on every pull request, so a red suite blocks the merge once the
+# check is required. The release workflow runs the same job before anything
+# ships. It can also be run by hand from the Actions tab.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to a pull request supersedes the run before it.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # The runner has no Developer ID, so the test host runs unsigned. The suite
+      # is hermetic (temp folders, scratch preferences, no network), so that's
+      # enough to run every test the signed app would.
+      - name: Run tests
+        run: >
+          xcodebuild test -project Pluck.xcodeproj -scheme Pluck
+          -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO

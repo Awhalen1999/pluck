@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Sparkle's keys. Build settings only cover Apple's own keys, so these live
+	     here, and GENERATE_INFOPLIST_FILE merges the rest on top. -->
+	<key>SUFeedURL</key>
+	<string>https://downloads.pluck.awln.dev/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>xlc4cJufDCTnkYA0xW4e5Nii7xfoncS8mKnfoMheLlg=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+</dict>
+</plist>

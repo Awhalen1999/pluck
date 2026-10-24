@@ -1,9 +1,13 @@
+import Sparkle
 import SwiftUI
 
 struct AboutSettings: View {
     let preferences: Preferences
     let setup: ScreenshotSetup
+    /// Nil in development builds, which never update themselves.
+    let updater: SPUUpdater?
     @State private var restored = false
+    @State private var checksAutomatically = false
 
     var body: some View {
         Form {
@@ -15,6 +19,21 @@ struct AboutSettings: View {
                     VStack(alignment: .leading) {
                         Text("Pluck").font(.title2.bold())
                         Text("Version \(Bundle.main.version)").foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if let updater {
+                Section("Updates") {
+                    Toggle(isOn: Binding(get: { checksAutomatically }, set: { on in
+                        updater.automaticallyChecksForUpdates = on
+                        checksAutomatically = on
+                    })) {
+                        Text("Check for updates automatically")
+                        Text("Pluck looks for a new version once a day.")
+                    }
+                    LabeledContent("Check for updates now") {
+                        Button("Check Now") { updater.checkForUpdates() }
                     }
                 }
             }
@@ -51,8 +70,11 @@ struct AboutSettings: View {
             }
         }
         .formStyle(.grouped)
-        // A change in General since makes it worth restoring again.
-        .onAppear { restored = false }
+        .onAppear {
+            // A change in General since makes it worth restoring again.
+            restored = false
+            checksAutomatically = updater?.automaticallyChecksForUpdates ?? false
+        }
     }
 }
 
