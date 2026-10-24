@@ -55,7 +55,7 @@ import Foundation
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         retention = defaults.string(forKey: Key.retention).flatMap(Retention.init) ?? .sevenDays
-        removeDraggedOut = defaults.object(forKey: Key.removeDraggedOut) as? Bool ?? true
+        removeDraggedOut = defaults.object(forKey: Key.removeDraggedOut) as? Bool ?? false
         opensOnHover = defaults.object(forKey: Key.opensOnHover) as? Bool ?? true
         showsLatestWhenIdle = defaults.object(forKey: Key.showsLatestWhenIdle) as? Bool ?? true
         notchDisplay = defaults.string(forKey: Key.notchDisplay).flatMap(NotchDisplay.init) ?? .builtIn
