@@ -57,7 +57,7 @@ import Foundation
         retention = defaults.string(forKey: Key.retention).flatMap(Retention.init) ?? .sevenDays
         removeDraggedOut = defaults.object(forKey: Key.removeDraggedOut) as? Bool ?? false
         opensOnHover = defaults.object(forKey: Key.opensOnHover) as? Bool ?? true
-        showsLatestWhenIdle = defaults.object(forKey: Key.showsLatestWhenIdle) as? Bool ?? true
+        showsLatestWhenIdle = defaults.object(forKey: Key.showsLatestWhenIdle) as? Bool ?? false
         notchDisplay = defaults.string(forKey: Key.notchDisplay).flatMap(NotchDisplay.init) ?? .builtIn
         showsMenuBarIcon = defaults.object(forKey: Key.showsMenuBarIcon) as? Bool ?? true
         preview = defaults.string(forKey: Key.preview).flatMap(PreviewStyle.init) ?? .macOS
