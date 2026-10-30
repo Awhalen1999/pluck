@@ -200,6 +200,10 @@ enum Theme {
         static let peekTileCount = 6
         /// The "+N" slot after Peek's tiles, which opens the Shelf.
         static let peekMoreWidth: CGFloat = 44
+        /// A compact Preview's ear, and the capture in it: big enough to know it
+        /// at a glance, small enough to stay in the menu bar beside the notch.
+        static let previewEarWidth: CGFloat = 52
+        static let previewThumb = CGSize(width: 34, height: 21)
         static let previewWidth: CGFloat = 320
         /// The Preview shows the whole screenshot, letterboxed between these heights.
         static let previewImageHeights: ClosedRange<CGFloat> = 124...220
@@ -208,8 +212,6 @@ enum Theme {
         static let previewStackDepth = 3
         static let previewStackStep: CGFloat = 6
         static let previewStackShrink: CGFloat = 0.06
-        static let previewRingSize: CGFloat = 14
-        static let previewRingWidth: CGFloat = 2
         static let shelfWidth: CGFloat = 680
         static let shelfRowHeight: CGFloat = 104
         static let shelfMaxHeight: CGFloat = 600

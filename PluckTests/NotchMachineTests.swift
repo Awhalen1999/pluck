@@ -130,12 +130,12 @@ private struct Driver {
     var shelf = Driver()
     shelf.send(.clicked)
     shelf.send(.shotUp("/new.png"))
-    #expect(shelf.state == .preview("/new.png"))
+    #expect(shelf.state == .preview("/new.png", open: false))
 
     var peek = Driver()
     peek.openPeek()
     peek.send(.shotUp("/new.png"))
-    #expect(peek.state == .preview("/new.png"))
+    #expect(peek.state == .preview("/new.png", open: false))
 
     var dragging = Driver()
     dragging.send(.clicked)
@@ -149,34 +149,92 @@ private struct Driver {
 @Test func aNewShotShowsThePreviewForItsDuration() {
     var d = Driver(previewDuration: 4)
     d.send(.shotUp("/a.png"))
-    #expect(d.state == .preview("/a.png"))
+    #expect(d.state == .preview("/a.png", open: false))
     d.wait(3.9)
-    #expect(d.state == .preview("/a.png"))
+    #expect(d.state == .preview("/a.png", open: false))
     d.wait(0.1)
     #expect(d.state == .idle)
 }
 
-@Test func hoveringHoldsThePreviewAndLeavingNeverEndsItAtOnce() {
+@Test func restingOnTheCompactPreviewOpensItAndHoldsItsTime() {
     var d = Driver(previewDuration: 4)
     d.send(.shotUp("/a.png"))
     d.wait(3.8)
     d.send(.pointerEntered)
+    d.wait(Theme.Timing.hoverIntent / 2)
+    #expect(d.state == .preview("/a.png", open: false))
+    d.wait(Theme.Timing.hoverIntent / 2)
+    #expect(d.state == .preview("/a.png", open: true))
     d.wait(60)
-    #expect(d.state == .preview("/a.png"))
+    #expect(d.state == .preview("/a.png", open: true))
+}
+
+@Test func leavingTheOpenPreviewFoldsItBackAndNeverEndsItAtOnce() {
+    var d = Driver(previewDuration: 4)
+    d.send(.shotUp("/a.png"))
+    d.wait(3.8)
+    d.send(.pointerEntered)
+    d.wait(Theme.Timing.hoverIntent)
+
+    // A small overshoot keeps it open.
+    d.send(.pointerExited)
+    d.wait(Theme.Timing.leaveGrace / 2)
+    d.send(.pointerEntered)
+    d.wait(10)
+    #expect(d.state == .preview("/a.png", open: true))
 
     d.send(.pointerExited)
+    d.wait(Theme.Timing.leaveGrace)
+    #expect(d.state == .preview("/a.png", open: false))
     d.wait(Theme.Timing.previewResumeMinimum - 0.1)
-    #expect(d.state == .preview("/a.png"))
+    #expect(d.state == .preview("/a.png", open: false))
     d.wait(0.1)
     #expect(d.state == .idle)
 }
 
-@Test func aShotArrivingUnderThePointerIsHeldFromTheStart() {
+@Test func aPointerPassingOverTheCompactPreviewNeverOpensIt() {
+    var d = Driver(previewDuration: 4)
+    d.send(.shotUp("/a.png"))
+    d.send(.pointerEntered)
+    for _ in 0..<10 {
+        d.wait(Theme.Timing.hoverIntent / 2)
+        d.send(.pointerPassing)
+    }
+    #expect(d.state == .preview("/a.png", open: false))
+    d.wait(Theme.Timing.hoverIntent)
+    #expect(d.state == .preview("/a.png", open: true))
+}
+
+@Test func withOpenOnHoverOffRestingHoldsTheCompactPreviewButNeverOpensIt() {
+    var d = Driver(opensOnHover: false, previewDuration: 4)
+    d.send(.shotUp("/a.png"))
+    d.send(.pointerEntered)
+    d.wait(60)
+    #expect(d.state == .preview("/a.png", open: false))
+    d.send(.pointerExited)
+    d.wait(4)
+    #expect(d.state == .idle)
+}
+
+@Test func aShotArrivingUnderThePointerIsHeldAndOpensOnceItRests() {
+    // The controller only reports a pointer that has moved since the capture.
     var d = Driver()
     d.send(.pointerEntered)
     d.send(.shotUp("/a.png"))
+    #expect(d.state == .preview("/a.png", open: false))
+    d.wait(Theme.Timing.hoverIntent)
+    #expect(d.state == .preview("/a.png", open: true))
     d.wait(60)
-    #expect(d.state == .preview("/a.png"))
+    #expect(d.state == .preview("/a.png", open: true))
+}
+
+@Test func aNewShotUnderThePointerOnTheOpenPreviewKeepsItOpen() {
+    var d = Driver()
+    d.send(.shotUp("/a.png"))
+    d.send(.pointerEntered)
+    d.wait(Theme.Timing.hoverIntent)
+    d.send(.shotUp("/b.png"))
+    #expect(d.state == .preview("/b.png", open: true))
 }
 
 @Test func eachShotThatComesUpRestartsThePreviewsTime() {
@@ -186,7 +244,7 @@ private struct Driver {
     d.wait(3)
     d.send(.shotUp("/b.png"))
     d.wait(3)
-    #expect(d.state == .preview("/b.png"))
+    #expect(d.state == .preview("/b.png", open: false))
 }
 
 @Test func thePreviewClosesWhenNothingIsLeftToShowButNothingElseDoes() {
@@ -198,16 +256,6 @@ private struct Driver {
     d.openPeek()
     d.send(.previewEmptied)
     #expect(d.state == .peek)
-}
-
-@Test func previewProgressRunsDownAndStopsWhileHeld() {
-    var d = Driver(previewDuration: 4)
-    d.send(.shotUp("/a.png"))
-    d.wait(1)
-    #expect(d.machine.previewProgress(at: d.now) == 0.75)
-    d.send(.pointerEntered)
-    d.wait(30)
-    #expect(d.machine.previewProgress(at: d.now) == 0.75)
 }
 
 // MARK: Timers
@@ -250,7 +298,7 @@ private struct Driver {
     d.send(.wentToAnotherApp)
     d.wait(60)
 
-    #expect(d.state == .preview("/a.png"))
+    #expect(d.state == .preview("/a.png", open: false))
 }
 
 @Test func droppingAPreviewsShotLeavesTheRestToComeUpAndCancellingKeepsIt() {
@@ -261,7 +309,7 @@ private struct Driver {
     d.send(.pointerExited)
     d.send(.dragEnded(dropped: true))
     // The next capture comes up, or the Preview empties and closes.
-    #expect(d.state == .preview("/a.png"))
+    #expect(d.state == .preview("/a.png", open: false))
     d.send(.previewEmptied)
     #expect(d.state == .idle)
 
@@ -270,10 +318,10 @@ private struct Driver {
     d.send(.dragStarted)
     d.send(.pointerExited)
     d.send(.dragEnded(dropped: false))
-    #expect(d.state == .preview("/b.png"))
+    #expect(d.state == .preview("/b.png", open: false))
     // It resumes with the time it had left when the drag began.
     d.wait(3.9)
-    #expect(d.state == .preview("/b.png"))
+    #expect(d.state == .preview("/b.png", open: false))
     d.wait(0.1)
     #expect(d.state == .idle)
 }

@@ -6,11 +6,20 @@ enum NotchState: Equatable {
     case idle
     case peek
     case shelf
-    /// The newest waiting capture, in front of any others.
-    case preview(Shot.ID)
+    /// The newest waiting capture, in front of any others. It comes up compact, an
+    /// ear beside the notch, and is open, with its actions, while the pointer is on it.
+    case preview(Shot.ID, open: Bool)
 
     var isPreview: Bool {
         if case .preview = self { true } else { false }
+    }
+
+    /// No taller than the notch: Idle, or a Preview that isn't open.
+    var isCompact: Bool {
+        switch self {
+        case .idle, .preview(_, open: false): true
+        case .peek, .shelf, .preview(_, open: true): false
+        }
     }
 }
 
@@ -74,21 +83,25 @@ struct NotchMachine: Equatable {
             switch state {
             case .idle: timer = settings.opensOnHover ? now + Theme.Timing.hoverIntent : nil
             case .peek: timer = nil
-            case .preview: pausePreview(at: now)
+            // Back before the grace period ran out: still open, still held.
+            case .preview(_, open: true): timer = nil
+            case .preview(_, open: false):
+                pausePreview(at: now)
+                if settings.opensOnHover { timer = now + Theme.Timing.hoverIntent }
             case .shelf: break
             }
 
         case .pointerPassing:
             // Not arriving yet: the hover delay counts from when it slows down.
-            if state == .idle, pointerInside, timer != nil { timer = now + Theme.Timing.hoverIntent }
+            if state.isCompact, pointerInside, timer != nil { timer = now + Theme.Timing.hoverIntent }
 
         case .pointerExited:
             guard pointerInside else { return }
             pointerInside = false
             switch state {
             case .idle: timer = nil
-            case .peek: timer = now + Theme.Timing.leaveGrace
-            case .preview: resumePreview(at: now)
+            case .peek, .preview(_, open: true): timer = now + Theme.Timing.leaveGrace
+            case .preview(_, open: false): resumePreview(at: now)
             case .shelf: break
             }
 
@@ -102,11 +115,19 @@ struct NotchMachine: Equatable {
             go(.idle)
 
         case .shotUp(let id):
-            go(.preview(id))
-            if pointerInside {
+            // An open Preview the pointer is on stays open for the next one; anywhere
+            // else a capture comes up compact.
+            if case .preview(_, open: true) = state, pointerInside {
+                go(.preview(id, open: true))
                 previewRemaining = settings.previewDuration
             } else {
-                timer = now + settings.previewDuration
+                go(.preview(id, open: false))
+                if pointerInside {
+                    previewRemaining = settings.previewDuration
+                    if settings.opensOnHover { timer = now + Theme.Timing.hoverIntent }
+                } else {
+                    timer = now + settings.previewDuration
+                }
             }
 
         case .previewEmptied:
@@ -115,7 +136,8 @@ struct NotchMachine: Equatable {
         case .dragStarted:
             isDragging = true
             stepsAside = !pointerInside
-            if state.isPreview { pausePreview(at: now) }
+            // A Preview under the pointer is held already; its timer is the hover delay.
+            if state.isPreview, !pointerInside { pausePreview(at: now) }
             timer = nil
 
         case .dragEnded:
@@ -123,7 +145,7 @@ struct NotchMachine: Equatable {
 
         case .feedbackEnded:
             // A pointer resting on the Undo is now simply resting on the notch.
-            if state == .idle, pointerInside, timer == nil, settings.opensOnHover {
+            if state.isCompact, pointerInside, timer == nil, settings.opensOnHover {
                 timer = now + Theme.Timing.hoverIntent
             }
 
@@ -133,8 +155,14 @@ struct NotchMachine: Equatable {
             switch state {
             case .idle: if pointerInside { go(.peek) }
             case .peek: if !pointerInside { go(.idle) }
-            case .preview: go(.idle)
-            case .shelf: break
+            // The pointer rested on it: it opens, still held.
+            case .preview(let id, open: false) where pointerInside: state = .preview(id, open: true)
+            case .preview(_, open: false): go(.idle)
+            // The pointer left for good: it folds back, and its time runs again.
+            case .preview(let id, open: true) where !pointerInside:
+                state = .preview(id, open: false)
+                resumePreview(at: now)
+            case .preview(_, open: true), .shelf: break
             }
         }
     }
@@ -173,13 +201,6 @@ struct NotchMachine: Equatable {
         default:
             break
         }
-    }
-
-    /// How much of the Preview's time is left, from 1 down to 0.
-    func previewProgress(at now: Date) -> Double {
-        guard state.isPreview, settings.previewDuration > 0 else { return 0 }
-        let left = previewRemaining ?? timer.map { $0.timeIntervalSince(now) } ?? 0
-        return min(1, max(0, left / settings.previewDuration))
     }
 
     private mutating func go(_ next: NotchState) {

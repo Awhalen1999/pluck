@@ -135,7 +135,7 @@ struct PreviewDurationPicker: View {
             ForEach(PreviewDuration.allCases, id: \.self) { Text("\(Int($0.rawValue)) sec").tag($0) }
         } label: {
             Text("Show preview for")
-            Text("Hover over the preview to keep it open.")
+            Text("Rest the pointer on the preview to open it.")
         }
         .pickerStyle(.segmented)
     }

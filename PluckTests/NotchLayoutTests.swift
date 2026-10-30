@@ -113,6 +113,17 @@ private let gap = Theme.Space.s
     #expect(hidden.size == notch)
 }
 
+@Test func aCompactPreviewStaysNotchHighAndOnlyOpeningItCoversTheScreen() {
+    let capture = shot("a")
+    let content = NotchLayout.Content(pending: [capture], showsLatest: false)
+    let compact = NotchLayout.frame(for: .preview(capture.id, open: false), content: content, notch: notch)
+    #expect(compact.size == CGSize(width: notch.width + Theme.Notch.previewEarWidth, height: notch.height))
+
+    let open = NotchLayout.frame(for: .preview(capture.id, open: true), content: content, notch: notch)
+    #expect(open.size.width == Theme.Notch.previewWidth)
+    #expect(open.size.height > notch.height)
+}
+
 @Test func peeksHeaderFitsAShotsDetailBesideTheCamera() {
     let peek = NotchLayout.frame(for: .peek, content: NotchLayout.Content(shots: [shot("only")]), notch: notch)
     // An ear, less its outer padding and the gap beside the camera housing.

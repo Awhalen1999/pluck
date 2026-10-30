@@ -57,8 +57,8 @@ enum NotchLayout {
         let n = Theme.Notch.self
         let minWidth = notch.width + 2 * n.minExpandedEar
         switch state {
-        case .idle:
-            let ears = idleEars(content)
+        case .idle, .preview(_, open: false):
+            let ears = ears(for: state, content)
             return Frame(size: CGSize(width: notch.width + ears.left + ears.right, height: notch.height),
                          offsetX: (ears.right - ears.left) / 2)
 
@@ -67,7 +67,7 @@ enum NotchLayout {
             return Frame(size: CGSize(width: max(peekRowWidth(count: content.shots.count) + 2 * Theme.Space.l, minWidth),
                                       height: n.headerHeight + row + Theme.Space.l))
 
-        case .preview(let id):
+        case .preview(let id, open: true):
             let shot = content.pending.first { $0.id == id }
             return Frame(size: CGSize(width: n.previewWidth,
                                       height: n.headerHeight + previewImageHeight(shot) + Theme.Space.m + n.controlHeight + Theme.Space.l))
@@ -87,23 +87,23 @@ enum NotchLayout {
     }
 
     /// Where the pointer counts as "on the notch", in screen coordinates. It
-    /// always reaches the top edge of the screen, and when idle a little below
-    /// the notch too, since the camera housing hides the cursor.
+    /// always reaches the top edge of the screen, and at notch height a little
+    /// below the notch too, since the camera housing hides the cursor.
     static func hoverZone(for frame: Frame, state: NotchState, geometry: NotchGeometry) -> CGRect {
         var zone = shapeRect(for: frame, geometry: geometry)
         zone.size.height += geometry.topInset
-        if state == .idle {
+        if state.isCompact {
             zone.origin.y -= Theme.Notch.hoverReach
             zone.size.height += Theme.Notch.hoverReach
         }
         return zone
     }
 
-    /// The idle notch grows a left ear for the latest shot, and a right ear while
-    /// it shows feedback.
-    static func idleEars(_ content: Content) -> (left: CGFloat, right: CGFloat) {
+    /// At notch height, the notch grows a left ear for a compact Preview's capture,
+    /// or when idle for the latest shot, and a right ear while it shows feedback.
+    static func ears(for state: NotchState, _ content: Content) -> (left: CGFloat, right: CGFloat) {
         let n = Theme.Notch.self
-        let left = content.showsLatest && !content.shots.isEmpty ? n.idleEarWidth : 0
+        let left = state.isPreview ? n.previewEarWidth : content.showsLatest && !content.shots.isEmpty ? n.idleEarWidth : 0
         let right = content.feedback.map { $0.canUndo ? n.feedbackUndoEarWidth : n.feedbackEarWidth } ?? 0
         return (left, right)
     }

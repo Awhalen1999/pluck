@@ -82,12 +82,19 @@ struct DesignSystemView: View {
     }
 
     private var tileSection: some View {
-        section("Tiles", "A shot at rest, hovered, selected and pinned.") {
-            HStack(spacing: Theme.Space.xl) {
+        section("Tiles", "A shot at rest, hovered, selected and pinned, and a compact Preview's capture in its ear.") {
+            HStack(alignment: .top, spacing: Theme.Space.xl) {
                 tileState("rest") { DemoTile(hue: Demo.hue(4)) }
                 tileState("hover") { DemoTile(hue: Demo.hue(4), hovered: true) }
                 tileState("selected") { DemoTile(hue: Demo.hue(4), selected: true) }
                 tileState("pinned") { DemoTile(hue: Demo.hue(4), pinned: true) }
+                VStack(spacing: Theme.Space.s) {
+                    DemoTile(hue: Demo.hue(4))
+                        .frame(width: Theme.Notch.previewThumb.width, height: Theme.Notch.previewThumb.height)
+                        .frame(width: Theme.Notch.previewEarWidth, height: Theme.Notch.referenceSize.height)
+                        .background(Theme.Notch.fill)
+                    Text("preview ear").font(Theme.Typography.detail).foregroundStyle(.secondary)
+                }
             }
         }
     }

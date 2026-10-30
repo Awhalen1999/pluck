@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The screenshots you just took, newest in front, with what you'd do next.
-/// Acting on the front one saves it and brings up the next; when the time runs
-/// out, all of them are saved. Hovering holds it, and dragging the front one out
-/// takes it with you, never saved.
+/// The open Preview: the screenshots you just took, newest in front, with what
+/// you'd do next. It's open while the pointer is on it, and folds back into the
+/// notch when it leaves. Acting on the front one saves it and brings up the next;
+/// dragging the front one out takes it with you, never saved.
 struct PreviewView: View {
     /// Front first.
     let stack: [Shot]
@@ -19,7 +19,7 @@ struct PreviewView: View {
             NotchHeader(notchWidth: notchWidth) {
                 if stack.count > 1 { Text("\(stack.count) shots") }
             } trailing: {
-                CountdownRing(controller: controller)
+                EmptyView()
             }
             VStack(spacing: Theme.Space.m) {
                 ShotImage(shot: shot, fits: true)
@@ -79,26 +79,5 @@ struct PreviewView: View {
             }
             .padding(.horizontal, Theme.Space.l)
         }
-    }
-}
-
-/// How long until the Preview closes. It stops while the pointer holds it.
-private struct CountdownRing: View {
-    let controller: NotchController
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: nil, paused: controller.previewIsHeld)) { context in
-            let style = StrokeStyle(lineWidth: Theme.Notch.previewRingWidth, lineCap: .round)
-            ZStack {
-                Circle().stroke(.quaternary, style: style)
-                Circle()
-                    .trim(from: 0, to: controller.previewProgress(at: context.date))
-                    .stroke(.secondary, style: style)
-                    .rotationEffect(.degrees(-90))
-            }
-            .frame(width: Theme.Notch.previewRingSize, height: Theme.Notch.previewRingSize)
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }

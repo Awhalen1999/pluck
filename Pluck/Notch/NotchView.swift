@@ -9,7 +9,7 @@ struct NotchView: View {
     var body: some View {
         if let geometry = controller.geometry {
             let frame = controller.frame
-            let expanded = controller.shownState != .idle
+            let expanded = !controller.shownState.isCompact
             let shape = NotchShape(radius: expanded ? Theme.Notch.expandedRadius
                                        : geometry.hasNotch ? Theme.Notch.idleRadius : frame.size.height / 2,
                                    flare: expanded ? Theme.Notch.expandedFlare : Theme.Notch.idleFlare,
@@ -49,11 +49,12 @@ struct NotchView: View {
     @ViewBuilder
     private func content(notchWidth: CGFloat) -> some View {
         switch controller.state {
-        case .idle:
-            IdleEars(controller: controller, notchWidth: notchWidth)
+        // One view for both, so a capture landing grows the ear in place.
+        case .idle, .preview(_, open: false):
+            Ears(controller: controller, notchWidth: notchWidth)
         case .peek:
             PeekView(controller: controller, notchWidth: notchWidth)
-        case .preview:
+        case .preview(_, open: true):
             let stack = controller.previewStack
             if !stack.isEmpty {
                 PreviewView(stack: stack, controller: controller, notchWidth: notchWidth)
@@ -109,17 +110,25 @@ struct FeedbackLabel: View {
     }
 }
 
-/// The idle notch's ears: the latest shot on the left, feedback on the right.
-private struct IdleEars: View {
+/// The notch at notch height: on the left a compact Preview's capture, or the
+/// latest shot when idle; feedback on the right.
+private struct Ears: View {
     let controller: NotchController
     let notchWidth: CGFloat
 
     var body: some View {
-        let ears = NotchLayout.idleEars(controller.content)
+        let ears = NotchLayout.ears(for: controller.state, controller.content)
         HStack(spacing: 0) {
-            LatestStack(shots: Array(controller.library.shots.prefix(Theme.Notch.latestStackDepth)))
-                .frame(width: ears.left)
-                .opacity(ears.left > 0 ? 1 : 0)
+            Group {
+                let stack = controller.previewStack
+                if let front = stack.first {
+                    PreviewThumb(stack: stack, front: front, controller: controller)
+                } else {
+                    LatestStack(shots: Array(controller.library.shots.prefix(Theme.Notch.latestStackDepth)), size: Theme.Notch.latestThumb)
+                }
+            }
+            .frame(width: ears.left)
+            .opacity(ears.left > 0 ? 1 : 0)
             Color.clear.frame(width: notchWidth)
             Group {
                 if let feedback = controller.feedback { FeedbackLabel(feedback: feedback, controller: controller) }
@@ -130,15 +139,40 @@ private struct IdleEars: View {
     }
 }
 
+/// A compact Preview's capture, with any waiting behind it: a click copies it, a
+/// drag takes it, and resting on it opens the Preview.
+private struct PreviewThumb: View {
+    let stack: [Shot]
+    let front: Shot
+    let controller: NotchController
+
+    var body: some View {
+        LatestStack(shots: Array(stack.prefix(Theme.Notch.latestStackDepth)), size: Theme.Notch.previewThumb)
+            .overlay {
+                ShotInteraction(onClick: { _ in controller.copy([front.id]) },
+                                onDoubleClick: nil,
+                                onDrag: { controller.beginDrag(front.id, from: $0, event: $1) },
+                                menu: { controller.menu(for: front.id) })
+            }
+            .opacity(controller.draggedShots.contains(front.id) ? Theme.Tile.draggedOpacity : 1)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Screenshot, \(front.detail)")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Copies it")
+            .accessibilityAction { controller.copy([front.id]) }
+    }
+}
+
 /// The newest shots, stacked like a little deck.
 private struct LatestStack: View {
     let shots: [Shot]
+    let size: CGSize
 
     var body: some View {
         ZStack {
             ForEach(Array(shots.enumerated().reversed()), id: \.element.id) { depth, shot in
                 ShotImage(shot: shot)
-                    .frame(width: Theme.Notch.latestThumb.width, height: Theme.Notch.latestThumb.height)
+                    .frame(width: size.width, height: size.height)
                     .clipShape(.rect(cornerRadius: Theme.Radius.mini, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: Theme.Radius.mini, style: .continuous)
