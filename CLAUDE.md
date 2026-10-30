@@ -128,7 +128,7 @@ its timer.
 | Idle    | default                                  | hover → Peek, click → Shelf, new shot → Preview            |
 | Peek    | hovering the notch past the intent delay | pointer leaves (after a grace period) → Idle, click → Shelf, new shot → Preview |
 | Shelf   | a click on the notch, or "+N" in Peek    | click outside or switching apps, Esc or ⌘W, Return (copies) → Idle; new shot → Preview |
-| Preview | a new capture, from any state            | the last waiting capture dealt with, or its time up → Idle; click → Shelf; new capture → it, in front |
+| Preview | a new capture, from any state, compact   | the last waiting capture dealt with, or its time up → Idle; click → Shelf; new capture → it, in front. Resting on it opens it; leaving folds it back (after a grace period) |
 
 - A click on the notch itself opens the Shelf from any state. A click on a shot
   copies it; buttons do what they say.
@@ -136,10 +136,18 @@ its timer.
   front one (copy, Preview, pin, trash, a drop) deals with it and the next comes
   up; with none left the notch closes. Leaving the Preview any other way saves
   what it still holds. In Peek and the Shelf, acting leaves them open.
-- Hovering holds the Preview's timer. Leaving resumes it, never with less than
-  `Timing.previewResumeMinimum` left.
-- While feedback offers Undo, hovering doesn't open Peek: the pointer is aiming
-  at the Undo. Once it goes, a pointer still resting there opens Peek.
+- The Preview comes up compact: the notch grows one ear with the capture, no
+  taller than the notch, so it covers none of the user's work and takes no click
+  meant for their app. A click on the capture copies it, a drag takes it, and
+  its menu is there. Resting on it past the intent delay opens it, with its
+  actions; leaving folds it back after the grace period. It never comes up open.
+- The pointer on the Preview holds its timer. Leaving resumes it, never with
+  less than `Timing.previewResumeMinimum` left. A pointer that hasn't moved
+  since a capture landed was there first: it opens and holds nothing until it
+  moves.
+- While feedback offers Undo, hovering doesn't open Peek or the Preview: the
+  pointer is aiming at the Undo. Once it goes, a pointer still resting there
+  opens them.
 - While one of its menus is open, the notch stays as it is: the pointer is on
   the menu, not gone.
 - A successful drop finishes the notch from any state. A cancelled drag puts
@@ -147,13 +155,15 @@ its timer.
 - The machine has at most one timer, and every transition replaces it, so a
   timer can never outlive its state. Feedback has its own timer.
 - Feedback ("Copied", "Trashed · Undo") is not a state. It is one slot any state
-  can show; a new message replaces the old one. The Preview's header is too
-  narrow for it, so there it floats on the card.
+  can show; a new message replaces the old one. A compact Preview shows it in
+  its right ear, as Idle does; an open one's header is too narrow for it, so
+  there it floats on the card.
 - Hover is geometry: the pointer's position against `NotchLayout.hoverZone`,
   from a global mouse monitor plus the notch's own hover events. No invisible
   views, so nothing blocks clicks underneath.
 - The intent delay counts from when the pointer slows down on the notch. One
-  sweeping across it along the menu bar is passing over, and never opens Peek.
+  sweeping across it along the menu bar is passing over, and never opens Peek
+  or the Preview.
 - Esc always goes back exactly one level: a menu, then the selection, then the
   Shelf.
 - Only the Shelf takes the keyboard. Peek and the Preview never take it from

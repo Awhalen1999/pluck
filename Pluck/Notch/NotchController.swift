@@ -31,6 +31,9 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
     /// Where the pointer was when the arrow keys last moved the focus. Until it
     /// moves, shots scrolling under it don't take the focus back.
     @ObservationIgnored private var pointerAtKeyboardFocus: CGPoint?
+    /// Where the pointer was when the newest capture landed. Until it moves, it
+    /// was there first, and isn't on the notch: it opens and holds nothing.
+    @ObservationIgnored private var pointerAtCapture: CGPoint?
 
     init(library: ShotLibrary, preferences: Preferences) {
         self.library = library
@@ -76,13 +79,9 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
 
     /// The Preview's captures, the one in front first.
     var previewStack: [Shot] {
-        guard case .preview(let id) = state, let front = library.pending.first(where: { $0.id == id }) else { return [] }
+        guard case .preview(let id, _) = state, let front = library.pending.first(where: { $0.id == id }) else { return [] }
         return [front] + library.pending.filter { $0.id != id }
     }
-
-    func previewProgress(at date: Date) -> Double { machine.previewProgress(at: date) }
-
-    var previewIsHeld: Bool { machine.timer == nil }
 
     /// The arrow keys moved the focus, so the Shelf keeps it in view.
     var focusFollowsKeyboard: Bool { pointerAtKeyboardFocus != nil }
@@ -374,9 +373,12 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
         guard let geometry else { return }
         let onShape = NotchLayout.shapeRect(for: frame, geometry: geometry).contains(point)
         if panel.ignoresMouseEvents == onShape { panel.ignoresMouseEvents = !onShape }
-        let inside = NotchLayout.hoverZone(for: frame, state: shownState, geometry: geometry).contains(point)
+        var inside = NotchLayout.hoverZone(for: frame, state: shownState, geometry: geometry).contains(point)
+        if let still = pointerAtCapture {
+            if hypot(point.x - still.x, point.y - still.y) < 1 { inside = false } else { pointerAtCapture = nil }
+        }
         if inside != machine.pointerInside { send(inside ? .pointerEntered : .pointerExited) }
-        if inside, fast, shownState == .idle { send(.pointerPassing) }
+        if inside, fast, shownState.isCompact { send(.pointerPassing) }
     }
 
     /// For when the notch changes shape under a pointer that hasn't moved.
@@ -386,8 +388,12 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
 
     private func watchLibrary() {
         Task { [weak self] in
-            for await _ in Observations({ [weak self] in self?.library.pending.map(\.id) ?? [] }) {
+            var waiting: Set<Shot.ID> = []
+            for await ids in Observations({ [weak self] in self?.library.pending.map(\.id) ?? [] }) {
                 guard let self else { return }
+                // A new capture, not the next in line coming up.
+                if !Set(ids).isSubset(of: waiting) { pointerAtCapture = NSEvent.mouseLocation }
+                waiting = Set(ids)
                 Thumbnails.prefetch(library.pending)
                 followPending()
             }
@@ -413,7 +419,7 @@ private let log = Logger(subsystem: "dev.awln.pluck", category: "Notch")
     /// Preview closes. Mid-drag the machine holds off, and the drag's end asks again.
     private func followPending() {
         let front = library.pending.first?.id
-        if case .preview(let shown) = state, shown == front { return }
+        if case .preview(let shown, _) = state, shown == front { return }
         if let front {
             send(.shotUp(front))
         } else if state.isPreview {
