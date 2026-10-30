@@ -1,5 +1,11 @@
 [
   {
+    "version": "1.0.2",
+    "build": "4",
+    "date": "2026-10-30",
+    "notes": "Pluck 1.0.2\n\n- A new screenshot now lands in the notch as a small thumbnail, instead of a large preview over your work. Nothing covers your screen, and your clicks go to the app you're in.\n- Click the thumbnail to copy it, drag it into any app, or rest the pointer on it to open the full preview with Copy, Preview, Pin and Trash.\n- The preview no longer stays open just because your pointer was already at the top of the screen.\n- The countdown ring is gone from the preview."
+  },
+  {
     "version": "1.0.1",
     "build": "3",
     "date": "2026-10-24",
