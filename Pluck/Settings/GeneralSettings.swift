@@ -41,7 +41,7 @@ struct GeneralSettings: View {
             Section("Notch") {
                 Toggle(isOn: $preferences.opensOnHover) {
                     Text("Open on hover")
-                    Text("Rest the pointer on the notch to see recent screenshots. When off, click it instead.")
+                    Text("Rest the pointer on the notch, or on a new screenshot, to open it. When off, click the notch instead.")
                 }
                 Toggle(isOn: $preferences.showsLatestWhenIdle) {
                     Text("Show latest screenshot")
