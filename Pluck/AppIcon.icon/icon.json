@@ -1,90 +1,35 @@
 {
-  "fill-specializations" : [
+  "fill": {
+    "solid": "srgb:0.84706,0.11765,0.35686,1.00000"
+  },
+  "groups": [
     {
-      "value" : {
-        "linear-gradient" : [
-          "extended-gray:1.00000,1.00000",
-          "gray:0.69567,1.00000"
-        ]
-      }
-    },
-    {
-      "appearance" : "dark",
-      "value" : {
-        "linear-gradient" : [
-          "gray:0.25000,1.00000",
-          "gray:0.07942,1.00000"
-        ]
-      }
-    }
-  ],
-  "groups" : [
-    {
-      "layers" : [
+      "layers": [
         {
-          "fill-specializations" : [
-            {
-              "appearance" : "tinted",
-              "value" : {
-                "solid" : "gray:1.00000,1.00000"
-              }
-            }
-          ],
-          "image-name" : "3-front-card 2.svg",
-          "name" : "3-front-card 2"
+          "image-name": "3-front-card 2.svg",
+          "name": "3-front-card 2"
         },
         {
-          "fill-specializations" : [
-            {
-              "appearance" : "tinted",
-              "value" : {
-                "solid" : "gray:1.00000,1.00000"
-              }
-            }
-          ],
-          "image-name" : "2-back-card.svg",
-          "name" : "2-back-card",
-          "opacity-specializations" : [
-            {
-              "appearance" : "tinted",
-              "value" : 0.5
-            }
-          ]
+          "image-name": "2-back-card.svg",
+          "name": "2-back-card"
         },
         {
-          "fill-specializations" : [
-            {
-              "appearance" : "tinted",
-              "value" : {
-                "solid" : "gray:1.00000,1.00000"
-              }
-            }
-          ],
-          "image-name" : "1-notch.svg",
-          "name" : "1-notch",
-          "opacity-specializations" : [
-            {
-              "appearance" : "tinted",
-              "value" : 0.75
-            }
-          ]
+          "image-name": "1-notch.svg",
+          "name": "1-notch"
         }
       ],
-      "name" : "files",
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
+      "name": "files",
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
       },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.3
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
       }
     }
   ],
-  "supported-platforms" : {
-    "circles" : [
-      "watchOS"
-    ],
-    "squares" : "shared"
+  "supported-platforms": {
+    "squares": "shared"
   }
 }

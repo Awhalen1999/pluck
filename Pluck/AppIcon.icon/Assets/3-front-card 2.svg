@@ -3,9 +3,9 @@
 <linearGradient id="fw" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F3F3F7"/></linearGradient>
 <!-- pink rises across the left edge of the back card (x=368), blurred like frosted glass -->
 <linearGradient id="tintX" gradientUnits="userSpaceOnUse" x1="310" y1="0" x2="687" y2="0">
-<stop offset="0" stop-color="#FF6E9C" stop-opacity="0"/>
-<stop offset=".35" stop-color="#FF6E9C" stop-opacity=".45"/>
-<stop offset="1" stop-color="#F0145A" stop-opacity=".7"/>
+<stop offset="0" stop-color="#FFB3CC" stop-opacity="0"/>
+<stop offset=".35" stop-color="#FFB3CC" stop-opacity=".45"/>
+<stop offset="1" stop-color="#FF9DBE" stop-opacity=".7"/>
 </linearGradient>
 <!-- and fades out past the back card's bottom edge (y=705) -->
 <linearGradient id="fadeY" gradientUnits="userSpaceOnUse" x1="0" y1="334" x2="0" y2="769">
